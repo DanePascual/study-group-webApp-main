@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/profile.css" />
+    <title>Profile - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item">
+          <i class="bi bi-house"></i>
+          Dashboard
+        </a>
+        <a href="profile.html" class="sidebar-item active">
+          <i class="bi bi-person"></i>
+          Profile
+        </a>
+        <a href="study-rooms.html" class="sidebar-item">
+          <i class="bi bi-door-open"></i>
+          Study Rooms
+        </a>
+        <a href="resources.html" class="sidebar-item">
+          <i class="bi bi-folder"></i>
+          Resources
+        </a>
+        <a href="discussion.html" class="sidebar-item">
+          <i class="bi bi-chat-dots"></i>
+          Discussion Forum
+        </a>
+        <a href="report.html" class="sidebar-item">
+          <i class="bi bi-flag"></i>
+          Report
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div
+          class="user-info"
+          style="cursor: pointer; transition: all 0.3s ease"
+        >
+          <div class="user-avatar" id="sidebarAvatar">DP</div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              DanePascual
+            </div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              BSIT
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Profile</h1>
+        </div>
+        <div class="nav-actions">
+          <!-- Removed pencil icon as requested -->
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle theme"
+          >
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Profile Content -->
+      <div class="profile-content">
+        <!-- Profile Header -->
+        <div class="profile-header">
+          <div class="profile-avatar-section">
+            <div class="profile-avatar" id="profileAvatar">
+              <i class="bi bi-person-circle avatar-icon"></i>
+            </div>
+            <button class="edit-profile-btn" onclick="openEditModal()">
+              <i class="bi bi-pencil"></i>
+              Edit Profile
+            </button>
+          </div>
+          <div class="profile-info">
+            <h1 class="profile-name" id="displayName">DanePascual</h1>
+            <p class="profile-email" id="displayEmail">
+              <i class="bi bi-envelope"></i>
+              <span class="email-text"
+                >danepascual@paterostechnologicalcollege.edu.ph</span
+              >
+            </p>
+            <p class="profile-bio" id="displayBio">
+              Information Technology student passionate about web development,
+              cybersecurity, and collaborative learning. Always eager to explore
+              new technologies and connect with fellow IT enthusiasts.
+            </p>
+          </div>
+        </div>
+
+        <!-- Profile Sections -->
+        <div class="profile-sections">
+          <!-- Left Column -->
+          <div>
+            <!-- Personal Information -->
+            <div class="profile-section">
+              <h2 class="section-title">
+                <div class="section-icon">
+                  <i class="bi bi-person"></i>
+                </div>
+                Personal Information
+              </h2>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Full Name</div>
+                  <div class="info-value" id="infoName">DanePascual</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Student Number</div>
+                  <div class="info-value" id="infoStudentNumber">
+                    2025-00001
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Program</div>
+                  <div class="info-value" id="infoProgram">BSIT</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Year Level</div>
+                  <div class="info-value" id="infoYearLevel">3rd Year</div>
+                </div>
+                <div class="info-item full-width">
+                  <div class="info-label">Email Address</div>
+                  <div class="info-value email" id="infoEmail">
+                    danepascual@paterostechnologicalcollege.edu.ph
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top: 25px">
+                <div class="info-label">About Me</div>
+                <div class="bio-section" id="infoBio">
+                  Information Technology student passionate about web
+                  development, cybersecurity, and collaborative learning. Always
+                  eager to explore new technologies and connect with fellow IT
+                  enthusiasts.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div>
+            <!-- Academic Information - Moved to right column -->
+            <div class="profile-section">
+              <h2 class="section-title">
+                <div class="section-icon">
+                  <i class="bi bi-mortarboard"></i>
+                </div>
+                Academic Information
+              </h2>
+              <div class="info-grid">
+                <div class="info-item full-width">
+                  <div class="info-label">Institution</div>
+                  <div class="info-value" id="infoInstitution">
+                    Pateros Technological College
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Specialization</div>
+                  <div class="info-value" id="infoSpecialization">
+                    Web Development
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Expected Graduation</div>
+                  <div class="info-value" id="infoGraduation">2026</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Edit Profile</h3>
+          <button class="close-modal" onclick="closeEditModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <form id="editForm">
+            <!-- Photo Upload Section -->
+            <div class="photo-upload-section">
+              <div class="current-photo" id="modalAvatar">
+                <i class="bi bi-person-circle avatar-icon"></i>
+              </div>
+              <div class="file-input-wrapper">
+                <input type="file" id="photoInput" accept="image/*" />
+                <i class="bi bi-camera"></i> Choose Photo
+              </div>
+              <div class="upload-hint">
+                Recommended: Square image, max 5MB (JPG, PNG, GIF)
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editName"
+                value="DanePascual"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input
+                type="email"
+                class="form-input"
+                id="editEmail"
+                value="danepascual@paterostechnologicalcollege.edu.ph"
+                required
+              />
+              <div class="email-hint">
+                <i class="bi bi-info-circle"></i>
+                Email must be from Pateros Technological College domain
+                (@paterostechnologicalcollege.edu.ph)
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Student Number</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editStudentNumber"
+                value="2025-00001"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Program</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editProgram"
+                value="BSIT"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Institution</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editInstitution"
+                value="Pateros Technological College"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Year Level</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editYearLevel"
+                value="3rd Year"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Specialization</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editSpecialization"
+                value="Web Development"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Expected Graduation</label>
+              <input
+                type="text"
+                class="form-input"
+                id="editGraduation"
+                value="2026"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">About Me</label>
+              <textarea
+                class="form-textarea"
+                id="editBio"
+                placeholder="Tell us about yourself..."
+              >
+Information Technology student passionate about web development, cybersecurity, and collaborative learning. Always eager to explore new technologies and connect with fellow IT enthusiasts.</textarea
+              >
+            </div>
+          </form>
+        </div>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="modal-btn modal-btn-cancel"
+            onclick="closeEditModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="modal-btn modal-btn-save"
+            onclick="saveProfile()"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/profile.js"></script>
+  </body>
+</html>

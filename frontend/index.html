@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="StudyGroup - Connect, collaborate, and succeed together. Join the best online study platform for students."
+    />
+    <meta
+      name="keywords"
+      content="study group, online learning, collaboration, students, education"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="student/styles/landing-page.css" />
+    <title>StudyGroup - Connect, Collaborate, Succeed</title>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar fixed-top" id="navbar">
+      <div class="container">
+        <div class="row w-100 align-items-center">
+          <div class="col-auto">
+            <a href="#" class="navbar-brand">
+              <i class="bi bi-book"></i>
+              StudyGroup
+            </a>
+          </div>
+          <div class="col">
+            <div
+              class="navbar-nav d-none d-lg-flex flex-row justify-content-center"
+            >
+              <a class="nav-link" href="#home">Home</a>
+              <a class="nav-link" href="#features">Features</a>
+              <a class="nav-link" href="#how-it-works">How it Works</a>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="d-flex align-items-center">
+              <a href="student/pages/login.html" class="btn-signup"
+                >Get Started</a
+              >
+              <button
+                class="theme-toggle"
+                id="themeToggle"
+                aria-label="Toggle theme"
+              >
+                <i class="bi bi-moon"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section" id="home">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-lg-6">
+            <div class="hero-content">
+              <h1 class="hero-title">Connect, Collaborate, Succeed Together</h1>
+              <p class="hero-subtitle">
+                Join thousands of students in interactive study groups, share
+                resources, and achieve your academic goals with collaborative
+                learning.
+              </p>
+              <div class="hero-buttons">
+                <a href="student/pages/login.html" class="btn-primary-large">
+                  <i class="bi bi-rocket"></i>
+                  Start Studying Now
+                </a>
+                <a href="#how-it-works" class="btn-secondary-large">
+                  <i class="bi bi-play-circle"></i>
+                  How it Works
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="hero-image">
+              <div class="hero-dashboard">
+                <div
+                  style="
+                    height: 300px;
+                    background: linear-gradient(
+                      135deg,
+                      #f8f9fa 0%,
+                      #e8f5e8 100%
+                    );
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #666;
+                    font-size: 1.2rem;
+                  "
+                >
+                  <div class="text-center">
+                    <i
+                      class="bi bi-people-fill"
+                      style="
+                        font-size: 3rem;
+                        color: var(--primary-color);
+                        margin-bottom: 15px;
+                      "
+                    ></i>
+                    <div>StudyGroup Dashboard Preview</div>
+                    <small>Interactive Learning Environment</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section" id="features">
+      <div class="container">
+        <h2 class="section-title scroll-animate">
+          Powerful Features for Better Learning
+        </h2>
+        <p class="section-subtitle scroll-animate">
+          Everything you need to enhance your study experience and connect with
+          like-minded learners.
+        </p>
+
+        <div class="features-grid">
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <h3 class="feature-title">Interactive Study Rooms</h3>
+            <p class="feature-description">
+              Join virtual study rooms with real-time collaboration, video chat,
+              and shared whiteboards for interactive learning sessions.
+            </p>
+          </div>
+
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-folder-fill"></i>
+            </div>
+            <h3 class="feature-title">Resource Sharing</h3>
+            <p class="feature-description">
+              Share and access a vast library of study materials, notes, and
+              resources contributed by students and educators worldwide.
+            </p>
+          </div>
+
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-chat-dots-fill"></i>
+            </div>
+            <h3 class="feature-title">Discussion Forums</h3>
+            <p class="feature-description">
+              Engage in meaningful discussions, ask questions, and get answers
+              from a community of learners and subject experts.
+            </p>
+          </div>
+
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-calendar-check"></i>
+            </div>
+            <h3 class="feature-title">Study Scheduling</h3>
+            <p class="feature-description">
+              Organize your study sessions with smart scheduling tools,
+              reminders, and progress tracking to stay on top of your goals.
+            </p>
+          </div>
+
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-graph-up"></i>
+            </div>
+            <h3 class="feature-title">Progress Analytics</h3>
+            <p class="feature-description">
+              Track your learning progress with detailed analytics, performance
+              insights, and personalized recommendations.
+            </p>
+          </div>
+
+          <div class="feature-card scroll-animate">
+            <div class="feature-icon">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <h3 class="feature-title">Safe Environment</h3>
+            <p class="feature-description">
+              Study in a secure, moderated environment with comprehensive
+              reporting tools and community guidelines to ensure safety.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it Works Section -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="container">
+        <h2 class="section-title scroll-animate">How StudyGroup Works</h2>
+        <p class="section-subtitle scroll-animate">
+          Get started in minutes and transform your learning experience with our
+          simple process.
+        </p>
+
+        <div class="steps-grid">
+          <div class="step-card scroll-animate">
+            <div class="step-number">1</div>
+            <h3 class="step-title">Create Your Account</h3>
+            <p class="step-description">
+              Sign up with your email and set up your profile. Choose your
+              subjects of interest and academic goals to get personalized
+              recommendations.
+            </p>
+          </div>
+
+          <div class="step-card scroll-animate">
+            <div class="step-number">2</div>
+            <h3 class="step-title">Join Study Groups</h3>
+            <p class="step-description">
+              Browse and join study groups that match your subjects and
+              schedule. Connect with students who share your academic interests
+              and goals.
+            </p>
+          </div>
+
+          <div class="step-card scroll-animate">
+            <div class="step-number">3</div>
+            <h3 class="step-title">Start Collaborating</h3>
+            <p class="step-description">
+              Participate in study sessions, share resources, ask questions, and
+              help others. Track your progress and achieve better results
+              together.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="student/scripts/landing-page.js"></script>
+  </body>
+</html>

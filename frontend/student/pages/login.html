@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/login.css" />
+    <title>Login - Study Group</title>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="login-wrapper">
+        <!-- Left side - Sign up section -->
+        <div class="left-section">
+          <div class="signup-text">Don't have an account?</div>
+          <button class="signup-btn" onclick="goToSignup()">Sign up</button>
+        </div>
+
+        <!-- Right side - Login form -->
+        <div class="right-section">
+          <h1 class="login-title">
+            LOG IN TO CONTINUE<br />LEARNING WITH BUDDIES!
+          </h1>
+
+          <form id="loginForm">
+            <div class="form-group">
+              <i class="bi bi-envelope input-icon"></i>
+              <input
+                type="email"
+                class="form-input"
+                id="email"
+                placeholder="Enter your institutional email"
+                required
+              />
+            </div>
+
+            <!-- Find this section in your code -->
+            <div class="form-group">
+              <i class="bi bi-lock input-icon"></i>
+              <input
+                type="password"
+                class="form-input"
+                id="password"
+                placeholder="Enter your password"
+                autocomplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePassword()"
+              >
+                <i class="bi bi-eye" id="passwordToggleIcon"></i>
+              </button>
+            </div>
+
+            <div class="forgot-link">
+              <a href="#" onclick="openForgotPasswordModal()"
+                >Forgot password?</a
+              >
+            </div>
+
+            <button type="submit" class="login-btn">Log in</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title"><i class="bi bi-key"></i> Reset Password</h3>
+          <button class="close-modal" onclick="closeForgotPasswordModal()">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description">
+            Enter your college email address and we'll send you a link to reset
+            your password.
+          </p>
+          <form id="forgotPasswordForm">
+            <div class="modal-form-group">
+              <input
+                type="email"
+                class="modal-input"
+                id="forgotEmail"
+                placeholder="Enter your college email"
+                required
+              />
+              <i class="bi bi-envelope input-icon"></i>
+            </div>
+          </form>
+        </div>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="modal-btn modal-btn-cancel"
+            onclick="closeForgotPasswordModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="modal-btn modal-btn-send"
+            id="sendResetBtn"
+            onclick="sendResetLink()"
+          >
+            <span class="loading-spinner" id="resetSpinner"></span>
+            <span id="resetBtnText">Send Reset Link</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/login.js"></script>
+  </body>
+</html>

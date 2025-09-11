@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/post.css" />
+    <title>Post - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item"
+          ><i class="bi bi-house"></i>Dashboard</a
+        >
+        <a href="profile.html" class="sidebar-item"
+          ><i class="bi bi-person"></i>Profile</a
+        >
+        <a href="study-rooms.html" class="sidebar-item"
+          ><i class="bi bi-door-open"></i>Study Rooms</a
+        >
+        <a href="resources.html" class="sidebar-item"
+          ><i class="bi bi-folder"></i>Resources</a
+        >
+        <a href="discussion.html" class="sidebar-item active"
+          ><i class="bi bi-chat-dots"></i>Discussion Forum</a
+        >
+        <a href="report.html" class="sidebar-item"
+          ><i class="bi bi-graph-up"></i>Report</a
+        >
+      </nav>
+      <div class="sidebar-footer">
+        <div
+          class="user-info"
+          onclick="goToProfile()"
+          style="cursor: pointer; transition: all 0.3s ease"
+        >
+          <div class="user-avatar" id="sidebarUserAvatar">DP</div>
+          <div>
+            <div
+              style="font-weight: bold; font-size: 14px"
+              id="sidebarUsername"
+            >
+              DanePascual
+            </div>
+            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Discussion</h1>
+        </div>
+        <div class="nav-right">
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="container-wrapper">
+        <!-- Breadcrumbs -->
+        <div class="breadcrumbs" id="breadcrumbs">
+          <a href="discussion.html"><i class="bi bi-house-door"></i> Forum</a>
+          <span class="breadcrumb-separator"
+            ><i class="bi bi-chevron-right"></i
+          ></span>
+          <a href="#" id="topicBreadcrumb">Topic</a>
+          <span class="breadcrumb-separator"
+            ><i class="bi bi-chevron-right"></i
+          ></span>
+          <span id="postBreadcrumb">Post</span>
+        </div>
+
+        <!-- Post Header -->
+        <div class="post-header" id="postHeader">
+          <button class="back-link" id="backToTopic">
+            <i class="bi bi-arrow-left"></i> Back to Topic
+          </button>
+          <div class="post-title" id="postTitle">Post Title</div>
+          <div class="post-meta">
+            <div class="post-author" id="postAuthor">
+              <div class="author-avatar" id="postAuthorAvatar">A</div>
+              <span id="postAuthorName">Anonymous</span>
+            </div>
+            <div class="post-meta-item">
+              <i class="bi bi-clock"></i>
+              <span id="postTime">July 1, 2023</span>
+            </div>
+            <div
+              class="post-meta-item"
+              id="postEditedContainer"
+              style="display: none"
+            >
+              <i class="bi bi-pencil"></i>
+              <span>Edited</span>
+            </div>
+          </div>
+          <div class="post-content" id="postContent">Loading content...</div>
+
+          <div class="post-reactions">
+            <button class="reaction-btn" id="likeBtn">
+              <i class="bi bi-hand-thumbs-up"></i>
+              <span class="reaction-count" id="likeCount">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="comments-section" id="commentsSection">
+          <div class="comments-header">
+            <h2 class="comments-title">
+              <i class="bi bi-chat-square-text"></i>
+              Comments <span class="comments-count" id="commentsCount"></span>
+            </h2>
+            <div class="comments-sort">
+              <span class="sort-label">Sort by:</span>
+              <select class="sort-dropdown" id="commentSortDropdown">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="popular">Popular</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="commentsList" class="comment-list">
+            <!-- Comments will be rendered here -->
+            <div class="loader">
+              <div class="loader-spinner"></div>
+            </div>
+          </div>
+
+          <div class="create-comment-container">
+            <div class="comment-avatar" id="currentUserAvatar">DP</div>
+            <div class="quick-comment-form">
+              <textarea
+                class="quick-comment-input"
+                id="quickCommentInput"
+                placeholder="Write a comment..."
+                rows="1"
+              ></textarea>
+            </div>
+          </div>
+
+          <button class="create-comment-btn" id="createCommentBtn">
+            <i class="bi bi-send"></i> Post Comment
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/post.js"></script>
+  </body>
+</html>

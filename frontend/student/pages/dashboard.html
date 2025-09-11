@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/dashboard.css" />
+    <title>Dashboard - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+
+      <nav class="sidebar-menu" role="navigation">
+        <a
+          href="dashboard.html"
+          class="sidebar-item active"
+          aria-current="page"
+        >
+          <i class="bi bi-house"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="profile.html" class="sidebar-item">
+          <i class="bi bi-person"></i>
+          <span>Profile</span>
+        </a>
+        <a href="study-rooms.html" class="sidebar-item">
+          <i class="bi bi-door-open"></i>
+          <span>Study Rooms</span>
+        </a>
+        <a href="resources.html" class="sidebar-item">
+          <i class="bi bi-folder"></i>
+          <span>Resources</span>
+        </a>
+        <a href="discussion.html" class="sidebar-item">
+          <i class="bi bi-chat-dots"></i>
+          <span>Discussion Forum</span>
+        </a>
+        <a href="report.html" class="sidebar-item">
+          <i class="bi bi-flag"></i>
+          <span>Report</span>
+        </a>
+      </nav>
+
+      <!-- FIXED: Changed the sidebar-footer to use a proper direct link -->
+      <div class="sidebar-footer">
+        <a
+          href="profile.html"
+          style="text-decoration: none; display: block; width: 100%"
+        >
+          <div class="user-info" id="profileLink">
+            <div class="user-avatar">DP</div>
+            <div>
+              <div style="font-weight: bold; font-size: 14px">DanePascual</div>
+              <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation - WITHOUT CLOCK -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Toggle sidebar"
+          >
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Dashboard</h1>
+        </div>
+
+        <div class="nav-right">
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search..."
+              aria-label="Search"
+            />
+            <i class="bi bi-search search-icon"></i>
+          </div>
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle theme"
+          >
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dashboard Content -->
+      <div class="dashboard-content">
+        <div class="content-row">
+          <!-- Main Section -->
+          <div class="main-section">
+            <!-- Active Study Rooms -->
+            <div class="study-rooms">
+              <h2 class="section-title">
+                <i class="bi bi-door-open"></i>
+                Active Study Rooms
+              </h2>
+              <div class="room-grid">
+                <div class="room-card" data-room-id="cs">
+                  <div class="room-header">
+                    <div>
+                      <h3 class="room-title">CS Study Room</h3>
+                      <p class="room-description">
+                        Solving problems related to algorithms and data
+                        structures.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="room-tags">
+                    <span class="room-tag">Programming</span>
+                    <span class="room-tag">Algorithms</span>
+                  </div>
+                  <div class="room-footer">
+                    <span class="participant-count">
+                      <i class="bi bi-people"></i>
+                      <span id="cs-count">3</span> participants
+                    </span>
+                    <button class="join-btn" onclick="joinRoom('cs')">
+                      Join Now
+                    </button>
+                  </div>
+                </div>
+
+                <div class="room-card" data-room-id="web-dev">
+                  <div class="room-header">
+                    <div>
+                      <h3 class="room-title">Web Development Study</h3>
+                      <p class="room-description">
+                        Building modern web applications with React and Node.js.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="room-tags">
+                    <span class="room-tag">JavaScript</span>
+                    <span class="room-tag">React</span>
+                    <span class="room-tag">Node.js</span>
+                  </div>
+                  <div class="room-footer">
+                    <span class="participant-count">
+                      <i class="bi bi-people"></i>
+                      <span id="web-dev-count">7</span> participants
+                    </span>
+                    <button class="join-btn" onclick="joinRoom('web-dev')">
+                      Join Now
+                    </button>
+                  </div>
+                </div>
+
+                <div class="room-card" data-room-id="database">
+                  <div class="room-header">
+                    <div>
+                      <h3 class="room-title">Database Design</h3>
+                      <p class="room-description">
+                        Learning SQL, database optimization and design patterns.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="room-tags">
+                    <span class="room-tag">SQL</span>
+                    <span class="room-tag">PostgreSQL</span>
+                  </div>
+                  <div class="room-footer">
+                    <span class="participant-count">
+                      <i class="bi bi-people"></i>
+                      <span id="database-count">5</span> participants
+                    </span>
+                    <button class="join-btn" onclick="joinRoom('database')">
+                      Join Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Section -->
+          <div class="side-section">
+            <!-- To-Do Lists -->
+            <div class="todo-section">
+              <div class="todo-header">
+                <h3 class="section-title">
+                  <i class="bi bi-check2-square"></i>
+                  Study Notes & Tasks
+                </h3>
+                <button class="add-todo-btn" onclick="openTodoModal()">
+                  <i class="bi bi-plus"></i> Add Task
+                </button>
+              </div>
+
+              <div id="todoList">
+                <!-- Todo items will be rendered here -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Todo Modal -->
+    <div
+      id="todoModal"
+      class="todo-modal"
+      role="dialog"
+      aria-labelledby="modalTitle"
+      aria-hidden="true"
+    >
+      <div class="todo-modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modalTitle">Add Study Task & Reminder</h3>
+          <button
+            class="close-modal"
+            onclick="closeTodoModal()"
+            aria-label="Close modal"
+          ></button>
+        </div>
+
+        <form id="todoForm">
+          <div class="form-group">
+            <label class="form-label" for="todoText">Task/Note</label>
+            <textarea
+              class="form-textarea"
+              id="todoText"
+              placeholder="Enter your study task or note..."
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="todoReminder"
+              >Reminder Date & Time (Optional)</label
+            >
+            <input type="datetime-local" class="form-input" id="todoReminder" />
+          </div>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn-cancel"
+              onclick="closeTodoModal()"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="modal-btn modal-btn-save">
+              Save Task
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/dashboard.js"></script>
+  </body>
+</html>

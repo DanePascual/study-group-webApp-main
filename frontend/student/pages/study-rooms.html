@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/study-rooms.css" />
+    <title>Study Rooms - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item">
+          <i class="bi bi-house"></i>
+          Dashboard
+        </a>
+        <a href="profile.html" class="sidebar-item">
+          <i class="bi bi-person"></i>
+          Profile
+        </a>
+        <a href="study-rooms.html" class="sidebar-item active">
+          <i class="bi bi-door-open"></i>
+          Study Rooms
+        </a>
+        <a href="resources.html" class="sidebar-item">
+          <i class="bi bi-folder"></i>
+          Resources
+        </a>
+        <a href="discussion.html" class="sidebar-item">
+          <i class="bi bi-chat-dots"></i>
+          Discussion Forum
+        </a>
+        <a href="report.html" class="sidebar-item">
+          <i class="bi bi-flag"></i>
+          Report
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <!-- FIXED: replaced onclick with href for better navigation -->
+        <a
+          href="profile.html"
+          style="text-decoration: none; display: block; width: 100%"
+        >
+          <div
+            class="user-info"
+            style="cursor: pointer; transition: all 0.3s ease"
+          >
+            <div class="user-avatar">DP</div>
+            <div>
+              <div style="font-weight: bold; font-size: 14px">DanePascual</div>
+              <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Study Rooms</h1>
+        </div>
+        <div class="nav-right">
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              id="searchInput"
+              placeholder="Search..."
+              autocomplete="off"
+            />
+            <i class="bi bi-search search-icon"></i>
+          </div>
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle theme"
+          >
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Study Rooms Content -->
+      <div class="study-rooms-page-content">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="activeRoomsCount">0</div>
+            <div class="stat-label">Active Study Rooms</div>
+            <div class="stat-change">Create your first room!</div>
+            <div class="stat-timestamp" id="currentTime">
+              2025-08-29 16:10:26 Philippines
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="yourRoomsCount">0</div>
+            <div class="stat-label">Your Study Groups</div>
+            <div class="stat-change">Join study groups to get started</div>
+            <div class="stat-timestamp">User: DanePascual</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">0</div>
+            <div class="stat-label">Shared Resources</div>
+            <div class="stat-change">Share your first study material</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">0h</div>
+            <div class="stat-label">Study Time</div>
+            <div class="stat-change">Track your productivity</div>
+          </div>
+        </div>
+
+        <div class="content-row">
+          <!-- Main section: Your Study Rooms -->
+          <div class="main-section">
+            <div class="study-rooms-list">
+              <div class="section-title">
+                <i class="bi bi-door-open"></i>
+                Your Study Rooms
+                <button
+                  class="btn btn-success ms-auto"
+                  style="
+                    border-radius: 20px;
+                    padding: 6px 18px;
+                    font-size: 13px;
+                  "
+                  id="createRoomButton"
+                >
+                  <i class="bi bi-plus-lg"></i> Create Study Room
+                </button>
+              </div>
+
+              <!-- Room Filters -->
+              <div class="room-filters">
+                <button class="filter-btn active" data-filter="all">
+                  All Rooms
+                </button>
+                <button class="filter-btn" data-filter="active">
+                  Active Now
+                </button>
+                <button class="filter-btn" data-filter="programming">
+                  Programming
+                </button>
+                <button class="filter-btn" data-filter="web">
+                  Web Development
+                </button>
+              </div>
+
+              <!-- Room Grid Container -->
+              <div id="roomContainer">
+                <!-- Empty state for room grid -->
+                <div class="empty-state" id="emptyState">
+                  <div class="empty-state-icon">
+                    <i class="bi bi-door-closed"></i>
+                  </div>
+                  <h3>No Study Rooms Yet</h3>
+                  <p>
+                    Create your first study room to collaborate with other
+                    students on projects, assignments, or exam prep.
+                  </p>
+                  <div class="empty-state-action">
+                    <button class="btn btn-success" id="createFirstRoomButton">
+                      <i class="bi bi-plus-lg"></i> Create Your First Room
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side section: Recommended For You -->
+          <div class="side-section">
+            <div class="recommended-list">
+              <div class="rec-header">
+                <div class="rec-title">Recommended For You</div>
+                <div class="rec-subtext">
+                  (Based on your profile and course)
+                </div>
+              </div>
+              <div class="p-3">
+                <div class="text-center text-muted py-4">
+                  <i
+                    class="bi bi-lightbulb"
+                    style="
+                      font-size: 28px;
+                      opacity: 0.5;
+                      display: block;
+                      margin-bottom: 10px;
+                    "
+                  ></i>
+                  <p>
+                    Browse and join other study rooms to see recommendations
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Study Calendar -->
+            <div class="recommended-list mt-4">
+              <div class="rec-header">
+                <div class="rec-title">Upcoming Study Sessions</div>
+              </div>
+              <div class="p-3">
+                <div class="text-center text-muted py-4">
+                  <i
+                    class="bi bi-calendar"
+                    style="
+                      font-size: 28px;
+                      opacity: 0.5;
+                      display: block;
+                      margin-bottom: 10px;
+                    "
+                  ></i>
+                  <p>No upcoming sessions scheduled</p>
+                  <p class="small">
+                    Create a room to schedule your first session
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div
+      class="modal fade"
+      id="createRoomModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Create New Study Room</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="createRoomForm">
+              <div class="mb-3">
+                <label for="roomName" class="form-label">Room Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="roomName"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="roomDescription" class="form-label"
+                  >Description</label
+                >
+                <textarea
+                  class="form-control"
+                  id="roomDescription"
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Subject Area</label>
+                <select class="form-select" id="subjectArea" required>
+                  <option value="">Select a subject</option>
+                  <option value="programming">Programming</option>
+                  <option value="web">Web Development</option>
+                  <option value="database">Database</option>
+                  <option value="networking">Networking</option>
+                  <option value="security">Security</option>
+                  <option value="ai">Artificial Intelligence</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Tags (select up to 3)</label>
+                <div class="tag-selector" id="tagSelector">
+                  <div class="tag-option" data-tag="programming">
+                    Programming
+                  </div>
+                  <div class="tag-option" data-tag="algorithms">Algorithms</div>
+                  <div class="tag-option" data-tag="web">Web Development</div>
+                  <div class="tag-option" data-tag="python">Python</div>
+                  <div class="tag-option" data-tag="java">Java</div>
+                  <div class="tag-option" data-tag="javascript">JavaScript</div>
+                  <div class="tag-option" data-tag="html">HTML</div>
+                  <div class="tag-option" data-tag="css">CSS</div>
+                  <div class="tag-option" data-tag="database">Database</div>
+                  <div class="tag-option" data-tag="sql">SQL</div>
+                </div>
+                <input type="hidden" id="selectedTags" name="selectedTags" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Privacy</label>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="privacy"
+                    id="privacyPublic"
+                    value="public"
+                    checked
+                  />
+                  <label class="form-check-label" for="privacyPublic">
+                    Public (Anyone can join)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="privacy"
+                    id="privacyPrivate"
+                    value="private"
+                  />
+                  <label class="form-check-label" for="privacyPrivate">
+                    Private (By invitation only)
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label"
+                  >Schedule Study Session (Optional)</label
+                >
+                <div class="row">
+                  <div class="col-md-6">
+                    <input type="date" class="form-control" id="sessionDate" />
+                  </div>
+                  <div class="col-md-6">
+                    <input type="time" class="form-control" id="sessionTime" />
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn btn-success" id="createRoomBtn">
+              Create Room
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script src="../scripts/study-rooms.js"></script>
+  </body>
+</html>

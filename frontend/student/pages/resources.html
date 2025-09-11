@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resources - Study Group</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/resources.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item">
+          <i class="bi bi-house"></i>
+          Dashboard
+        </a>
+        <a href="profile.html" class="sidebar-item">
+          <i class="bi bi-person"></i>
+          Profile
+        </a>
+        <a href="study-rooms.html" class="sidebar-item">
+          <i class="bi bi-door-open"></i>
+          Study Rooms
+        </a>
+        <a href="resources.html" class="sidebar-item active">
+          <i class="bi bi-folder"></i>
+          Resources
+        </a>
+        <a href="discussion.html" class="sidebar-item">
+          <i class="bi bi-chat-dots"></i>
+          Discussion Forum
+        </a>
+        <a href="report.html" class="sidebar-item">
+          <i class="bi bi-graph-up"></i>
+          Report
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div
+          class="user-info"
+          onclick="goToProfile()"
+          style="cursor: pointer; transition: all 0.3s ease"
+        >
+          <div class="user-avatar" id="userAvatar">DP</div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px" id="userName">
+              DanePascual
+            </div>
+            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Toggle sidebar"
+          >
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Resources</h1>
+        </div>
+        <div class="nav-right">
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+            <i class="bi bi-moon"></i>
+          </button>
+          <!-- UPDATED SEARCH BAR to match dashboard.html -->
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              id="resourceSearch"
+              placeholder="Search resources..."
+              autocomplete="off"
+              aria-label="Search resources"
+            />
+            <i class="bi bi-search search-icon"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resources Content -->
+      <div class="resources-content">
+        <div class="resources-header-bar">
+          <div
+            class="resource-filters"
+            role="group"
+            aria-label="Filter resources"
+          >
+            <button
+              class="resource-filter-btn active"
+              data-type="all"
+              onclick="filterResources(event)"
+            >
+              <i class="bi bi-grid-3x3-gap-fill"></i> All
+            </button>
+            <button
+              class="resource-filter-btn"
+              data-type="docx"
+              onclick="filterResources(event)"
+            >
+              <i class="bi bi-file-earmark-word"></i> Documents
+            </button>
+            <button
+              class="resource-filter-btn"
+              data-type="pdf"
+              onclick="filterResources(event)"
+            >
+              <i class="bi bi-file-earmark-pdf"></i> PDF
+            </button>
+            <button
+              class="resource-filter-btn"
+              data-type="ppt"
+              onclick="filterResources(event)"
+            >
+              <i class="bi bi-file-earmark-slides"></i> PPT
+            </button>
+          </div>
+
+          <div class="resources-controls">
+            <div class="view-toggle" role="group" aria-label="Change view">
+              <button
+                class="view-toggle-btn active"
+                id="gridViewBtn"
+                aria-label="Grid view"
+                title="Grid view"
+              >
+                <i class="bi bi-grid-3x3-gap"></i>
+              </button>
+              <button
+                class="view-toggle-btn"
+                id="listViewBtn"
+                aria-label="List view"
+                title="List view"
+              >
+                <i class="bi bi-list-ul"></i>
+              </button>
+            </div>
+
+            <select
+              class="sort-dropdown"
+              id="sortDropdown"
+              aria-label="Sort resources"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name-asc">Name (A-Z)</option>
+              <option value="name-desc">Name (Z-A)</option>
+              <option value="popular">Most downloads</option>
+            </select>
+
+            <button
+              class="upload-btn"
+              onclick="openUploadModal()"
+              aria-label="Upload resources"
+            >
+              <i class="bi bi-upload"></i> Upload
+            </button>
+          </div>
+        </div>
+
+        <!-- Resource Grid View (default) -->
+        <div class="resources-grid" id="resourcesGrid">
+          <!-- Will be populated by JavaScript -->
+          <div class="skeleton-loader"></div>
+        </div>
+
+        <!-- Resource List View (hidden by default) -->
+        <div class="resources-list" id="resourcesList" style="display: none">
+          <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Recent Uploads Section -->
+        <div class="resources-table-section">
+          <div class="table-header">
+            <h2 class="table-title">Recent Uploads</h2>
+            <div class="table-actions">
+              <select
+                class="sort-dropdown"
+                id="tableSort"
+                aria-label="Sort table"
+              >
+                <option value="newest">Newest first</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="size">Size</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="resources-table" aria-label="Recent uploads">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Uploaded By</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Size</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="resourcesTable">
+                <!-- Will be populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div
+      class="modal fade"
+      id="uploadModal"
+      tabindex="-1"
+      aria-labelledby="uploadModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <form id="uploadForm">
+            <div class="modal-header">
+              <h5 class="modal-title" id="uploadModalLabel">Upload Resource</h5>
+              <button
+                type="button"
+                class="btn-close"
+                onclick="closeUploadModal()"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <div id="fileDropArea" class="file-input-container">
+                <div class="file-input-icon">
+                  <i class="bi bi-cloud-arrow-up"></i>
+                </div>
+                <div class="file-input-text">Drag and drop your file here</div>
+                <div class="file-input-hint">or click to browse</div>
+                <input
+                  type="file"
+                  class="form-control"
+                  id="fileInput"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx"
+                  required
+                />
+              </div>
+
+              <div id="filePreview" style="display: none" class="file-preview">
+                <div class="file-preview-icon">
+                  <i class="bi bi-file-earmark"></i>
+                </div>
+                <div class="file-preview-name" id="selectedFileName"></div>
+                <div class="file-preview-remove" onclick="removeSelectedFile()">
+                  <i class="bi bi-x"></i>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="resourceTitle" class="form-label">Title</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="resourceTitle"
+                  required
+                />
+                <div class="form-text">
+                  Give your resource a descriptive title
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Category</label>
+                <select class="form-control" id="resourceCategory" required>
+                  <option value="">Select a category</option>
+                  <option value="lecture">Lecture Notes</option>
+                  <option value="assignment">Assignments & Solutions</option>
+                  <option value="tutorial">Tutorials</option>
+                  <option value="exam">Exam Preparation</option>
+                  <option value="reference">Reference Materials</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Tags</label>
+                <div class="tag-selector" id="tagSelector">
+                  <div class="tag-option" data-tag="math">Mathematics</div>
+                  <div class="tag-option" data-tag="programming">
+                    Programming
+                  </div>
+                  <div class="tag-option" data-tag="science">Science</div>
+                  <div class="tag-option" data-tag="engineering">
+                    Engineering
+                  </div>
+                  <div class="tag-option" data-tag="humanities">Humanities</div>
+                  <div class="tag-option" data-tag="language">Language</div>
+                  <div class="tag-option" data-tag="business">Business</div>
+                </div>
+                <input type="hidden" id="selectedTags" value="" />
+                <div class="form-text">Select up to 3 tags</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="resourceDesc" class="form-label">Description</label>
+                <textarea
+                  class="form-control"
+                  id="resourceDesc"
+                  rows="3"
+                ></textarea>
+                <div class="form-text">
+                  Provide a brief description of what this resource contains
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="coverImageInput" class="form-label"
+                  >Cover Image (optional)</label
+                >
+                <input
+                  type="file"
+                  class="form-control"
+                  id="coverImageInput"
+                  accept="image/*"
+                />
+                <div class="form-text">
+                  Add a cover image to make your resource more visible
+                </div>
+                <img
+                  src=""
+                  id="coverImagePreview"
+                  class="cover-preview"
+                  alt="Cover image preview"
+                />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                onclick="closeUploadModal()"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-success">
+                <i class="bi bi-cloud-upload"></i> Upload Resource
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/resources.js"></script>
+  </body>
+</html>

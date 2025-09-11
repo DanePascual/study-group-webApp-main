@@ -1,0 +1,176 @@
+<!-- sign-up.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/sign-up.css" />
+    <title>Sign Up - Study Group</title>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="signup-card">
+        <!-- Left side -->
+        <div class="left-section">
+          <div class="welcome-title">
+            SIGN UP TO START YOUR LEARNING JOURNEY!
+          </div>
+          <div class="welcome-subtitle">
+            Join your learning community and collaborate with fellow students
+          </div>
+
+          <div class="login-section">
+            <div class="login-text">Already have an account?</div>
+            <button class="login-btn" onclick="goToLogin()">Log in</button>
+          </div>
+        </div>
+
+        <!-- Right side -->
+        <div class="right-section">
+          <h1 class="signup-title">Create Your Account</h1>
+
+          <form id="signupForm">
+            <!-- Name Fields -->
+            <div class="form-row">
+              <div class="form-group">
+                <i class="bi bi-person input-icon"></i>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="firstName"
+                  placeholder="First Name"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <i class="bi bi-person input-icon"></i>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="lastName"
+                  placeholder="Last Name"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-group">
+              <i class="bi bi-envelope input-icon"></i>
+              <input
+                type="email"
+                class="form-input"
+                id="email"
+                placeholder="Enter your college email"
+                required
+              />
+            </div>
+
+            <!-- Student ID Field -->
+            <div class="form-group">
+              <i class="bi bi-card-text input-icon"></i>
+              <input
+                type="text"
+                class="form-input"
+                id="studentId"
+                placeholder="Student ID Number"
+                required
+              />
+            </div>
+
+            <!-- Course & Year -->
+            <div class="form-row">
+              <div class="form-group">
+                <i class="bi bi-book input-icon"></i>
+                <select class="form-input" id="course" required>
+                  <option value="">Select Course</option>
+                  <option value="BSIT">BS Information Technology</option>
+                  <option value="BSCS">BS Computer Science</option>
+                  <option value="BSCpE">BS Computer Engineering</option>
+                  <option value="BSECE">
+                    BS Electronics & Communications Engineering
+                  </option>
+                  <option value="BSEE">BS Electrical Engineering</option>
+                  <option value="BSME">BS Mechanical Engineering</option>
+                  <option value="BSCE">BS Civil Engineering</option>
+                  <option value="BSA">BS Architecture</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <i class="bi bi-calendar input-icon"></i>
+                <select class="form-input" id="yearLevel" required>
+                  <option value="">Year</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                  <option value="5">5th Year</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group">
+              <i class="bi bi-lock input-icon"></i>
+              <input
+                type="password"
+                class="form-input"
+                id="password"
+                placeholder="Enter your password"
+                required
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePassword('password', 'passwordToggleIcon')"
+              >
+                <i class="bi bi-eye" id="passwordToggleIcon"></i>
+              </button>
+              <div class="password-strength">
+                <div
+                  class="password-strength-bar"
+                  id="passwordStrengthBar"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Confirm Password Field -->
+            <div class="form-group">
+              <i class="bi bi-lock input-icon"></i>
+              <input
+                type="password"
+                class="form-input"
+                id="confirmPassword"
+                placeholder="Confirm password"
+                required
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePassword('confirmPassword', 'confirmPasswordToggleIcon')"
+              >
+                <i class="bi bi-eye" id="confirmPasswordToggleIcon"></i>
+              </button>
+            </div>
+
+            <button type="submit" class="signup-btn" id="signupBtn">
+              <span class="loading-spinner" id="loadingSpinner"></span>
+              <span id="btnText">Sign up</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Include external JavaScript file at the end of the body -->
+    <script src="../scripts/sign-up.js"></script>
+  </body>
+</html>

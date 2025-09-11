@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/discussion.css" />
+    <title>Discussion Forum - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item"
+          ><i class="bi bi-house"></i>Dashboard</a
+        >
+        <a href="profile.html" class="sidebar-item"
+          ><i class="bi bi-person"></i>Profile</a
+        >
+        <a href="study-rooms.html" class="sidebar-item"
+          ><i class="bi bi-door-open"></i>Study Rooms</a
+        >
+        <a href="resources.html" class="sidebar-item"
+          ><i class="bi bi-folder"></i>Resources</a
+        >
+        <a href="discussion.html" class="sidebar-item active"
+          ><i class="bi bi-chat-dots"></i>Discussion Forum</a
+        >
+        <a href="report.html" class="sidebar-item"
+          ><i class="bi bi-graph-up"></i>Report</a
+        >
+      </nav>
+      <div class="sidebar-footer">
+        <div
+          class="user-info"
+          onclick="goToProfile()"
+          style="cursor: pointer; transition: all 0.3s ease"
+        >
+          <div class="user-avatar">DP</div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px">DanePascual</div>
+            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Discussion Forum</h1>
+        </div>
+        <div class="nav-right">
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+            <i class="bi bi-moon"></i>
+          </button>
+          <div class="search-bar">
+            <input
+              type="text"
+              class="search-input"
+              id="searchInput"
+              placeholder="Search for topics..."
+            />
+            <i class="bi bi-search search-icon"></i>
+          </div>
+        </div>
+      </div>
+      <!-- Forum Content -->
+      <div class="forum-content">
+        <div class="forum-header">Discussion Forums</div>
+        <div class="forum-desc">
+          A space for students to ask questions, share notes, and give study
+          advice by subject.
+        </div>
+
+        <div class="forum-actions">
+          <button class="create-topic-btn" id="createTopicBtn">
+            <i class="bi bi-plus-circle"></i> Create New Topic
+          </button>
+          <div class="filter-controls">
+            <select class="filter-dropdown" id="sortFilter">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="activity">Most Active</option>
+            </select>
+            <select class="filter-dropdown" id="categoryFilter">
+              <option value="all">All Categories</option>
+              <option value="question">Questions</option>
+              <option value="discussion">Discussions</option>
+              <option value="resource">Resources</option>
+              <option value="announcement">Announcements</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="topic-grid" id="topicGrid">
+          <!-- Topics will be rendered here -->
+        </div>
+
+        <div class="pagination-controls" id="paginationControls">
+          <!-- Pagination will be rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Create/Edit Topic Modal -->
+    <div class="modal-backdrop-custom" id="modalBackdrop">
+      <div class="modal-custom">
+        <button class="close-modal" id="closeModalBtn" aria-label="Close">
+          &times;
+        </button>
+        <div class="modal-title" id="modalTitle">Create New Topic</div>
+        <form id="topicForm" autocomplete="off">
+          <label class="modal-label">Topic Title</label>
+          <input
+            type="text"
+            id="topicTitle"
+            placeholder="Enter topic title"
+            maxlength="80"
+            required
+          />
+
+          <label class="modal-label">Category</label>
+          <select id="topicCategory" required>
+            <option value="question">Question</option>
+            <option value="discussion">Discussion</option>
+            <option value="resource">Resource</option>
+            <option value="announcement">Announcement</option>
+          </select>
+
+          <label class="modal-label">Description</label>
+          <textarea
+            id="topicDescription"
+            placeholder="Describe your topic (optional)"
+          ></textarea>
+
+          <label class="modal-label">Tags (select up to 3)</label>
+          <div class="tag-selector" id="tagSelector">
+            <div class="tag-option" data-tag="math">Mathematics</div>
+            <div class="tag-option" data-tag="science">Science</div>
+            <div class="tag-option" data-tag="english">English</div>
+            <div class="tag-option" data-tag="history">History</div>
+            <div class="tag-option" data-tag="programming">Programming</div>
+            <div class="tag-option" data-tag="languages">Languages</div>
+            <div class="tag-option" data-tag="arts">Arts</div>
+            <div class="tag-option" data-tag="business">Business</div>
+          </div>
+
+          <input type="hidden" id="topicId" value="" />
+          <input type="hidden" id="isEdit" value="false" />
+          <input type="hidden" id="selectedTags" value="" />
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn-cancel"
+              id="cancelModalBtn"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="modal-btn modal-btn-save"
+              id="saveTopicBtn"
+            >
+              Create
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div class="confirmation-backdrop" id="confirmationBackdrop"></div>
+    <div class="confirmation-dialog" id="deleteConfirmation">
+      <p>
+        Are you sure you want to delete this topic? This action cannot be undone
+        and all associated posts will be removed.
+      </p>
+      <div class="confirmation-dialog-actions">
+        <button
+          class="confirmation-dialog-btn confirmation-dialog-btn-cancel"
+          id="cancelDeleteBtn"
+        >
+          Cancel
+        </button>
+        <button
+          class="confirmation-dialog-btn confirmation-dialog-btn-confirm"
+          id="confirmDeleteBtn"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/discussion.js"></script>
+  </body>
+</html>

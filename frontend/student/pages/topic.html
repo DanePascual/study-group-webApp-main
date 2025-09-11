@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/topic.css" />
+    <title>Topic - Study Group</title>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <i class="bi bi-book"></i>
+          StudyGroup
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="dashboard.html" class="sidebar-item"
+          ><i class="bi bi-house"></i>Dashboard</a
+        >
+        <a href="profile.html" class="sidebar-item"
+          ><i class="bi bi-person"></i>Profile</a
+        >
+        <a href="study-rooms.html" class="sidebar-item"
+          ><i class="bi bi-door-open"></i>Study Rooms</a
+        >
+        <a href="resources.html" class="sidebar-item"
+          ><i class="bi bi-folder"></i>Resources</a
+        >
+        <a href="discussion.html" class="sidebar-item active"
+          ><i class="bi bi-chat-dots"></i>Discussion Forum</a
+        >
+        <a href="report.html" class="sidebar-item"
+          ><i class="bi bi-graph-up"></i>Report</a
+        >
+      </nav>
+      <div class="sidebar-footer">
+        <div
+          class="user-info"
+          onclick="goToProfile()"
+          style="cursor: pointer; transition: all 0.3s ease"
+        >
+          <div class="user-avatar">DP</div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px">DanePascual</div>
+            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+      <!-- Top Navigation -->
+      <div class="top-nav">
+        <div class="nav-left">
+          <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+          </button>
+          <h1 class="page-title">Topic</h1>
+        </div>
+        <div class="nav-right">
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="topic-container">
+        <!-- Topic Header -->
+        <div class="topic-header" id="topicHeader">
+          <button class="back-link" onclick="goBackToForum()">
+            <i class="bi bi-arrow-left"></i> Back to Topics
+          </button>
+          <div class="topic-title" id="topicTitle">Topic Title</div>
+          <div class="topic-meta" id="topicMeta">
+            <div class="topic-meta-item">
+              <i class="bi bi-person"></i> <span id="topicAuthor">Author</span>
+            </div>
+            <div class="topic-meta-item">
+              <i class="bi bi-calendar3"></i> <span id="topicDate">Date</span>
+            </div>
+            <div class="topic-meta-item">
+              <i class="bi bi-chat"></i>
+              <span id="topicPostCount">0 posts</span>
+            </div>
+            <div class="topic-meta-item">
+              <i class="bi bi-eye"></i> <span id="topicViews">0 views</span>
+            </div>
+            <div class="topic-meta-item">
+              <i class="bi bi-tag"></i> <span id="topicCategory">Category</span>
+            </div>
+          </div>
+          <div class="topic-description" id="topicDescription">
+            Loading topic description...
+          </div>
+          <div id="topicTags">
+            <!-- Tags will be rendered here -->
+          </div>
+        </div>
+
+        <!-- Topic Actions -->
+        <div class="topic-actions">
+          <button class="create-post-btn" id="createPostBtn">
+            <i class="bi bi-plus-circle"></i> Create New Post
+          </button>
+          <div class="filter-controls">
+            <select class="filter-dropdown" id="sortFilter">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="title">Title A-Z</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Posts Section -->
+        <div class="post-grid" id="postGrid">
+          <!-- Posts will be rendered here -->
+          <div class="text-center p-5">
+            <i class="bi bi-hourglass-split"></i> Loading posts...
+          </div>
+        </div>
+
+        <div class="pagination-controls" id="paginationControls">
+          <!-- Pagination will be rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Create/Edit Post Modal -->
+    <div class="modal-backdrop-custom" id="modalBackdrop">
+      <div class="modal-custom">
+        <button class="close-modal" id="closeModalBtn" aria-label="Close">
+          &times;
+        </button>
+        <div class="modal-title" id="modalTitle">Create New Post</div>
+        <form id="postForm" autocomplete="off">
+          <label class="modal-label">Post Title</label>
+          <input
+            type="text"
+            id="postTitle"
+            placeholder="Enter a descriptive title"
+            maxlength="100"
+            required
+          />
+
+          <label class="modal-label">Post Content</label>
+          <textarea
+            id="postContent"
+            placeholder="Share your thoughts, questions, or insights here..."
+            maxlength="5000"
+            required
+          ></textarea>
+
+          <input type="hidden" id="postId" value="" />
+          <input type="hidden" id="isEdit" value="false" />
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn-cancel"
+              id="cancelModalBtn"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="modal-btn modal-btn-save"
+              id="savePostBtn"
+            >
+              Post
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div class="confirmation-backdrop" id="confirmationBackdrop"></div>
+    <div class="confirmation-dialog" id="deleteConfirmation">
+      <p>
+        Are you sure you want to delete this post? This action cannot be undone
+        and all associated comments will be removed.
+      </p>
+      <div class="confirmation-dialog-actions">
+        <button
+          class="confirmation-dialog-btn confirmation-dialog-btn-cancel"
+          id="cancelDeleteBtn"
+        >
+          Cancel
+        </button>
+        <button
+          class="confirmation-dialog-btn confirmation-dialog-btn-confirm"
+          id="confirmDeleteBtn"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../scripts/topic.js"></script>
+  </body>
+</html>
