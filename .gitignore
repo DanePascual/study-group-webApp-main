@@ -67,3 +67,7 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+# local secrets - do NOT commit
+backend/config/serviceAccountKey.json
+backend/.env
+.env
