@@ -33,7 +33,7 @@
           <i class="bi bi-house"></i>
           <span>Dashboard</span>
         </a>
-        <a href="profile.html" class="sidebar-item">
+        <a href="profile.html" class="sidebar-item" id="profileLink">
           <i class="bi bi-person"></i>
           <span>Profile</span>
         </a>
@@ -56,19 +56,26 @@
       </nav>
 
       <!-- FIXED: Changed the sidebar-footer to use a proper direct link -->
+      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
-        <a
-          href="profile.html"
-          style="text-decoration: none; display: block; width: 100%"
+        <div
+          class="user-info"
+          style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div class="user-info" id="profileLink">
-            <div class="user-avatar">DP</div>
-            <div>
-              <div style="font-weight: bold; font-size: 14px">DanePascual</div>
-              <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              Loading...
+            </div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              Loading...
             </div>
           </div>
-        </a>
+        </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
 
@@ -118,80 +125,8 @@
                 <i class="bi bi-door-open"></i>
                 Active Study Rooms
               </h2>
-              <div class="room-grid">
-                <div class="room-card" data-room-id="cs">
-                  <div class="room-header">
-                    <div>
-                      <h3 class="room-title">CS Study Room</h3>
-                      <p class="room-description">
-                        Solving problems related to algorithms and data
-                        structures.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="room-tags">
-                    <span class="room-tag">Programming</span>
-                    <span class="room-tag">Algorithms</span>
-                  </div>
-                  <div class="room-footer">
-                    <span class="participant-count">
-                      <i class="bi bi-people"></i>
-                      <span id="cs-count">3</span> participants
-                    </span>
-                    <button class="join-btn" onclick="joinRoom('cs')">
-                      Join Now
-                    </button>
-                  </div>
-                </div>
-
-                <div class="room-card" data-room-id="web-dev">
-                  <div class="room-header">
-                    <div>
-                      <h3 class="room-title">Web Development Study</h3>
-                      <p class="room-description">
-                        Building modern web applications with React and Node.js.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="room-tags">
-                    <span class="room-tag">JavaScript</span>
-                    <span class="room-tag">React</span>
-                    <span class="room-tag">Node.js</span>
-                  </div>
-                  <div class="room-footer">
-                    <span class="participant-count">
-                      <i class="bi bi-people"></i>
-                      <span id="web-dev-count">7</span> participants
-                    </span>
-                    <button class="join-btn" onclick="joinRoom('web-dev')">
-                      Join Now
-                    </button>
-                  </div>
-                </div>
-
-                <div class="room-card" data-room-id="database">
-                  <div class="room-header">
-                    <div>
-                      <h3 class="room-title">Database Design</h3>
-                      <p class="room-description">
-                        Learning SQL, database optimization and design patterns.
-                      </p>
-                    </div>
-                  </div>
-                  <div class="room-tags">
-                    <span class="room-tag">SQL</span>
-                    <span class="room-tag">PostgreSQL</span>
-                  </div>
-                  <div class="room-footer">
-                    <span class="participant-count">
-                      <i class="bi bi-people"></i>
-                      <span id="database-count">5</span> participants
-                    </span>
-                    <button class="join-btn" onclick="joinRoom('database')">
-                      Join Now
-                    </button>
-                  </div>
-                </div>
+              <div class="room-grid" id="roomGrid">
+                <!-- Room cards will be inserted here by JS -->
               </div>
             </div>
           </div>
@@ -272,6 +207,9 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/dashboard.js"></script>
+
+    <!-- IMPORTANT: load centralized sidebar BEFORE page script so sidebar is initialized first -->
+    <script type="module" src="../scripts/sidebar.js"></script>
+    <script type="module" src="../scripts/dashboard.js"></script>
   </body>
 </html>

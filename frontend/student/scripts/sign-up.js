@@ -16,10 +16,132 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   };
 
-  // Email validation - MODIFIED TO ONLY ALLOW COLLEGE EMAIL
+  // =========================
+  // OTP Email Verification Logic
+  // =========================
+
+  let otpVerified = false;
+  let otpEmail = "";
+
+  // Elements for OTP
+  const emailInput = document.getElementById("email");
+  const requestOtpBtn = document.getElementById("requestOtpBtn");
+  const otpModal = document.getElementById("otpModal");
+  const verifyOtpBtn = document.getElementById("verifyOtpBtn");
+  const otpInput = document.getElementById("otp");
+  const otpHint = document.getElementById("otpHint");
+  const signupBtn = document.getElementById("signupBtn");
+  const closeBtn = document.querySelector(".close-btn");
+
+  // Modal control
+  if (closeBtn) {
+    closeBtn.addEventListener("click", function () {
+      otpModal.style.display = "none";
+    });
+  }
+
+  // Close modal if clicked outside
+  window.addEventListener("click", function (event) {
+    if (event.target === otpModal) {
+      otpModal.style.display = "none";
+    }
+  });
+
+  // Step 1: Request OTP
+  if (requestOtpBtn) {
+    requestOtpBtn.addEventListener("click", function () {
+      const email = emailInput.value.trim();
+      if (!validateEmail(email)) {
+        showAlert("Please enter a valid college email.", "error");
+        return;
+      }
+
+      requestOtpBtn.disabled = true;
+      requestOtpBtn.textContent = "Sending...";
+
+      fetch("http://localhost:5000/api/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (res.ok) {
+            otpModal.style.display = "block";
+            otpHint.textContent =
+              "We've sent a 6-digit code to your email. Check your inbox (and spam).";
+            otpEmail = email;
+            showAlert("OTP sent to your email.", "success");
+          } else {
+            showAlert(data.error || "Failed to send OTP.", "error");
+          }
+        })
+        .catch(() => {
+          showAlert("Network error. Try again later.", "error");
+        })
+        .finally(() => {
+          requestOtpBtn.disabled = false;
+          requestOtpBtn.textContent = "Request OTP";
+        });
+    });
+  }
+
+  // Step 2: Verify OTP
+  if (verifyOtpBtn) {
+    verifyOtpBtn.addEventListener("click", function () {
+      const otp = otpInput.value.trim();
+      if (!otp || otp.length !== 6) {
+        showAlert("Enter the 6-digit code sent to your email.", "error");
+        return;
+      }
+      verifyOtpBtn.disabled = true;
+      verifyOtpBtn.textContent = "Verifying...";
+
+      fetch("http://localhost:5000/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: otpEmail || emailInput.value.trim(),
+          otp,
+        }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (res.ok) {
+            otpVerified = true;
+            emailInput.readOnly = true;
+            requestOtpBtn.disabled = true;
+            showAlert("Email verified. You may now sign up.", "success");
+            signupBtn.disabled = false;
+            otpModal.style.display = "none";
+            requestOtpBtn.textContent = "Email Verified";
+            requestOtpBtn.style.backgroundColor = "#3d9940";
+          } else {
+            showAlert(data.error || "OTP verification failed.", "error");
+            otpHint.textContent = "Check your code and try again.";
+          }
+        })
+        .catch(() => {
+          showAlert("Network error. Try again.", "error");
+        })
+        .finally(() => {
+          verifyOtpBtn.disabled = false;
+          verifyOtpBtn.textContent = "Verify OTP";
+        });
+    });
+  }
+
+  // Step 3: Disable signup until OTP is verified
+  if (signupBtn) {
+    signupBtn.disabled = true; // Prevent signup until email is verified
+  }
+
+  // =========================
+  // Form Validation & Submission
+  // =========================
+
+  // Email validation - ONLY ALLOW COLLEGE EMAIL
   function validateEmail(email) {
-    // Fix the regex pattern by ensuring it's correctly formed
-    // The $ was inside the capture group which might cause issues
     const emailRegex = /^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/;
     return emailRegex.test(email);
   }
@@ -95,7 +217,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Real-time validation - MODIFIED ERROR MESSAGE
-  const emailInput = document.getElementById("email");
   if (emailInput) {
     emailInput.addEventListener("input", function (e) {
       const email = e.target.value;
@@ -175,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Form submission
+  // Form submission (calls backend API)
   const signupForm = document.getElementById("signupForm");
   if (signupForm) {
     signupForm.addEventListener("submit", function (e) {
@@ -196,18 +317,40 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      // Only allow submission if OTP is verified
+      if (!otpVerified) {
+        showAlert("Please verify your email first.", "error");
+        return;
+      }
+
       showLoadingState();
 
-      setTimeout(() => {
-        showAlert(
-          "Account created successfully! Welcome to Study Group!",
-          "success"
-        );
-
-        setTimeout(() => {
-          goToLogin();
-        }, 2000);
-      }, 2000);
+      fetch("http://localhost:5000/api/auth/signup", {
+        // adjust URL if your backend is deployed elsewhere!
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (res.ok) {
+            hideLoadingState();
+            showAlert(
+              "Account created successfully! Welcome to Study Group!",
+              "success"
+            );
+            setTimeout(() => {
+              goToLogin();
+            }, 2000);
+          } else {
+            hideLoadingState();
+            showAlert(data.error, "error");
+          }
+        })
+        .catch((error) => {
+          hideLoadingState();
+          showAlert("Network error. Please try again.", "error");
+        });
     });
   }
 
@@ -340,4 +483,18 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         `;
   document.head.appendChild(style);
+
+  // Reset OTP verification if email changes
+  if (emailInput) {
+    emailInput.addEventListener("input", function () {
+      if (otpVerified) {
+        otpVerified = false;
+        emailInput.readOnly = false;
+        requestOtpBtn.disabled = false;
+        requestOtpBtn.textContent = "Request OTP";
+        requestOtpBtn.style.backgroundColor = "";
+        signupBtn.disabled = true;
+      }
+    });
+  }
 });

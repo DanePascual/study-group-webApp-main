@@ -49,20 +49,26 @@
           Report
         </a>
       </nav>
+      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
-          onclick="goToProfile()"
           style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div class="user-avatar" id="userAvatar">DP</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
           <div>
-            <div style="font-weight: bold; font-size: 14px" id="userName">
-              DanePascual
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              Loading...
             </div>
-            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              Loading...
+            </div>
           </div>
         </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
 
@@ -107,32 +113,16 @@
             role="group"
             aria-label="Filter resources"
           >
-            <button
-              class="resource-filter-btn active"
-              data-type="all"
-              onclick="filterResources(event)"
-            >
+            <button class="resource-filter-btn active" data-type="all">
               <i class="bi bi-grid-3x3-gap-fill"></i> All
             </button>
-            <button
-              class="resource-filter-btn"
-              data-type="docx"
-              onclick="filterResources(event)"
-            >
+            <button class="resource-filter-btn" data-type="docx">
               <i class="bi bi-file-earmark-word"></i> Documents
             </button>
-            <button
-              class="resource-filter-btn"
-              data-type="pdf"
-              onclick="filterResources(event)"
-            >
+            <button class="resource-filter-btn" data-type="pdf">
               <i class="bi bi-file-earmark-pdf"></i> PDF
             </button>
-            <button
-              class="resource-filter-btn"
-              data-type="ppt"
-              onclick="filterResources(event)"
-            >
+            <button class="resource-filter-btn" data-type="ppt">
               <i class="bi bi-file-earmark-slides"></i> PPT
             </button>
           </div>
@@ -235,6 +225,7 @@
       tabindex="-1"
       aria-labelledby="uploadModalLabel"
       aria-hidden="true"
+      data-bs-backdrop="static"
     >
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -244,8 +235,9 @@
               <button
                 type="button"
                 class="btn-close"
-                onclick="closeUploadModal()"
+                data-bs-dismiss="modal"
                 aria-label="Close"
+                onclick="closeUploadModal()"
               ></button>
             </div>
             <div class="modal-body">
@@ -260,7 +252,6 @@
                   class="form-control"
                   id="fileInput"
                   accept=".pdf,.doc,.docx,.ppt,.pptx"
-                  required
                 />
               </div>
 
@@ -288,8 +279,10 @@
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Category</label>
-                <select class="form-control" id="resourceCategory" required>
+                <label for="resourceCategory" class="form-label"
+                  >Category</label
+                >
+                <select class="form-control" id="resourceCategory">
                   <option value="">Select a category</option>
                   <option value="lecture">Lecture Notes</option>
                   <option value="assignment">Assignments & Solutions</option>
@@ -349,6 +342,7 @@
                   id="coverImagePreview"
                   class="cover-preview"
                   alt="Cover image preview"
+                  style="display: none"
                 />
               </div>
             </div>
@@ -356,12 +350,14 @@
               <button
                 type="button"
                 class="btn btn-outline-secondary"
+                data-bs-dismiss="modal"
                 onclick="closeUploadModal()"
               >
                 Cancel
               </button>
               <button type="submit" class="btn btn-success">
-                <i class="bi bi-cloud-upload"></i> Upload Resource
+                <i class="bi bi-cloud-upload"></i>
+                <span id="submitButtonText">Upload Resource</span>
               </button>
             </div>
           </form>
@@ -373,6 +369,12 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/resources.js"></script>
+
+    <!-- Use modular firebase config used throughout the project -->
+    <script type="module" src="../../config/firebase.js"></script>
+
+    <!-- IMPORTANT: load centralized sidebar BEFORE page script so sidebar is initialized first -->
+    <script type="module" src="../scripts/sidebar.js"></script>
+    <script type="module" src="../scripts/resources.js"></script>
   </body>
 </html>

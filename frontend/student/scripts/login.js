@@ -1,3 +1,30 @@
+// Import Firebase from the loaded scripts
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAn1-kQypHeeoqZRGYKhJfE5AiICkTX_Hw",
+  authDomain: "study-group-webapp-93fc2.firebaseapp.com",
+  projectId: "study-group-webapp-93fc2",
+  storageBucket: "study-group-webapp-93fc2.firebasestorage.app",
+  messagingSenderId: "857690286168",
+  appId: "1:857690286168:web:93e5f7bf374b62445a022d",
+  measurementId: "G-MR51J9BKM0",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// Attach event listener for password toggle
+document
+  .getElementById("passwordToggleBtn")
+  .addEventListener("click", togglePassword);
+
 // Password toggle functionality
 function togglePassword() {
   const passwordInput = document.getElementById("password");
@@ -28,8 +55,6 @@ document.getElementById("email").addEventListener("input", function (e) {
   if (email && !validateEmail(email)) {
     emailInput.style.borderColor = "#dc3545";
     emailInput.style.backgroundColor = "#fff5f5";
-
-    // Show error message if not already shown
     if (!document.getElementById("emailError")) {
       const errorMsg = document.createElement("div");
       errorMsg.id = "emailError";
@@ -41,8 +66,6 @@ document.getElementById("email").addEventListener("input", function (e) {
   } else {
     emailInput.style.borderColor = "#e0e0e0";
     emailInput.style.backgroundColor = "#f8f9fa";
-
-    // Remove error message if exists
     const errorMsg = document.getElementById("emailError");
     if (errorMsg) {
       errorMsg.remove();
@@ -68,14 +91,13 @@ document.getElementById("forgotEmail").addEventListener("input", function (e) {
   }
 });
 
-// Login form submission
+// Login form submission with Firebase Auth integration
 document.getElementById("loginForm").addEventListener("submit", function (e) {
   e.preventDefault();
 
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  // Validate email domain
   if (!validateEmail(email)) {
     alert(
       "Please use your Pateros Technological College email address\n(example@paterostechnologicalcollege.edu.ph)"
@@ -83,13 +105,15 @@ document.getElementById("loginForm").addEventListener("submit", function (e) {
     return;
   }
 
-  // Check if both fields are filled
   if (email && password) {
-    alert(
-      "Login successful! Welcome to Study Group!\n(This will redirect to dashboard later)"
-    );
-    // TODO: Add actual login logic and redirect to dashboard
-    // window.location.href = 'dashboard.html';
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        alert("Login successful! Redirecting...");
+        window.location.href = "dashboard.html";
+      })
+      .catch((error) => {
+        alert("Login failed: " + error.message);
+      });
   } else {
     alert("Please fill in all fields");
   }
@@ -101,18 +125,18 @@ function openForgotPasswordModal() {
   document.body.style.overflow = "hidden";
   document.getElementById("forgotEmail").focus();
 }
+window.openForgotPasswordModal = openForgotPasswordModal;
 
 function closeForgotPasswordModal() {
   document.getElementById("forgotPasswordModal").style.display = "none";
   document.body.style.overflow = "auto";
-
-  // Reset form
   document.getElementById("forgotEmail").value = "";
   document.getElementById("forgotEmail").classList.remove("error", "success");
   hideResetLoadingState();
 }
+window.closeForgotPasswordModal = closeForgotPasswordModal;
 
-// Close modal when clicking outside
+// Modal click outside
 document
   .getElementById("forgotPasswordModal")
   .addEventListener("click", function (e) {
@@ -121,7 +145,7 @@ document
     }
   });
 
-// Send reset link functionality
+// Send reset link functionality with Firebase
 function sendResetLink() {
   const email = document.getElementById("forgotEmail").value.trim();
 
@@ -141,35 +165,22 @@ function sendResetLink() {
 
   showResetLoadingState();
 
-  // Simulate sending reset email
-  setTimeout(() => {
-    hideResetLoadingState();
-    closeForgotPasswordModal();
-
-    alert(
-      `Password reset link sent to ${email}!\n\nCheck your email and follow the instructions to reset your password.`
-    );
-
-    // Store reset request for demo purposes
-    localStorage.setItem(
-      "passwordResetRequest",
-      JSON.stringify({
-        email: email,
-        timestamp: new Date().toISOString(),
-        token: generateResetToken(),
-      })
-    );
-  }, 2500);
+  sendPasswordResetEmail(auth, email)
+    .then(() => {
+      hideResetLoadingState();
+      closeForgotPasswordModal();
+      alert(
+        `Password reset link sent to ${email}!\n\nCheck your email and follow the instructions to reset your password.`
+      );
+    })
+    .catch((error) => {
+      hideResetLoadingState();
+      alert("Error sending reset email: " + error.message);
+    });
 }
+window.sendResetLink = sendResetLink;
 
-function generateResetToken() {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
-}
-
-// Reset loading state management
+// Password reset loading state management
 function showResetLoadingState() {
   const btn = document.getElementById("sendResetBtn");
   const spinner = document.getElementById("resetSpinner");
@@ -179,7 +190,6 @@ function showResetLoadingState() {
   spinner.style.display = "inline-block";
   btnText.textContent = "Sending...";
 }
-
 function hideResetLoadingState() {
   const btn = document.getElementById("sendResetBtn");
   const spinner = document.getElementById("resetSpinner");
@@ -194,6 +204,7 @@ function hideResetLoadingState() {
 function goToSignup() {
   window.location.href = "sign-up.html";
 }
+window.goToSignup = goToSignup;
 
 // Keyboard shortcuts
 document.addEventListener("keydown", function (e) {

@@ -1,101 +1,249 @@
-// UPDATED: Current Session Info with latest timestamp
-const CURRENT_SESSION = {
-  utcTime: "2025-08-29 16:00:02", // UTC time
-  philippinesTime: "2025-08-30 00:00:02", // Philippines time (UTC+8)
-  datetime: "2025-08-30 00:00:02", // Local Philippines time for compatibility
-  user: "DanePascual",
-  userAvatar: "DP",
-  userProgram: "BSIT",
-  timezone: "Asia/Manila",
-};
+// ======= Firebase Auth Dynamic Session =======
+import { auth, db } from "../../config/firebase.js";
+import {
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-// Theme management
-const themeToggle = document.getElementById("themeToggle");
-const body = document.body;
+// Wait for Firebase Authentication to load and set CURRENT_SESSION dynamically
+let CURRENT_SESSION = null;
 
-// Load saved theme
-const savedTheme = localStorage.getItem("theme") || "light";
-if (savedTheme === "dark") {
-  body.classList.add("dark-mode");
-  themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    // Fetch user program from Firestore (keyed by UID)
+    let userProgram = "";
+    try {
+      const userDocSnap = await getDoc(doc(db, "users", user.uid));
+      if (userDocSnap.exists()) {
+        userProgram = userDocSnap.data().program || "";
+      }
+    } catch (e) {
+      console.error("Could not fetch user program:", e);
+    }
+    CURRENT_SESSION = {
+      uid: user.uid, // Added UID to session object
+      datetime: new Date().toISOString(),
+      user: user.displayName || user.email,
+      userAvatar: user.displayName
+        ? user.displayName[0]
+        : user.email
+        ? user.email[0]
+        : "U",
+      userProgram: userProgram,
+      email: user.email,
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
+    };
+
+    // Update sidebar client area, but do it defensively so centralized sidebar.js (which fetches backend profile)
+    // can later overwrite with the authoritative name/photo.
+    updateSidebarUserInfo();
+
+    validateUserSession();
+
+    // Only initialize page UI that depends on DOM after DOM is ready.
+    scheduleUIInit();
+    console.log(`Dashboard ready for ${CURRENT_SESSION.user}`);
+  } else {
+    console.log("No user is signed in.");
+    // FIX: Use dynamic path resolution instead of hardcoded path
+    const currentPath = window.location.pathname;
+    const pathParts = currentPath.split("/");
+    const loginPath =
+      pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
+
+    // Use the current origin + dynamically constructed path
+    window.location.href = window.location.origin + loginPath;
+    console.log("Redirecting to login:", window.location.origin + loginPath);
+  }
+});
+
+/**
+ * Defensive sidebar update:
+ * - Only writes a temporary name/initials if sidebar is still in a default/loading state.
+ * - Does NOT overwrite a photo <img> that may be set by centralized sidebar.js after it fetches the user's backend profile.
+ */
+function updateSidebarUserInfo() {
+  try {
+    const avatar = document.getElementById("sidebarAvatar");
+    const nameNode = document.getElementById("sidebarName");
+    const courseNode = document.getElementById("sidebarCourse");
+
+    const currentName = nameNode ? nameNode.textContent.trim() : "";
+    const nameIsDefault =
+      !currentName ||
+      currentName === "" ||
+      currentName === "Loading..." ||
+      currentName === "Not signed in";
+
+    if (nameNode && nameIsDefault && CURRENT_SESSION && CURRENT_SESSION.user) {
+      nameNode.textContent = CURRENT_SESSION.user;
+    }
+
+    const currentCourse = courseNode ? courseNode.textContent.trim() : "";
+    const courseIsDefault =
+      !currentCourse || currentCourse === "" || currentCourse === "Loading...";
+    if (courseNode && courseIsDefault) {
+      courseNode.textContent =
+        (CURRENT_SESSION && CURRENT_SESSION.userProgram) || "";
+    }
+
+    // Only set initials if there's no <img> already present (so we don't overwrite server-provided photo)
+    if (avatar) {
+      const hasImg = avatar.querySelector && avatar.querySelector("img");
+      if (!hasImg) {
+        // Only set initials when avatar area is empty or in default state
+        const currentAvatarText = avatar.textContent
+          ? avatar.textContent.trim()
+          : "";
+        if (!currentAvatarText || currentAvatarText === "") {
+          if (CURRENT_SESSION && CURRENT_SESSION.userAvatar) {
+            avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("updateSidebarUserInfo failed:", err && err.message);
+  }
 }
 
-themeToggle.addEventListener("click", () => {
-  body.classList.toggle("dark-mode");
-  const isDark = body.classList.contains("dark-mode");
-  themeToggle.innerHTML = isDark
-    ? '<i class="bi bi-sun"></i>'
-    : '<i class="bi bi-moon"></i>';
-  localStorage.setItem("theme", isDark ? "dark" : "light");
+// ========== Dynamic Room Pagination Vars ==========
+let allRooms = [];
+let currentRoomPage = 1;
+let roomsPerPage = 9;
 
-  console.log(
-    `Theme switched to ${isDark ? "dark" : "light"} mode by ${
-      CURRENT_SESSION.user
-    }`
-  );
-});
+const API_BASE = "http://localhost:5000/api/study-groups";
 
-// Enhanced sidebar functionality
-const menuToggle = document.getElementById("menuToggle");
-const sidebar = document.getElementById("sidebar");
-const mainContent = document.getElementById("mainContent");
+// Utility: safe query selectors used after DOM ready
+function $(sel) {
+  return document.querySelector(sel);
+}
 
-menuToggle.addEventListener("click", function () {
-  sidebar.classList.toggle("open");
-  mainContent.classList.toggle("shifted");
+// Schedule UI initialization after DOMContentLoaded (if not yet loaded)
+function scheduleUIInit() {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboardUI);
+  } else {
+    initDashboardUI();
+  }
+}
 
-  // Save sidebar state
-  localStorage.setItem("sidebarOpen", sidebar.classList.contains("open"));
-});
+let renderDebounceTimer = null;
+function renderRoomPageDebounced() {
+  if (renderDebounceTimer) clearTimeout(renderDebounceTimer);
+  renderDebounceTimer = setTimeout(() => {
+    renderRoomPage();
+  }, 120);
+}
 
-// Load saved sidebar state
-document.addEventListener("DOMContentLoaded", () => {
-  const sidebarOpen = localStorage.getItem("sidebarOpen") === "true";
-  if (sidebarOpen && window.innerWidth > 768) {
-    sidebar.classList.add("open");
-    mainContent.classList.add("shifted");
+// Theme, search, todo, etc. wired here (DOM-ready)
+function initDashboardUI() {
+  // Theme toggle wiring
+  const themeToggle = document.getElementById("themeToggle");
+  const body = document.body;
+
+  // Load saved theme
+  const savedTheme = localStorage.getItem("theme") || "light";
+  if (savedTheme === "dark") {
+    body.classList.add("dark-mode");
+    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+  } else {
+    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
   }
 
-  // ADDED: Force the profile link to use direct navigation
-  document
-    .getElementById("profileLink")
-    .addEventListener("click", function (e) {
-      console.log("Profile link clicked - ensuring navigation to profile.html");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      body.classList.toggle("dark-mode");
+      const isDark = body.classList.contains("dark-mode");
+      themeToggle.innerHTML = isDark
+        ? '<i class="bi bi-sun"></i>'
+        : '<i class="bi bi-moon"></i>';
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+      console.log(
+        `Theme switched to ${isDark ? "dark" : "light"} mode by ${
+          (CURRENT_SESSION && CURRENT_SESSION.user) || "Unknown"
+        }`
+      );
+    });
+  }
+
+  // Sidebar state: watch for class changes (sidebar.js controls toggle)
+  watchSidebarToggle();
+
+  // Wire profileLink if present
+  const profileLink = document.getElementById("profileLink");
+  if (profileLink) {
+    profileLink.addEventListener("click", function (e) {
+      e.preventDefault();
       window.location.href = "profile.html";
     });
-});
+  }
 
-// Close sidebar when clicking outside on mobile
-document.addEventListener("click", function (event) {
-  if (window.innerWidth <= 768) {
-    if (
-      !sidebar.contains(event.target) &&
-      !menuToggle.contains(event.target) &&
-      sidebar.classList.contains("open")
-    ) {
-      sidebar.classList.remove("open");
-      mainContent.classList.remove("shifted");
+  // Wire search input
+  const searchInput = document.querySelector(".search-input");
+  let searchTimeout;
+  if (searchInput) {
+    searchInput.addEventListener("input", function (e) {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+      if (query.length > 1) {
+        searchTimeout = setTimeout(() => {
+          performSearch(query);
+        }, 300);
+      }
+    });
+  }
+
+  // Wire Todo form and modal behaviors
+  const todoForm = document.getElementById("todoForm");
+  const todoModal = document.getElementById("todoModal");
+  if (todoForm) {
+    todoForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      saveTodo();
+    });
+  }
+  if (todoModal) {
+    todoModal.addEventListener("click", function (e) {
+      if (e.target === this) {
+        closeTodoModal();
+      }
+    });
+  }
+
+  // Initialize keyboard + UI events that depend on DOM
+  initUIEvents();
+
+  // Fetch rooms and todos now that DOM is ready
+  fetchAndRenderRooms();
+  fetchTodos();
+  // renderTodos will be called from fetchTodos when data loads
+}
+
+// Observe sidebar class changes and re-render room grid responsively
+function watchSidebarToggle() {
+  const sidebarEl = document.getElementById("sidebar");
+  if (!sidebarEl) return;
+  let lastOpen = sidebarEl.classList.contains("open");
+  const observer = new MutationObserver(() => {
+    const nowOpen = sidebarEl.classList.contains("open");
+    if (nowOpen !== lastOpen) {
+      lastOpen = nowOpen;
+      // roomsPerPage changed — re-render page
+      renderRoomPageDebounced();
     }
-  }
-});
+  });
+  observer.observe(sidebarEl, { attributes: true, attributeFilter: ["class"] });
+}
 
-// Enhanced search functionality with suggestions
-const searchInput = document.querySelector(".search-input");
-let searchTimeout;
-
-searchInput.addEventListener("input", function (e) {
-  clearTimeout(searchTimeout);
-  const query = e.target.value.trim();
-
-  if (query.length > 1) {
-    searchTimeout = setTimeout(() => {
-      performSearch(query);
-    }, 300);
-  }
-});
+// Sidebar-influenced logic for rooms per page
+function getRoomsPerPage() {
+  const sidebarEl = document.getElementById("sidebar");
+  return sidebarEl && sidebarEl.classList.contains("open") ? 9 : 12;
+}
 
 function performSearch(query) {
-  // Mock search functionality - replace with actual API call
   const mockResults = [
     {
       type: "room",
@@ -109,134 +257,76 @@ function performSearch(query) {
       description: "Frontend development guide",
     },
   ];
-
   const filtered = mockResults.filter(
     (item) =>
       item.name.toLowerCase().includes(query.toLowerCase()) ||
-      item.description.toLowerCase().includes(query.toLowerCase())
+      (item.description &&
+        item.description.toLowerCase().includes(query.toLowerCase()))
   );
-
   console.log("Search results for:", query, filtered);
 }
 
-// Function for joining rooms
-function joinRoom(roomType) {
-  const rooms = {
-    cs: "CS Study Room",
-    "web-dev": "Web Development Study",
-    database: "Database Design",
-  };
-
-  // Simulate joining
+function joinRoom(roomId) {
   setTimeout(() => {
-    window.location.href = `study-room-inside.html?room=${roomType}`;
+    window.location.href = `study-room-inside.html?room=${roomId}`;
   }, 500);
 }
 
-// Modified to not show notifications
 function showNotification(message, type = "info") {
-  // Log to console instead
   console.log(`${type}: ${message}`);
 }
 
-// Enhanced Todo Management
+// ===== To-Do Management =====
 let editingTodoIndex = -1;
-let todos = JSON.parse(localStorage.getItem("studyTasks") || "[]");
-
-// Initialize with some sample todos if empty
-if (todos.length === 0) {
-  todos = [
-    {
-      id: Date.now() - 1000,
-      text: "Complete React tutorial from CS Study Room",
-      completed: false,
-      reminder: null,
-      created: new Date().toISOString(),
-      priority: "high",
-    },
-    {
-      id: Date.now() - 2000,
-      text: "Review database normalization concepts",
-      completed: true,
-      reminder: null,
-      created: new Date().toISOString(),
-      priority: "medium",
-    },
-    {
-      id: Date.now() - 3000,
-      text: "Prepare for algorithms quiz on Friday",
-      completed: false,
-      reminder: "2025-08-31T14:00",
-      created: new Date().toISOString(),
-      priority: "high",
-    },
-  ];
-  localStorage.setItem("studyTasks", JSON.stringify(todos));
-}
+let todos = [];
 
 function openTodoModal() {
-  document.getElementById("todoModal").style.display = "block";
-  document.getElementById("todoText").value = "";
-  document.getElementById("todoReminder").value = "";
-  editingTodoIndex = -1;
-  document.querySelector(".modal-title").textContent =
-    "Add Study Task & Reminder";
-  document.getElementById("todoText").focus();
+  const modal = document.getElementById("todoModal");
+  if (modal) {
+    modal.style.display = "block";
+    const todoText = document.getElementById("todoText");
+    if (todoText) todoText.value = "";
+    const todoReminder = document.getElementById("todoReminder");
+    if (todoReminder) todoReminder.value = "";
+    editingTodoIndex = -1;
+    const title = document.querySelector(".modal-title");
+    if (title) title.textContent = "Add Study Task & Reminder";
+    if (todoText) todoText.focus();
+  }
 }
 
 function closeTodoModal() {
-  document.getElementById("todoModal").style.display = "none";
+  const modal = document.getElementById("todoModal");
+  if (modal) modal.style.display = "none";
 }
 
-function saveTodo() {
-  const text = document.getElementById("todoText").value.trim();
-  const reminder = document.getElementById("todoReminder").value;
-
-  if (!text) {
-    showNotification("Please enter a task description!", "error");
-    return;
-  }
-
-  const todo = {
-    id: Date.now(),
-    text: text,
-    completed: false,
-    reminder: reminder,
-    created: new Date().toISOString(),
-    priority: "medium",
-  };
-
-  if (editingTodoIndex >= 0) {
-    todos[editingTodoIndex] = {
-      ...todos[editingTodoIndex],
-      text: text,
-      reminder: reminder,
-    };
-    showNotification("Task updated successfully!", "success");
-  } else {
-    todos.unshift(todo);
-    showNotification("New task added!", "success");
-  }
-
-  localStorage.setItem("studyTasks", JSON.stringify(todos));
-  renderTodos();
-  closeTodoModal();
+async function editTodo(index) {
+  editingTodoIndex = index;
+  const todo = todos[index];
+  const todoText = document.getElementById("todoText");
+  const todoReminder = document.getElementById("todoReminder");
+  if (todoText) todoText.value = todo.text;
+  if (todoReminder) todoReminder.value = todo.reminder || "";
+  const title = document.querySelector(".modal-title");
+  if (title) title.textContent = "Edit Study Task";
+  const modal = document.getElementById("todoModal");
+  if (modal) modal.style.display = "block";
+  if (todoText) todoText.focus();
 }
 
 function renderTodos() {
   const todoList = document.getElementById("todoList");
-
+  if (!todoList) return;
   if (todos.length === 0) {
     todoList.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: var(--medium-text);">
-              <i class="bi bi-journal-text" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
-              <p>No study tasks yet.</p>
-              <p style="font-size: 12px;">Click "Add Task" to create your first reminder!</p>
-            </div>
-          `;
+      <div style="text-align: center; padding: 30px; color: var(--medium-text);">
+        <i class="bi bi-journal-text" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+        <p>No study tasks yet.</p>
+        <p style="font-size: 12px;">Click "Add Task" to create your first reminder!</p>
+      </div>
+    `;
     return;
   }
-
   const sortedTodos = [...todos].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed - b.completed;
     const priorityOrder = { high: 0, medium: 1, low: 2 };
@@ -254,79 +344,48 @@ function renderTodos() {
           : todo.priority === "medium"
           ? "#ff9800"
           : "#4caf50";
-
       return `
-              <div class="todo-item ${
-                todo.completed ? "completed" : ""
-              }" style="border-left-color: ${priorityColor}">
-                <div class="todo-content">
-                  <input type="checkbox" class="todo-checkbox" ${
-                    todo.completed ? "checked" : ""
-                  } onchange="toggleTodo(${originalIndex})">
-                  <div class="todo-text ${todo.completed ? "completed" : ""}">${
+        <div class="todo-item ${
+          todo.completed ? "completed" : ""
+        }" style="border-left-color: ${priorityColor}">
+          <div class="todo-content">
+            <input type="checkbox" class="todo-checkbox" ${
+              todo.completed ? "checked" : ""
+            } onchange="toggleTodo(${originalIndex})">
+            <div class="todo-text ${todo.completed ? "completed" : ""}">${
         todo.text
       }</div>
-                </div>
-                <div class="todo-meta">
-                  <div class="todo-reminder">
-                    <i class="bi bi-clock"></i>
-                    <span>${
-                      todo.reminder
-                        ? formatReminderDate(todo.reminder)
-                        : "No reminder"
-                    }</span>
-                  </div>
-                  <div class="todo-actions">
-                    <button class="todo-action-btn" onclick="editTodo(${originalIndex})" title="Edit task">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="todo-action-btn" onclick="deleteTodo(${originalIndex})" title="Delete task">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            `;
+          </div>
+          <div class="todo-meta">
+            <div class="todo-reminder">
+              <i class="bi bi-clock"></i>
+              <span>${
+                todo.reminder
+                  ? formatReminderDate(todo.reminder)
+                  : "No reminder"
+              }</span>
+            </div>
+            <div class="todo-actions">
+              <button class="todo-action-btn" onclick="editTodo(${originalIndex})" title="Edit task">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="todo-action-btn" onclick="deleteTodo(${originalIndex})" title="Delete task">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
     })
     .join("");
 }
 
-function toggleTodo(index) {
-  todos[index].completed = !todos[index].completed;
-  localStorage.setItem("studyTasks", JSON.stringify(todos));
-  renderTodos();
-
-  const action = todos[index].completed ? "completed" : "reopened";
-  showNotification(`Task ${action}!`, "success");
-}
-
-function editTodo(index) {
-  editingTodoIndex = index;
-  const todo = todos[index];
-  document.getElementById("todoText").value = todo.text;
-  document.getElementById("todoReminder").value = todo.reminder || "";
-  document.querySelector(".modal-title").textContent = "Edit Study Task";
-  document.getElementById("todoModal").style.display = "block";
-  document.getElementById("todoText").focus();
-}
-
-function deleteTodo(index) {
-  if (confirm("Are you sure you want to delete this task?")) {
-    todos.splice(index, 1);
-    localStorage.setItem("studyTasks", JSON.stringify(todos));
-    renderTodos();
-    showNotification("Task deleted!", "info");
-  }
-}
-
 function formatReminderDate(dateString) {
   if (!dateString) return "No reminder";
-
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffHours = diffMs / (1000 * 60 * 60);
-
   if (diffHours < 0) {
     return "Overdue";
   } else if (diffHours < 1) {
@@ -340,111 +399,321 @@ function formatReminderDate(dateString) {
   }
 }
 
-// Todo Form Submit
-document.getElementById("todoForm").addEventListener("submit", function (e) {
-  e.preventDefault();
-  saveTodo();
-});
+function initUIEvents() {
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+      e.preventDefault();
+      openTodoModal();
+    }
+    if (e.key === "Escape") {
+      closeTodoModal();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      e.preventDefault();
+      const searchInput = document.querySelector(".search-input");
+      if (searchInput) searchInput.focus();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+      e.preventDefault();
+      const themeToggle = document.getElementById("themeToggle");
+      if (themeToggle) themeToggle.click();
+    }
+    // Removed the Ctrl+L shortcut for logout since we're using sidebar.js logout
+  });
 
-// Close modal when clicking outside
-document.getElementById("todoModal").addEventListener("click", function (e) {
-  if (e.target === this) {
-    closeTodoModal();
+  // sidebar.js provides logout handling - no double binding required
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    console.log("Logout button detected - using sidebar.js logout function");
   }
-});
+}
 
-// Keyboard shortcuts
-document.addEventListener("keydown", function (e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-    e.preventDefault();
-    openTodoModal();
-  }
-
-  if (e.key === "Escape") {
-    closeTodoModal();
-  }
-
-  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-    e.preventDefault();
-    searchInput.focus();
-  }
-
-  if ((e.ctrlKey || e.metaKey) && e.key === "t") {
-    e.preventDefault();
-    themeToggle.click();
-  }
-});
-
-// Real-time participant count updates (simulated)
 function updateParticipantCounts() {
   const rooms = ["cs", "web-dev", "database"];
   rooms.forEach((room) => {
     const countElement = document.getElementById(`${room}-count`);
     if (countElement) {
-      const currentCount = parseInt(countElement.textContent);
+      const currentCount = parseInt(countElement.textContent) || 0;
       const variation = Math.floor(Math.random() * 3) - 1;
       const newCount = Math.max(0, currentCount + variation);
       countElement.textContent = newCount;
     }
   });
 }
-
 setInterval(updateParticipantCounts, 30000);
 
-// User session validation
 function validateUserSession() {
-  localStorage.setItem("currentUser", CURRENT_SESSION.user);
-  localStorage.setItem("currentSession", JSON.stringify(CURRENT_SESSION));
-  console.log(`Dashboard session validated for ${CURRENT_SESSION.user}`);
+  if (CURRENT_SESSION)
+    console.log(`Dashboard session validated for ${CURRENT_SESSION.user}`);
 }
 
-// Initialize dashboard
-document.addEventListener("DOMContentLoaded", function () {
-  // Validate user session
-  validateUserSession();
+// ====================
+// Room Pagination Logic (Responsive to Sidebar)
+// ====================
+async function fetchAndRenderRooms() {
+  const roomGrid = document.getElementById("roomGrid");
+  const paginationDivId = "roomPagination";
+  let paginationDiv = document.getElementById(paginationDivId);
+  if (paginationDiv) paginationDiv.remove();
 
-  // Render todos
-  renderTodos();
+  if (!roomGrid) return;
+  roomGrid.innerHTML = `<div style="text-align:center;">Loading rooms...</div>`;
+  try {
+    const response = await fetch(API_BASE);
+    if (!response.ok) throw new Error("Failed to fetch study rooms.");
+    allRooms = await response.json();
 
-  // Animate elements on load
+    if (!allRooms.length) {
+      roomGrid.innerHTML = `<div style="text-align:center; color:var(--medium-text);">No active study rooms yet.</div>`;
+      return;
+    }
+
+    renderRoomPage();
+  } catch (err) {
+    roomGrid.innerHTML = `<div style="text-align:center; color:red;">Could not load rooms.</div>`;
+    console.error(err);
+  }
+}
+
+// Room rendering without creator display
+function renderRoomPage() {
+  const roomGrid = document.getElementById("roomGrid");
+  const paginationDivId = "roomPagination";
+  let paginationDiv = document.getElementById(paginationDivId);
+  if (!roomGrid) return;
+  if (paginationDiv) paginationDiv.remove();
+
+  roomsPerPage = getRoomsPerPage();
+  const totalPages = Math.ceil(allRooms.length / roomsPerPage);
+  if (currentRoomPage > totalPages) currentRoomPage = totalPages || 1;
+  const start = (currentRoomPage - 1) * roomsPerPage;
+  const end = start + roomsPerPage;
+  const roomsToShow = allRooms.slice(start, end);
+
+  roomGrid.innerHTML = "";
+
+  roomsToShow.forEach((room) => {
+    const card = document.createElement("div");
+    card.className = "room-card";
+    card.innerHTML = `
+      <div class="room-header">
+        <div>
+          <h3 class="room-title">${room.name}</h3>
+          <p class="room-description">${
+            room.description || "No description"
+          }</p>
+        </div>
+      </div>
+      <div class="room-tags">
+        ${(room.tags || [])
+          .map((tag) => `<span class="room-tag">${tag}</span>`)
+          .join("")}
+      </div>
+      <div class="room-footer">
+        <span class="participant-count">
+          <i class="bi bi-people"></i>
+          ${room.participants ? room.participants.length : 1} participants
+        </span>
+        <button class="join-btn" onclick="joinRoom('${room.id}')">
+          Join Now
+        </button>
+      </div>
+    `;
+    roomGrid.appendChild(card);
+  });
+
+  if (totalPages > 1) {
+    const pagination = document.createElement("div");
+    pagination.className = "pagination-controls";
+    pagination.id = paginationDivId;
+
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "Previous";
+    prevBtn.disabled = currentRoomPage === 1;
+    prevBtn.onclick = () => {
+      if (currentRoomPage > 1) {
+        currentRoomPage--;
+        renderRoomPage();
+      }
+    };
+    pagination.appendChild(prevBtn);
+
+    const pageIndicator = document.createElement("span");
+    pageIndicator.style.cssText =
+      "margin: 0 12px; font-weight: 500; color: var(--dark-text);";
+    pageIndicator.textContent = `Page ${currentRoomPage} of ${totalPages}`;
+    pagination.appendChild(pageIndicator);
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next";
+    nextBtn.disabled = currentRoomPage === totalPages;
+    nextBtn.onclick = () => {
+      if (currentRoomPage < totalPages) {
+        currentRoomPage++;
+        renderRoomPage();
+      }
+    };
+    pagination.appendChild(nextBtn);
+
+    roomGrid.parentNode.appendChild(pagination);
+  }
+
+  // Animate the room cards after rendering
+  animateRoomCards();
+}
+
+function animateRoomCards() {
   const animatedElements = document.querySelectorAll(".room-card");
   animatedElements.forEach((element, index) => {
     element.style.opacity = "0";
     element.style.transform = "translateY(20px)";
-
     setTimeout(() => {
       element.style.transition = "all 0.6s ease-out";
       element.style.opacity = "1";
       element.style.transform = "translateY(0)";
     }, index * 100);
   });
+}
 
-  // Update search placeholder for mobile
-  function updateSearchPlaceholder() {
-    const width = window.innerWidth;
-    if (width <= 360) {
-      searchInput.placeholder = "Search...";
-    } else if (width <= 480) {
-      searchInput.placeholder = "Search...";
-    } else {
-      searchInput.placeholder = "Search dashboard...";
-    }
+// ========== Todos Backend ==========
+async function fetchTodos() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const idToken = await user.getIdToken();
+
+  try {
+    const response = await fetch("http://localhost:5000/api/todos", {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+    if (!response.ok) throw new Error("Failed to fetch todos");
+    todos = await response.json();
+    renderTodos();
+  } catch (err) {
+    console.error(err);
+    showNotification("Could not load todos!", "error");
+  }
+}
+
+async function saveTodo() {
+  const textEl = document.getElementById("todoText");
+  const reminderEl = document.getElementById("todoReminder");
+  const text = textEl ? textEl.value.trim() : "";
+  const reminder = reminderEl ? reminderEl.value : "";
+  const user = auth.currentUser;
+  if (!user) return;
+  const idToken = await user.getIdToken();
+
+  if (!text) {
+    showNotification("Please enter a task description!", "error");
+    return;
   }
 
-  // Initial call and setup resize listener
-  updateSearchPlaceholder();
-  window.addEventListener("resize", updateSearchPlaceholder);
+  const todo = {
+    text,
+    completed: false,
+    reminder,
+    created: new Date().toISOString(),
+    priority: "medium",
+  };
 
-  console.log(`Dashboard ready for ${CURRENT_SESSION.user}`);
-});
+  try {
+    if (editingTodoIndex >= 0) {
+      const id = todos[editingTodoIndex].id;
+      await fetch(`http://localhost:5000/api/todos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ ...todos[editingTodoIndex], text, reminder }),
+      });
+      showNotification("Task updated successfully!", "success");
+    } else {
+      await fetch("http://localhost:5000/api/todos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(todo),
+      });
+      showNotification("New task added!", "success");
+    }
+    closeTodoModal();
+    fetchTodos();
+  } catch (err) {
+    showNotification("Could not save task.", "error");
+  }
+}
 
-// Export functions for potential use by other scripts
+async function toggleTodo(index) {
+  const todo = todos[index];
+  if (!todo) return;
+  todo.completed = !todo.completed;
+  const user = auth.currentUser;
+  if (!user) return;
+  const idToken = await user.getIdToken();
+
+  try {
+    await fetch(`http://localhost:5000/api/todos/${todo.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(todo),
+    });
+    fetchTodos();
+    showNotification(
+      `Task ${todo.completed ? "completed" : "reopened"}!`,
+      "success"
+    );
+  } catch {
+    showNotification("Could not update task.", "error");
+  }
+}
+
+async function deleteTodo(index) {
+  const todo = todos[index];
+  if (!todo) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  const idToken = await user.getIdToken();
+
+  if (confirm("Are you sure you want to delete this task?")) {
+    try {
+      await fetch(`http://localhost:5000/api/todos/${todo.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      fetchTodos();
+      showNotification("Task deleted!", "info");
+    } catch {
+      showNotification("Could not delete task.", "error");
+    }
+  }
+}
+
+// Expose for global use
 window.StudyDashboard = {
   showNotification,
   openTodoModal,
   closeTodoModal,
   joinRoom,
   validateUserSession,
-  currentUser: CURRENT_SESSION.user,
-  currentSession: CURRENT_SESSION.datetime,
+  currentUser: () => (CURRENT_SESSION ? CURRENT_SESSION.user : ""),
+  currentSession: () => (CURRENT_SESSION ? CURRENT_SESSION.datetime : ""),
 };
+
+window.openTodoModal = openTodoModal;
+window.closeTodoModal = closeTodoModal;
+window.editTodo = editTodo;
+window.deleteTodo = deleteTodo;
+window.toggleTodo = toggleTodo;
+window.joinRoom = joinRoom;
+
+// NOTE: Logout function completely removed - now using sidebar.js logout

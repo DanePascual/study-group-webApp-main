@@ -51,23 +51,26 @@
         </a>
       </nav>
 
+      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
-        <!-- FIXED: replaced onclick with href for better navigation -->
-        <a
-          href="profile.html"
-          style="text-decoration: none; display: block; width: 100%"
+        <div
+          class="user-info"
+          style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div
-            class="user-info"
-            style="cursor: pointer; transition: all 0.3s ease"
-          >
-            <div class="user-avatar">DP</div>
-            <div>
-              <div style="font-weight: bold; font-size: 14px">DanePascual</div>
-              <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
+          <div>
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              Loading...
+            </div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              Loading...
             </div>
           </div>
-        </a>
+        </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
 
@@ -169,7 +172,7 @@
 
               <!-- Room Grid Container -->
               <div id="roomContainer">
-                <!-- Empty state for room grid -->
+                <!-- Room grid and pagination will be rendered here -->
                 <div class="empty-state" id="emptyState">
                   <div class="empty-state-icon">
                     <i class="bi bi-door-closed"></i>
@@ -187,6 +190,7 @@
                 </div>
               </div>
             </div>
+            <!-- Pagination controls will be rendered by JS -->
           </div>
 
           <!-- Side section: Recommended For You -->
@@ -376,9 +380,28 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-    <script src="../scripts/study-rooms.js"></script>
+    <!-- Load modular firebase and centralized sidebar BEFORE the page script -->
+    <script type="module" src="../../config/firebase.js"></script>
+    <script type="module" src="../scripts/sidebar.js"></script>
+
+    <!-- Page script -->
+    <script type="module" src="../scripts/study-rooms.js"></script>
+
+    <!-- Small inline bridge: attach exported functions to window for existing onclick handlers -->
+    <script type="module">
+      import {
+        showToast,
+        closeToast,
+        enterRoom,
+        logout,
+      } from "../scripts/study-rooms.js";
+      window.showToast = showToast;
+      window.closeToast = closeToast;
+      window.enterRoom = enterRoom;
+      window.logout = logout;
+      console.log("Study-rooms bridge attached to window");
+    </script>
   </body>
 </html>

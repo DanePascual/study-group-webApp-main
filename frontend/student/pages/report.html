@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Bootstrap and icons -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
       rel="stylesheet"
@@ -23,7 +24,6 @@
           StudyGroup
         </div>
       </div>
-
       <nav class="sidebar-menu" role="navigation">
         <a href="dashboard.html" class="sidebar-item">
           <i class="bi bi-house"></i>
@@ -50,27 +50,29 @@
           Report
         </a>
       </nav>
-
       <div class="sidebar-footer">
         <div
           class="user-info"
-          onclick="goToProfile()"
-          role="button"
-          tabindex="0"
-          aria-label="Go to profile - DanePascual"
+          style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div class="user-avatar">DP</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
           <div>
-            <div style="font-weight: bold; font-size: 14px">DanePascual</div>
-            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              Loading...
+            </div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              Loading...
+            </div>
           </div>
         </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
-
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
-      <!-- Top Navigation - WITHOUT TIME DISPLAY -->
       <div class="top-nav">
         <div class="nav-left">
           <button
@@ -82,7 +84,6 @@
           </button>
           <h1 class="page-title">Report a Violation</h1>
         </div>
-
         <div class="nav-right">
           <button
             class="theme-toggle"
@@ -93,19 +94,15 @@
           </button>
         </div>
       </div>
-
-      <!-- Report Content -->
       <div class="report-content">
         <div class="content-row">
           <!-- Main Section -->
           <div class="main-section">
-            <!-- Report Form -->
             <div class="report-form">
               <h2 class="section-title">
                 <i class="bi bi-exclamation-triangle"></i>
                 Submit a Report
               </h2>
-
               <form id="reportForm">
                 <!-- Report Type -->
                 <div class="form-group">
@@ -127,7 +124,6 @@
                     <option value="other">Other Violation</option>
                   </select>
                 </div>
-
                 <!-- Severity Level -->
                 <div class="form-group">
                   <label class="form-label" for="severity">
@@ -146,7 +142,6 @@
                     </option>
                   </select>
                 </div>
-
                 <!-- Who are you reporting -->
                 <div class="form-group">
                   <label class="form-label" for="reportedUser">
@@ -166,7 +161,6 @@
                     style="display: none"
                   ></div>
                 </div>
-
                 <!-- Where did it happen -->
                 <div class="form-group">
                   <label class="form-label" for="location">
@@ -181,7 +175,6 @@
                     required
                   />
                 </div>
-
                 <!-- When did it happen -->
                 <div class="form-group">
                   <label class="form-label" for="incidentTime">
@@ -193,7 +186,6 @@
                     id="incidentTime"
                   />
                 </div>
-
                 <!-- Description -->
                 <div class="form-group">
                   <label class="form-label" for="description">
@@ -218,7 +210,6 @@
                     <span id="charCount">0</span>/1000 characters
                   </div>
                 </div>
-
                 <!-- Evidence Upload -->
                 <div class="form-group">
                   <label class="form-label"> Attach Evidence (Optional) </label>
@@ -246,7 +237,6 @@
                   </div>
                   <div class="uploaded-files" id="uploadedFiles"></div>
                 </div>
-
                 <!-- Anonymous Report Option -->
                 <div class="form-group">
                   <label
@@ -277,7 +267,6 @@
                     visible to moderators.
                   </div>
                 </div>
-
                 <!-- Submit Section -->
                 <div class="submit-section">
                   <button
@@ -294,16 +283,13 @@
               </form>
             </div>
           </div>
-
           <!-- Side Section -->
           <div class="side-section">
-            <!-- Report Guidelines -->
             <div class="report-guidelines">
               <h3 class="section-title">
                 <i class="bi bi-info-circle"></i>
                 Reporting Guidelines
               </h3>
-
               <div class="guideline-item">
                 <i class="bi bi-check-circle guideline-icon"></i>
                 <div class="guideline-text">
@@ -311,7 +297,6 @@
                   Provide clear details about what happened and when.
                 </div>
               </div>
-
               <div class="guideline-item">
                 <i class="bi bi-camera guideline-icon"></i>
                 <div class="guideline-text">
@@ -319,7 +304,6 @@
                   Screenshots or chat logs help us understand the situation.
                 </div>
               </div>
-
               <div class="guideline-item">
                 <i class="bi bi-shield-check guideline-icon"></i>
                 <div class="guideline-text">
@@ -327,7 +311,6 @@
                   Report threats or harassment immediately.
                 </div>
               </div>
-
               <div class="guideline-item">
                 <i class="bi bi-exclamation-triangle guideline-icon"></i>
                 <div class="guideline-text">
@@ -335,7 +318,6 @@
                   False reporting may result in account restrictions.
                 </div>
               </div>
-
               <div class="guideline-item">
                 <i class="bi bi-clock guideline-icon"></i>
                 <div class="guideline-text">
@@ -344,56 +326,17 @@
                 </div>
               </div>
             </div>
-
-            <!-- Recent Reports Status -->
             <div class="report-status">
               <h3 class="section-title">
                 <i class="bi bi-list-check"></i>
                 Your Recent Reports
               </h3>
-
-              <div class="status-item">
-                <div class="status-icon status-pending">
-                  <i class="bi bi-clock"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Report #2025070501</div>
-                  <div class="status-time">
-                    Submitted 2 hours ago • Under review
-                  </div>
-                </div>
-              </div>
-
-              <div class="status-item">
-                <div class="status-icon status-resolved">
-                  <i class="bi bi-check"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">Report #2025070301</div>
-                  <div class="status-time">
-                    Resolved 2 days ago • Action taken
-                  </div>
-                </div>
-              </div>
-
-              <div style="text-align: center; margin-top: 15px">
-                <a
-                  href="#"
-                  style="
-                    color: var(--primary-color);
-                    font-size: 13px;
-                    text-decoration: none;
-                  "
-                >
-                  View all reports →
-                </a>
-              </div>
+              <!-- This section will be dynamically replaced by JS -->
             </div>
           </div>
         </div>
       </div>
     </div>
-
     <!-- Success Modal -->
     <div id="successModal" class="modal-overlay" style="display: none">
       <div class="modal-content">
@@ -428,8 +371,50 @@
         </div>
       </div>
     </div>
-
+    <!-- MODAL FOR ALL REPORTS -->
+    <div
+      id="allReportsModal"
+      class="modal-overlay"
+      style="display: none; z-index: 3000"
+    >
+      <div
+        class="modal-content"
+        style="max-width: 600px; width: 95%; max-height: 80vh; overflow-y: auto"
+      >
+        <div
+          class="modal-header"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h3 style="margin: 0">All My Reports</h3>
+          <button
+            type="button"
+            onclick="closeAllReportsModal()"
+            style="
+              background: none;
+              border: none;
+              font-size: 28px;
+              line-height: 1;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="allReportsList" style="padding-top: 12px">
+          <!-- All reports will appear here -->
+        </div>
+      </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/report.js"></script>
+
+    <!-- Use modular firebase config used throughout the project -->
+    <script type="module" src="../../config/firebase.js"></script>
+
+    <!-- IMPORTANT: load centralized sidebar BEFORE page script so sidebar is initialized first -->
+    <script type="module" src="../scripts/sidebar.js"></script>
+    <script type="module" src="../scripts/report.js"></script>
   </body>
 </html>

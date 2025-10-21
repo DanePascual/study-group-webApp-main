@@ -12,9 +12,142 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../styles/profile.css" />
+    <style>
+      /* Inline styles retained from original file for notifications, overlays, etc. */
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background: #fff;
+        border-left: 5px solid #4caf50;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        max-width: 400px;
+        border-radius: 4px;
+        transform: translateX(120%);
+        opacity: 0;
+        transition: all 0.3s ease;
+      }
+      .notification.show {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      .notification.error {
+        border-left-color: #f44336;
+      }
+      .notification i {
+        margin-right: 12px;
+        font-size: 20px;
+      }
+      .notification i.bi-check-circle-fill {
+        color: #4caf50;
+      }
+      .notification i.bi-exclamation-circle-fill {
+        color: #f44336;
+      }
+      .notification span {
+        flex: 1;
+        color: var(--dark-text);
+      }
+      .notification-close {
+        background: none;
+        border: none;
+        color: #999;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 10px;
+      }
+      .form-error {
+        color: #f44336;
+        font-size: 12px;
+        margin-top: 5px;
+        display: block;
+      }
+      .form-input.error,
+      .form-textarea.error {
+        border-color: #f44336;
+      }
+      .form-label::after {
+        content: " *";
+        color: #f44336;
+        display: inline-block;
+      }
+      .modal.loading {
+        position: relative;
+      }
+      .modal.loading::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.7);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .spinning {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      #lastUpdated {
+        font-size: 12px;
+        color: var(--medium-text);
+        text-align: right;
+        margin-top: 10px;
+      }
+      /* Loading overlay for initial page load */
+      #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+      }
+      #loadingOverlay.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+      body.dark-mode #loadingOverlay {
+        background: rgba(33, 33, 33, 0.9);
+      }
+
+      /* Minimal styling for Change Password modal to match existing UI */
+      #changePasswordModal .modal-content {
+        max-width: 520px;
+        margin: 20px auto;
+      }
+    </style>
     <title>Profile - Study Group</title>
   </head>
   <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+      <div class="spinner">
+        <i class="bi bi-arrow-repeat spinning"></i>
+      </div>
+      <p>Loading your profile...</p>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
@@ -49,21 +182,26 @@
           Report
         </a>
       </nav>
+      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
           style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div class="user-avatar" id="sidebarAvatar">DP</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
           <div>
             <div style="font-weight: bold; font-size: 14px" id="sidebarName">
-              DanePascual
+              Loading...
             </div>
             <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
-              BSIT
+              Loading...
             </div>
           </div>
         </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
 
@@ -78,7 +216,8 @@
           <h1 class="page-title">Profile</h1>
         </div>
         <div class="nav-actions">
-          <!-- Removed pencil icon as requested -->
+          <!-- Keyboard shortcut hint -->
+          <span class="shortcut-hint">Ctrl+E to edit</span>
           <button
             class="theme-toggle"
             id="themeToggle"
@@ -97,7 +236,7 @@
             <div class="profile-avatar" id="profileAvatar">
               <i class="bi bi-person-circle avatar-icon"></i>
             </div>
-            <button class="edit-profile-btn" onclick="openEditModal()">
+            <button class="edit-profile-btn" id="editProfileBtn">
               <i class="bi bi-pencil"></i>
               Edit Profile
             </button>
@@ -115,6 +254,7 @@
               cybersecurity, and collaborative learning. Always eager to explore
               new technologies and connect with fellow IT enthusiasts.
             </p>
+            <div id="lastUpdated">Last updated: 2025-10-10 08:17:59 UTC</div>
           </div>
         </div>
 
@@ -200,14 +340,16 @@
           </div>
         </div>
       </div>
+      <!-- /.profile-content -->
     </div>
+    <!-- /.main-content -->
 
     <!-- Edit Profile Modal -->
     <div id="editModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3 class="modal-title">Edit Profile</h3>
-          <button class="close-modal" onclick="closeEditModal()">×</button>
+          <button class="close-modal" id="closeEditModalBtn">×</button>
         </div>
         <div class="modal-body">
           <form id="editForm">
@@ -226,7 +368,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Full Name</label>
+              <label class="form-label" for="editName">Full Name</label>
               <input
                 type="text"
                 class="form-input"
@@ -237,7 +379,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Email Address</label>
+              <label class="form-label" for="editEmail">Email Address</label>
               <input
                 type="email"
                 class="form-input"
@@ -253,7 +395,9 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Student Number</label>
+              <label class="form-label" for="editStudentNumber"
+                >Student Number</label
+              >
               <input
                 type="text"
                 class="form-input"
@@ -264,7 +408,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Program</label>
+              <label class="form-label" for="editProgram">Program</label>
               <input
                 type="text"
                 class="form-input"
@@ -275,7 +419,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Institution</label>
+              <label for="editInstitution">Institution</label>
               <input
                 type="text"
                 class="form-input"
@@ -285,7 +429,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Year Level</label>
+              <label for="editYearLevel">Year Level</label>
               <input
                 type="text"
                 class="form-input"
@@ -295,7 +439,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Specialization</label>
+              <label for="editSpecialization">Specialization</label>
               <input
                 type="text"
                 class="form-input"
@@ -305,7 +449,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">Expected Graduation</label>
+              <label for="editGraduation">Expected Graduation</label>
               <input
                 type="text"
                 class="form-input"
@@ -315,7 +459,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">About Me</label>
+              <label for="editBio">About Me</label>
               <textarea
                 class="form-textarea"
                 id="editBio"
@@ -324,20 +468,59 @@
 Information Technology student passionate about web development, cybersecurity, and collaborative learning. Always eager to explore new technologies and connect with fellow IT enthusiasts.</textarea
               >
             </div>
+
+            <!-- Change Password controls (in-edit modal) -->
+            <div
+              style="
+                margin-top: 12px;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+              "
+            >
+              <button
+                type="button"
+                id="openChangePasswordBtn"
+                class="modal-btn"
+                style="
+                  background: #ff9800;
+                  color: #fff;
+                  border: none;
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                "
+              >
+                Change Password
+              </button>
+              <button
+                type="button"
+                id="sendResetEmailBtn"
+                class="modal-btn"
+                style="
+                  border: 1px solid var(--primary-color);
+                  background: #fff;
+                  color: var(--primary-color);
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                "
+              >
+                Send Password Reset Email
+              </button>
+            </div>
           </form>
         </div>
         <div class="modal-actions">
           <button
             type="button"
             class="modal-btn modal-btn-cancel"
-            onclick="closeEditModal()"
+            id="cancelEditModalBtn"
           >
             Cancel
           </button>
           <button
             type="button"
             class="modal-btn modal-btn-save"
-            onclick="saveProfile()"
+            id="saveProfileBtn"
           >
             Save Changes
           </button>
@@ -345,7 +528,66 @@ Information Technology student passionate about web development, cybersecurity, 
       </div>
     </div>
 
+    <!-- Change Password Modal (separate) -->
+    <div id="changePasswordModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Change Password</h3>
+          <button class="close-modal" id="closeChangePasswordModal">×</button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm">
+            <div class="form-group">
+              <label class="form-label" for="currentPassword"
+                >Current Password</label
+              >
+              <input
+                type="password"
+                id="currentPassword"
+                class="form-input"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newPassword">New Password</label>
+              <input
+                type="password"
+                id="newPassword"
+                class="form-input"
+                required
+                minlength="8"
+              />
+              <div class="form-error" id="passwordHint" style="display: none">
+                Password should be at least 8 characters.
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="modal-btn modal-btn-cancel"
+                id="cancelChangePasswordBtn"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="modal-btn modal-btn-save"
+                id="confirmChangePasswordBtn"
+              >
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase SDK (as a module) -->
+    <script type="module" src="../../config/firebase.js"></script>
+    <!-- Bootstrap JS, etc -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/profile.js"></script>
+    <!-- Your profile logic -->
+    <script type="module" src="../scripts/profile.js"></script>
+    <script type="module" src="../scripts/sidebar.js"></script>
   </body>
 </html>

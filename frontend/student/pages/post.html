@@ -43,23 +43,26 @@
           ><i class="bi bi-graph-up"></i>Report</a
         >
       </nav>
+      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
-          onclick="goToProfile()"
           style="cursor: pointer; transition: all 0.3s ease"
         >
-          <div class="user-avatar" id="sidebarUserAvatar">DP</div>
+          <div class="user-avatar" id="sidebarAvatar"></div>
           <div>
-            <div
-              style="font-weight: bold; font-size: 14px"
-              id="sidebarUsername"
-            >
-              DanePascual
+            <div style="font-weight: bold; font-size: 14px" id="sidebarName">
+              Loading...
             </div>
-            <div style="font-size: 12px; opacity: 0.8">BSIT</div>
+            <div style="font-size: 12px; opacity: 0.8" id="sidebarCourse">
+              Loading...
+            </div>
           </div>
         </div>
+        <button id="logoutBtn" class="logout-btn">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
       </div>
     </div>
     <!-- Main Content -->
@@ -152,7 +155,7 @@
           </div>
 
           <div class="create-comment-container">
-            <div class="comment-avatar" id="currentUserAvatar">DP</div>
+            <div class="comment-avatar" id="currentUserAvatar"></div>
             <div class="quick-comment-form">
               <textarea
                 class="quick-comment-input"
@@ -171,6 +174,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/post.js"></script>
+    <script type="module" src="../scripts/post.js"></script>
+    <script type="module" src="../scripts/sidebar.js"></script>
   </body>
 </html>

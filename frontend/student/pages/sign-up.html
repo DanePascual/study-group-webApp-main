@@ -40,7 +40,7 @@
           <form id="signupForm">
             <!-- Name Fields -->
             <div class="form-row">
-              <div class="form-group">
+              <div class="form-group input-icon-group">
                 <i class="bi bi-person input-icon"></i>
                 <input
                   type="text"
@@ -50,7 +50,7 @@
                   required
                 />
               </div>
-              <div class="form-group">
+              <div class="form-group input-icon-group">
                 <i class="bi bi-person input-icon"></i>
                 <input
                   type="text"
@@ -63,7 +63,7 @@
             </div>
 
             <!-- Email Field -->
-            <div class="form-group">
+            <div class="form-group input-icon-group">
               <i class="bi bi-envelope input-icon"></i>
               <input
                 type="email"
@@ -74,8 +74,15 @@
               />
             </div>
 
+            <!-- OTP Request Button moved below email field -->
+            <div class="form-group centered-btn-container">
+              <button type="button" class="request-otp-btn" id="requestOtpBtn">
+                Request OTP
+              </button>
+            </div>
+
             <!-- Student ID Field -->
-            <div class="form-group">
+            <div class="form-group input-icon-group">
               <i class="bi bi-card-text input-icon"></i>
               <input
                 type="text"
@@ -88,7 +95,7 @@
 
             <!-- Course & Year -->
             <div class="form-row">
-              <div class="form-group">
+              <div class="form-group input-icon-group">
                 <i class="bi bi-book input-icon"></i>
                 <select class="form-input" id="course" required>
                   <option value="">Select Course</option>
@@ -104,7 +111,7 @@
                   <option value="BSA">BS Architecture</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group input-icon-group">
                 <i class="bi bi-calendar input-icon"></i>
                 <select class="form-input" id="yearLevel" required>
                   <option value="">Year</option>
@@ -118,7 +125,7 @@
             </div>
 
             <!-- Password Field -->
-            <div class="form-group">
+            <div class="form-group input-icon-group">
               <i class="bi bi-lock input-icon"></i>
               <input
                 type="password"
@@ -143,7 +150,7 @@
             </div>
 
             <!-- Confirm Password Field -->
-            <div class="form-group">
+            <div class="form-group input-icon-group">
               <i class="bi bi-lock input-icon"></i>
               <input
                 type="password"
@@ -167,6 +174,31 @@
             </button>
           </form>
         </div>
+      </div>
+    </div>
+
+    <!-- OTP Modal -->
+    <div id="otpModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2>Email Verification</h2>
+        <div class="form-group input-icon-group">
+          <i class="bi bi-shield-check input-icon"></i>
+          <input
+            type="text"
+            class="form-input"
+            id="otp"
+            placeholder="Enter OTP code"
+            maxlength="6"
+            autocomplete="one-time-code"
+          />
+        </div>
+        <div id="otpHint" class="otp-hint" style="font-size: smaller">
+          We've sent a 6-digit code to your email. Check your inbox (and spam).
+        </div>
+        <button type="button" class="otp-btn-modal" id="verifyOtpBtn">
+          Verify OTP
+        </button>
       </div>
     </div>
 

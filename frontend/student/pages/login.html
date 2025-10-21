@@ -20,18 +20,14 @@
   <body>
     <div class="main-container">
       <div class="login-wrapper">
-        <!-- Left side - Sign up section -->
         <div class="left-section">
           <div class="signup-text">Don't have an account?</div>
           <button class="signup-btn" onclick="goToSignup()">Sign up</button>
         </div>
-
-        <!-- Right side - Login form -->
         <div class="right-section">
           <h1 class="login-title">
             LOG IN TO CONTINUE<br />LEARNING WITH BUDDIES!
           </h1>
-
           <form id="loginForm">
             <div class="form-group">
               <i class="bi bi-envelope input-icon"></i>
@@ -43,8 +39,6 @@
                 required
               />
             </div>
-
-            <!-- Find this section in your code -->
             <div class="form-group">
               <i class="bi bi-lock input-icon"></i>
               <input
@@ -58,25 +52,21 @@
               <button
                 type="button"
                 class="password-toggle"
-                onclick="togglePassword()"
+                id="passwordToggleBtn"
               >
                 <i class="bi bi-eye" id="passwordToggleIcon"></i>
               </button>
             </div>
-
             <div class="forgot-link">
               <a href="#" onclick="openForgotPasswordModal()"
                 >Forgot password?</a
               >
             </div>
-
             <button type="submit" class="login-btn">Log in</button>
           </form>
         </div>
       </div>
     </div>
-
-    <!-- Forgot Password Modal -->
     <div id="forgotPasswordModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -123,8 +113,15 @@
         </div>
       </div>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="../scripts/login.js"></script>
+    <script
+      type="module"
+      src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js"
+    ></script>
+    <script
+      type="module"
+      src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js"
+    ></script>
+    <script type="module" src="../scripts/login.js"></script>
   </body>
 </html>

@@ -1,75 +1,49 @@
-const allowedEmailDomain = "@paterostechnologicalcollege.edu.ph";
-let resetData = null;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+import {
+  getAuth,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
+} from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
 
-// Initialize page
-document.addEventListener("DOMContentLoaded", function () {
-  validateResetToken();
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyAn1-kQypHeeoqZRGYKhJfE5AiICkTX_Hw",
+  authDomain: "study-group-webapp-93fc2.firebaseapp.com",
+  projectId: "study-group-webapp-93fc2",
+  storageBucket: "study-group-webapp-93fc2.firebasestorage.app",
+  messagingSenderId: "857690286168",
+  appId: "1:857690286168:web:93e5f7bf374b62445a022d",
+  measurementId: "G-MR51J9BKM0",
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-// Validate reset token from URL or localStorage
-function validateResetToken() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get("token");
-  const email = urlParams.get("email");
+// --- Handle Reset Link Validation ---
+const urlParams = new URLSearchParams(window.location.search);
+const oobCode = urlParams.get("oobCode");
+const resetForm = document.getElementById("resetForm");
+const errorState = document.getElementById("errorState");
+const successState = document.getElementById("successState");
+const emailDisplay = document.getElementById("resetEmail");
 
-  // Check localStorage for demo purposes
-  const storedReset = localStorage.getItem("passwordResetRequest");
-
-  if (storedReset) {
-    try {
-      resetData = JSON.parse(storedReset);
-
-      // Check if token is valid (for demo, we'll accept any recent request)
-      const resetTime = new Date(resetData.timestamp);
-      const now = new Date();
-      const timeDiff = (now - resetTime) / (1000 * 60); // minutes
-
-      if (timeDiff > 30) {
-        // 30 minutes expiry
-        showErrorState("Reset link has expired. Please request a new one.");
-        return;
-      }
-
-      // Valid token - show form
-      document.getElementById("resetEmail").textContent = resetData.email;
-      document.getElementById("resetForm").style.display = "flex";
-    } catch (e) {
-      showErrorState("Invalid reset link format.");
-    }
-  } else if (token && email) {
-    // In a real application, you would verify the token on the server
-    // For demo purposes, we'll accept any token and email
-    if (email.endsWith(allowedEmailDomain)) {
-      resetData = { email: email, token: token };
-      document.getElementById("resetEmail").textContent = email;
-      document.getElementById("resetForm").style.display = "flex";
-    } else {
+if (!oobCode) {
+  showErrorState("Missing or invalid password reset link.");
+} else {
+  verifyPasswordResetCode(auth, oobCode)
+    .then((email) => {
+      emailDisplay.textContent = email;
+      resetForm.style.display = "flex";
+    })
+    .catch((err) => {
       showErrorState(
-        "Invalid email domain. Must be from Pateros Technological College."
+        err.code === "auth/expired-action-code"
+          ? "This password reset link has expired. Please request a new one."
+          : "This password reset link is invalid or has already been used. Please request a new one."
       );
-    }
-  } else {
-    showErrorState(
-      "Missing reset parameters. Please request a new password reset link."
-    );
-  }
+    });
 }
 
-// Show error state
-function showErrorState(message) {
-  document.getElementById("resetForm").style.display = "none";
-  document.getElementById("errorState").style.display = "block";
-  document.querySelector(".status-message").textContent = message;
-}
-
-// Show success state
-function showSuccessState() {
-  document.getElementById("resetForm").style.display = "none";
-  document.getElementById("successState").style.display = "block";
-}
-
-// Password toggle functionality
-function togglePassword(inputId, iconId) {
+// --- Password Visibility Toggle ---
+window.togglePassword = function (inputId, iconId) {
   const passwordInput = document.getElementById(inputId);
   const toggleIcon = document.getElementById(iconId);
 
@@ -82,38 +56,31 @@ function togglePassword(inputId, iconId) {
     toggleIcon.classList.remove("bi-eye-slash");
     toggleIcon.classList.add("bi-eye");
   }
-}
+};
 
-// Password strength checker
+// --- Password Strength Checker ---
 const newPassword = document.getElementById("newPassword");
 const passwordStrengthBar = document.getElementById("passwordStrengthBar");
-
-// Password requirements
 const reqLength = document.getElementById("req-length");
 const reqUppercase = document.getElementById("req-uppercase");
 const reqLowercase = document.getElementById("req-lowercase");
 const reqNumber = document.getElementById("req-number");
 const reqSpecial = document.getElementById("req-special");
 
-// Check password strength and requirements
 newPassword.addEventListener("input", function () {
   const password = this.value;
-
-  // Check individual requirements
   const hasLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecial = /[!@#$%^&*]/.test(password);
 
-  // Update requirement indicators
   updateRequirement(reqLength, hasLength);
   updateRequirement(reqUppercase, hasUppercase);
   updateRequirement(reqLowercase, hasLowercase);
   updateRequirement(reqNumber, hasNumber);
   updateRequirement(reqSpecial, hasSpecial);
 
-  // Calculate strength score (0-5)
   const strengthScore = [
     hasLength,
     hasUppercase,
@@ -122,7 +89,6 @@ newPassword.addEventListener("input", function () {
     hasSpecial,
   ].filter(Boolean).length;
 
-  // Update strength bar
   passwordStrengthBar.className = "password-strength-bar";
   if (password.length === 0) {
     passwordStrengthBar.style.width = "0";
@@ -135,7 +101,6 @@ newPassword.addEventListener("input", function () {
   }
 });
 
-// Update requirement display
 function updateRequirement(element, isValid) {
   const icon = element.querySelector("i");
 
@@ -150,7 +115,20 @@ function updateRequirement(element, isValid) {
   }
 }
 
-// Form submission
+// --- Handle Password Confirmation ---
+document
+  .getElementById("confirmPassword")
+  .addEventListener("input", function () {
+    const password = document.getElementById("newPassword").value;
+    if (this.value !== password) {
+      this.classList.add("error");
+    } else {
+      this.classList.remove("error");
+      this.classList.add("success");
+    }
+  });
+
+// --- Form Submission & Password Reset ---
 document
   .getElementById("resetPasswordForm")
   .addEventListener("submit", function (e) {
@@ -158,8 +136,9 @@ document
 
     const password = document.getElementById("newPassword").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
+    const resetBtn = document.getElementById("resetBtn");
 
-    // Validate password strength
+    // Validate password requirements
     const hasLength = password.length >= 8;
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
@@ -177,7 +156,6 @@ document
       return;
     }
 
-    // Check passwords match
     if (password !== confirmPassword) {
       showToast("Passwords do not match", "error");
       document.getElementById("confirmPassword").classList.add("error");
@@ -185,39 +163,30 @@ document
     }
 
     // Show loading state
-    const resetBtn = document.getElementById("resetBtn");
     resetBtn.disabled = true;
     document.getElementById("loadingSpinner").style.display = "inline-block";
     document.getElementById("btnText").textContent = "Resetting...";
 
-    // Simulate API call with delay
-    setTimeout(function () {
-      // In a real app, you'd make an API request to update the password
-
-      // Remove the reset request from localStorage (for demo)
-      localStorage.removeItem("passwordResetRequest");
-
-      // Store new password (for demo only - in real app this would be handled on server)
-      const userCredentials = JSON.parse(
-        localStorage.getItem("userCredentials") || "{}"
-      );
-      if (resetData && resetData.email) {
-        userCredentials[resetData.email] = {
-          password: password, // In real app, this would be hashed
-          lastReset: new Date().toISOString(),
-        };
-        localStorage.setItem(
-          "userCredentials",
-          JSON.stringify(userCredentials)
+    // --- Real Firebase Password Reset ---
+    confirmPasswordReset(auth, oobCode, password)
+      .then(() => {
+        showSuccessState();
+      })
+      .catch((err) => {
+        showErrorState(
+          err.code === "auth/expired-action-code"
+            ? "This password reset link has expired. Please request a new one."
+            : "Error resetting password: " + (err.message || "Unknown error")
         );
-      }
-
-      // Show success state
-      showSuccessState();
-    }, 2000);
+      })
+      .finally(() => {
+        resetBtn.disabled = false;
+        document.getElementById("loadingSpinner").style.display = "none";
+        document.getElementById("btnText").textContent = "Reset Password";
+      });
   });
 
-// Show toast notification
+// --- Toast Notification ---
 function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toastContainer");
   const toast = document.createElement("div");
@@ -247,7 +216,6 @@ function showToast(message, type = "info") {
 
   toastContainer.appendChild(toast);
 
-  // Auto remove after 5 seconds
   setTimeout(() => {
     toast.style.opacity = "0";
     toast.style.transform = "translateX(100%)";
@@ -259,20 +227,19 @@ function showToast(message, type = "info") {
   }, 5000);
 }
 
-// Navigate to login page
-function goToLogin() {
-  window.location.href = "login.html";
+// --- Show error/success state ---
+function showErrorState(message) {
+  resetForm.style.display = "none";
+  errorState.style.display = "block";
+  document.querySelector(".status-message").textContent = message;
 }
 
-// Check for password confirmation match
-document
-  .getElementById("confirmPassword")
-  .addEventListener("input", function () {
-    const password = document.getElementById("newPassword").value;
-    if (this.value !== password) {
-      this.classList.add("error");
-    } else {
-      this.classList.remove("error");
-      this.classList.add("success");
-    }
-  });
+function showSuccessState() {
+  resetForm.style.display = "none";
+  successState.style.display = "block";
+}
+
+// --- Back to login ---
+window.goToLogin = function () {
+  window.location.href = "login.html";
+};

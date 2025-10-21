@@ -1,167 +1,241 @@
-// Current Session Info - Updated to current date from user input
-const CURRENT_SESSION = {
-  utcTime: "2025-08-29 16:10:26", // UTC time
-  philippinesTime: "2025-08-30 00:10:26", // Philippines time (UTC+8)
-  user: "DanePascual",
-  timezone: "Asia/Manila",
-};
+// ===== study-rooms.js (updated) =====
+// - Defers to centralized sidebar.js for sidebar behavior
+// - Defensive sidebar updates so we don't overwrite server-provided avatar/name
+// - DOM-ready initialization + auth gating
+import { auth, db } from "../../config/firebase.js";
+import {
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import {
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-// Global variables
+const API_BASE = "http://localhost:5000/api/study-groups";
+
+let CURRENT_SESSION = null;
 let createRoomModal;
-let roomCounter = 0;
-const currentUser = CURRENT_SESSION.user;
-const currentDateTime = CURRENT_SESSION.philippinesTime;
+let allRooms = [];
+let currentRoomPage = 1;
+let roomsPerPage = 9;
 
-// Theme management
-const themeToggle = document.getElementById("themeToggle");
-const body = document.body;
+// Initialize basic UI first, regardless of auth state
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM loaded - initializing basic UI");
 
-// Load saved theme
-const savedTheme = localStorage.getItem("theme") || "light";
-if (savedTheme === "dark") {
-  body.classList.add("dark-mode");
-  themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-}
+  // Initialize theme
+  initializeTheme();
 
-themeToggle.addEventListener("click", () => {
-  body.classList.toggle("dark-mode");
-  const isDark = body.classList.contains("dark-mode");
-  themeToggle.innerHTML = isDark
-    ? '<i class="bi bi-sun"></i>'
-    : '<i class="bi bi-moon"></i>';
-  localStorage.setItem("theme", isDark ? "dark" : "light");
+  // Initialize Bootstrap components
+  try {
+    const modalElement = document.getElementById("createRoomModal");
+    if (modalElement) {
+      createRoomModal = new bootstrap.Modal(modalElement);
+    }
+    initializeTooltips();
+  } catch (err) {
+    console.error("Error initializing Bootstrap components:", err);
+  }
 
-  showToast(`Theme switched to ${isDark ? "dark" : "light"} mode!`, "success");
+  // Add event listeners for UI elements that don't depend on auth
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", function (e) {
+      handleFilterClick.call(this, e);
+    });
+  });
 
-  console.log(
-    `🎨 Theme switched to ${isDark ? "dark" : "light"} mode by ${
-      CURRENT_SESSION.user
-    } at ${CURRENT_SESSION.philippinesTime} Philippines Time`
-  );
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", function (e) {
+      handleSearch.call(this, e);
+    });
+  }
+
+  // Now check authentication
+  checkAuth();
 });
 
-// Initialize when DOM is loaded
-document.addEventListener("DOMContentLoaded", function () {
-  console.log(
-    `📚 Study Rooms page initialized for ${CURRENT_SESSION.user} at ${CURRENT_SESSION.philippinesTime} Philippines Time`
+function checkAuth() {
+  console.log("Checking authentication status");
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      console.log("User is authenticated:", user.email);
+      await loadUserData(user);
+      initializeAuthenticatedUI();
+    } else {
+      console.log("User is not authenticated, redirecting to login");
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split("/");
+      const loginPath =
+        pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
+      window.location.href = window.location.origin + loginPath;
+      console.log("Redirecting to login:", window.location.origin + loginPath);
+    }
+  });
+}
+
+async function loadUserData(user) {
+  let userProgram = "";
+  let userName = user.displayName || "";
+  try {
+    const userDocSnap = await getDoc(doc(db, "users", user.uid));
+    if (userDocSnap.exists()) {
+      userProgram = userDocSnap.data().program || "";
+      userName = userDocSnap.data().name || userName || user.email;
+    }
+  } catch (e) {
+    console.error("Could not fetch user program:", e);
+  }
+
+  CURRENT_SESSION = {
+    datetime: new Date().toISOString(),
+    user: userName || user.email,
+    userAvatar: userName ? userName[0] : user.email ? user.email[0] : "U",
+    userProgram: userProgram,
+    email: user.email,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
+  };
+
+  updateSidebarUserInfo();
+}
+
+// Defensive sidebar update: only set initials/name if sidebar still shows default/loading,
+// and do not overwrite an existing <img> avatar set by centralized sidebar.js.
+function updateSidebarUserInfo() {
+  try {
+    console.log(
+      "Updating sidebar user info defensively with:",
+      CURRENT_SESSION
+    );
+    const avatar = document.getElementById("sidebarAvatar");
+    const nameNode = document.getElementById("sidebarName");
+    const courseNode = document.getElementById("sidebarCourse");
+
+    const currentName = nameNode ? nameNode.textContent.trim() : "";
+    const nameIsDefault =
+      !currentName ||
+      currentName === "" ||
+      currentName === "Loading..." ||
+      currentName === "Not signed in";
+
+    if (nameNode && nameIsDefault && CURRENT_SESSION && CURRENT_SESSION.user) {
+      nameNode.textContent = CURRENT_SESSION.user;
+    }
+
+    const currentCourse = courseNode ? courseNode.textContent.trim() : "";
+    const courseIsDefault =
+      !currentCourse || currentCourse === "" || currentCourse === "Loading...";
+    if (courseNode && courseIsDefault) {
+      courseNode.textContent = CURRENT_SESSION.userProgram || "";
+    }
+
+    if (avatar) {
+      const hasImg = avatar.querySelector && avatar.querySelector("img");
+      if (!hasImg) {
+        const currentAvatarText = avatar.textContent
+          ? avatar.textContent.trim()
+          : "";
+        if (!currentAvatarText || currentAvatarText === "") {
+          if (CURRENT_SESSION && CURRENT_SESSION.userAvatar) {
+            avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("updateSidebarUserInfo failed:", err && err.message);
+  }
+}
+
+function initializeAuthenticatedUI() {
+  console.log("Initializing authenticated UI");
+
+  // Setup event listeners for authenticated features
+  const createRoomButton = document.getElementById("createRoomButton");
+  if (createRoomButton) {
+    createRoomButton.addEventListener("click", openCreateRoomModal);
+  }
+
+  const createFirstRoomButton = document.getElementById(
+    "createFirstRoomButton"
   );
+  if (createFirstRoomButton) {
+    createFirstRoomButton.addEventListener("click", openCreateRoomModal);
+  }
 
-  // Initialize Bootstrap Modal
-  const modalElement = document.getElementById("createRoomModal");
-  createRoomModal = new bootstrap.Modal(modalElement);
+  const createRoomBtn = document.getElementById("createRoomBtn");
+  if (createRoomBtn) {
+    createRoomBtn.addEventListener("click", handleCreateRoom);
+  }
 
-  // Initialize all event listeners
-  initializeEventListeners();
-
-  // Initialize sidebar
-  initializeSidebar();
-
-  // Initialize Bootstrap tooltips
-  initializeTooltips();
+  document.querySelectorAll(".tag-option").forEach((tagOption) => {
+    tagOption.addEventListener("click", function (e) {
+      handleTagSelection.call(this, e);
+    });
+  });
 
   // Update current time every second
   updateCurrentTime();
   setInterval(updateCurrentTime, 1000);
 
+  // Fetch study rooms
+  fetchAndRenderStudyRooms();
+
   // Show welcome message
   setTimeout(() => {
     showToast(
-      `Welcome, ${currentUser}! Create your first study room to get started.`,
+      `Welcome, ${
+        CURRENT_SESSION?.user || "User"
+      }! Create your first study room to get started.`,
       "info"
     );
   }, 1000);
-
-  // Update search placeholder for mobile
-  function updateSearchPlaceholder() {
-    const width = window.innerWidth;
-    const searchInput = document.getElementById("searchInput");
-    if (width <= 480) {
-      searchInput.placeholder = "Search...";
-    } else {
-      searchInput.placeholder = "Search study rooms...";
-    }
-  }
-
-  // Initial call and setup resize listener
-  updateSearchPlaceholder();
-  window.addEventListener("resize", updateSearchPlaceholder);
-});
-
-function initializeEventListeners() {
-  // Create Room button events
-  document
-    .getElementById("createRoomButton")
-    .addEventListener("click", openCreateRoomModal);
-  document
-    .getElementById("createFirstRoomButton")
-    .addEventListener("click", openCreateRoomModal);
-  document
-    .getElementById("createRoomBtn")
-    .addEventListener("click", handleCreateRoom);
-
-  // Tag selection
-  document.querySelectorAll(".tag-option").forEach((tagOption) => {
-    tagOption.addEventListener("click", handleTagSelection);
-  });
-
-  // Filter buttons
-  document.querySelectorAll(".filter-btn").forEach((btn) => {
-    btn.addEventListener("click", handleFilterClick);
-  });
-
-  // Search functionality
-  document
-    .getElementById("searchInput")
-    .addEventListener("input", handleSearch);
 }
 
-function initializeSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const mainContent = document.getElementById("mainContent");
-  const menuToggle = document.getElementById("menuToggle");
+function initializeTheme() {
+  const themeToggle = document.getElementById("themeToggle");
+  const body = document.body;
 
-  function setSidebar(open) {
-    if (open) {
-      sidebar.classList.add("open");
-      mainContent.classList.add("shifted");
-    } else {
-      sidebar.classList.remove("open");
-      mainContent.classList.remove("shifted");
-    }
+  if (!themeToggle) {
+    console.error("Theme toggle element not found!");
+    return;
   }
 
-  // Open sidebar by default on desktop
-  if (window.innerWidth > 768) setSidebar(true);
+  const savedTheme = localStorage.getItem("theme") || "light";
+  if (savedTheme === "dark") {
+    body.classList.add("dark-mode");
+    themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+  }
 
-  menuToggle.addEventListener("click", () => {
-    setSidebar(!sidebar.classList.contains("open"));
-  });
-
-  // Hide sidebar on click outside on mobile
-  document.addEventListener("click", function (e) {
-    if (window.innerWidth <= 768) {
-      if (
-        !sidebar.contains(e.target) &&
-        !menuToggle.contains(e.target) &&
-        sidebar.classList.contains("open")
-      ) {
-        setSidebar(false);
-      }
-    }
+  themeToggle.addEventListener("click", () => {
+    body.classList.toggle("dark-mode");
+    const isDark = body.classList.contains("dark-mode");
+    themeToggle.innerHTML = isDark
+      ? '<i class="bi bi-sun"></i>'
+      : '<i class="bi bi-moon"></i>';
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    showToast(
+      `Theme switched to ${isDark ? "dark" : "light"} mode!`,
+      "success"
+    );
   });
 }
 
 function initializeTooltips() {
-  var tooltipTriggerList = [].slice.call(
-    document.querySelectorAll('[data-bs-toggle="tooltip"]')
-  );
-  tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-  });
+  try {
+    var tooltipTriggerList = [].slice.call(
+      document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  } catch (err) {
+    console.error("Error initializing tooltips:", err);
+  }
 }
 
 function updateCurrentTime() {
-  // Update to Philippines time format
   const now = new Date();
   const philippinesTime = new Date(now.getTime() + 8 * 60 * 60 * 1000); // UTC+8
   const timeStr =
@@ -174,148 +248,113 @@ function updateCurrentTime() {
 }
 
 function openCreateRoomModal() {
-  console.log("Opening create room modal");
-  createRoomModal.show();
+  console.log("Opening create room modal (defensive)");
+  try {
+    const modalElement = document.getElementById("createRoomModal");
+    if (!modalElement) {
+      console.error("createRoomModal element not found in DOM");
+      showToast(
+        "Cannot open create room modal — DOM element missing.",
+        "error"
+      );
+      return;
+    }
+
+    // Log innerHTML for debugging (this will help confirm whether the form content exists)
+    console.log(
+      "createRoomModal.innerHTML:",
+      modalElement.innerHTML.slice(0, 400)
+    ); // trimmed log
+
+    if (!createRoomModal) {
+      // try to initialize it now
+      createRoomModal = new bootstrap.Modal(modalElement);
+    }
+
+    createRoomModal.show();
+  } catch (err) {
+    console.error("Failed to open create room modal:", err);
+    showToast("Cannot open create room modal", "error");
+  }
 }
 
-function handleCreateRoom() {
-  console.log("Create Room button clicked");
+async function handleCreateRoom() {
+  const roomNameElement = document.getElementById("roomName");
+  const roomDescriptionElement = document.getElementById("roomDescription");
+  const subjectAreaElement = document.getElementById("subjectArea");
+  const selectedTagsElement = document.getElementById("selectedTags");
 
-  const roomName = document.getElementById("roomName").value.trim();
-  const description = document.getElementById("roomDescription").value.trim();
-  const subject = document.getElementById("subjectArea").value;
-  const tags = document.getElementById("selectedTags").value;
+  if (!roomNameElement || !subjectAreaElement) {
+    showToast("Form elements not found", "error");
+    return;
+  }
+
+  const roomName = roomNameElement.value.trim();
+  const description = roomDescriptionElement
+    ? roomDescriptionElement.value.trim()
+    : "";
+  const subject = subjectAreaElement.value;
+  const tags = selectedTagsElement ? selectedTagsElement.value : "";
 
   if (!roomName || !subject) {
     showToast("Please fill in all required fields", "error");
     return;
   }
 
-  // Create the room
-  createNewRoom(roomName, description, subject, tags);
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast("You must be logged in to create a room.", "error");
+      return;
+    }
+    const idToken = await user.getIdToken();
 
-  // Close modal and reset form
-  createRoomModal.hide();
-  resetCreateRoomForm();
+    const tagArray = tags ? tags.split(",") : [];
+    const payload = {
+      name: roomName,
+      description: description,
+      subject: subject,
+      tags: tagArray,
+    };
 
-  // Show success message
-  showToast("Study room created successfully!", "success");
-}
+    const response = await fetch(API_BASE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
 
-function createNewRoom(name, description, subject, tags) {
-  roomCounter++;
-  const roomId = "room-" + Date.now();
-  const tagArray = tags ? tags.split(",") : [];
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create room: ${errorText}`);
+    }
 
-  // Store room data in localStorage with Philippines time
-  const roomData = {
-    id: roomId,
-    name: name,
-    description: description,
-    subject: subject,
-    tags: tagArray,
-    creator: currentUser,
-    createdAt: currentDateTime,
-    participants: [currentUser],
-    isActive: true,
-    timezone: CURRENT_SESSION.timezone,
-  };
+    showToast("Study room created successfully!", "success");
 
-  // Store in allRoomsData
-  const allRoomsData = JSON.parse(localStorage.getItem("allRoomsData") || "{}");
-  allRoomsData[roomId] = roomData;
-  localStorage.setItem("allRoomsData", JSON.stringify(allRoomsData));
+    if (createRoomModal) createRoomModal.hide();
 
-  // Store room name separately for quick access
-  localStorage.setItem(`roomName_${roomId}`, name);
-
-  // Remove empty state if it exists
-  const emptyState = document.getElementById("emptyState");
-  if (emptyState) {
-    emptyState.remove();
+    resetCreateRoomForm();
+    fetchAndRenderStudyRooms();
+  } catch (err) {
+    console.error("Error creating room:", err);
+    showToast("Could not create room. Please try again later.", "error");
   }
-
-  // Create room grid if it doesn't exist
-  let roomGrid = document.querySelector(".room-grid");
-  if (!roomGrid) {
-    roomGrid = document.createElement("div");
-    roomGrid.className = "room-grid";
-    roomGrid.id = "roomGrid";
-    document.getElementById("roomContainer").appendChild(roomGrid);
-  }
-
-  // Create new room card
-  const newRoom = document.createElement("div");
-  newRoom.className = "room-card";
-  newRoom.setAttribute("data-tags", tags);
-  newRoom.setAttribute("data-subject", subject);
-
-  newRoom.innerHTML = `
-          <div class="room-status active" title="Active room"></div>
-          <div class="room-header">
-            <div>
-              <h3 class="room-title">${name}</h3>
-              <p class="room-description">
-                ${description || "No description provided."}
-              </p>
-            </div>
-          </div>
-          <div class="room-tags">
-            ${tagArray
-              .map((tag) => `<span class="room-tag">${tag}</span>`)
-              .join("")}
-          </div>
-          <div class="room-footer">
-            <span class="participant-count">
-              <i class="bi bi-people"></i>
-              1 participant
-            </span>
-            <button class="join-btn" onclick="enterRoom('${roomId}')">
-              Enter Now
-            </button>
-          </div>
-        `;
-
-  roomGrid.appendChild(newRoom);
-
-  // Update statistics
-  updateStats();
-
-  // Store room in localStorage
-  const userRooms = JSON.parse(localStorage.getItem("userRooms") || "[]");
-  userRooms.push(roomId);
-  localStorage.setItem("userRooms", JSON.stringify(userRooms));
-
-  console.log(
-    `🏠 Study room "${name}" created by ${currentUser} at ${currentDateTime} Philippines Time`
-  );
-}
-
-function updateStats() {
-  document.getElementById("activeRoomsCount").textContent = roomCounter;
-  document.getElementById("yourRoomsCount").textContent = roomCounter;
-
-  // Update stat messages with Philippines time context
-  document.querySelector(".stat-card:nth-child(1) .stat-change").textContent =
-    roomCounter === 1
-      ? "Your first room is active!"
-      : `${roomCounter} active rooms`;
-  document.querySelector(
-    ".stat-card:nth-child(2) .stat-change"
-  ).textContent = `Created on August 29, 2025 (Philippines)`;
 }
 
 function resetCreateRoomForm() {
-  document.getElementById("createRoomForm").reset();
+  const form = document.getElementById("createRoomForm");
+  if (form) form.reset();
   document
     .querySelectorAll(".tag-option")
     .forEach((tag) => tag.classList.remove("selected"));
-  document.getElementById("selectedTags").value = "";
+  const selectedTagsElement = document.getElementById("selectedTags");
+  if (selectedTagsElement) selectedTagsElement.value = "";
 }
 
 function handleTagSelection() {
   const selectedTags = document.querySelectorAll(".tag-option.selected");
-
   if (this.classList.contains("selected")) {
     this.classList.remove("selected");
   } else if (selectedTags.length < 3) {
@@ -325,172 +364,299 @@ function handleTagSelection() {
     return;
   }
 
-  // Update hidden field with selected tags
-  const tags = Array.from(
-    document.querySelectorAll(".tag-option.selected")
-  ).map((tag) => tag.getAttribute("data-tag"));
-  document.getElementById("selectedTags").value = tags.join(",");
+  const tags = Array.from(document.querySelectorAll(".tag-option.selected"))
+    .map((tag) => tag.getAttribute("data-tag"))
+    .filter(Boolean);
+  const selectedTagsElement = document.getElementById("selectedTags");
+  if (selectedTagsElement) selectedTagsElement.value = tags.join(",");
 }
 
 function handleFilterClick() {
-  // Update active state
   document
     .querySelectorAll(".filter-btn")
     .forEach((b) => b.classList.remove("active"));
   this.classList.add("active");
-
   const filter = this.getAttribute("data-filter");
   filterRooms(filter);
 }
 
 function filterRooms(filter) {
-  const rooms = document.querySelectorAll(".room-card");
-
-  if (rooms.length === 0) {
-    showToast(
-      `No ${filter === "all" ? "" : filter + " "}study rooms found`,
-      "info"
-    );
-    return;
-  }
-
-  rooms.forEach((room) => {
+  const roomCards = document.querySelectorAll(".room-card");
+  if (roomCards.length === 0) return;
+  roomCards.forEach((room) => {
     const tags = room.getAttribute("data-tags") || "";
     const subject = room.getAttribute("data-subject") || "";
-
-    if (filter === "all" || tags.includes(filter) || subject === filter) {
+    if (filter === "all" || tags.includes(filter) || subject === filter)
       room.style.display = "block";
-    } else {
-      room.style.display = "none";
-    }
+    else room.style.display = "none";
   });
 }
 
 function handleSearch() {
   const searchTerm = this.value.trim().toLowerCase();
-  const rooms = document.querySelectorAll(".room-card");
-
-  if (rooms.length === 0 && searchTerm.length > 0) {
-    showToast("No study rooms match your search", "info");
-    return;
-  }
-
-  rooms.forEach((room) => {
-    const title = room.querySelector(".room-title").textContent.toLowerCase();
-    const description = room
-      .querySelector(".room-description")
-      .textContent.toLowerCase();
-
-    if (title.includes(searchTerm) || description.includes(searchTerm)) {
+  const roomCards = document.querySelectorAll(".room-card");
+  if (roomCards.length === 0) return;
+  roomCards.forEach((room) => {
+    const titleElement = room.querySelector(".room-title");
+    const descriptionElement = room.querySelector(".room-description");
+    const title = titleElement ? titleElement.textContent.toLowerCase() : "";
+    const description = descriptionElement
+      ? descriptionElement.textContent.toLowerCase()
+      : "";
+    if (title.includes(searchTerm) || description.includes(searchTerm))
       room.style.display = "block";
-    } else {
-      room.style.display = "none";
-    }
+    else room.style.display = "none";
   });
 }
 
-function showToast(message, type = "success") {
-  const toastContainer = document.getElementById("toastContainer");
-  const toastId = "toast-" + Date.now();
+async function fetchAndRenderStudyRooms() {
+  try {
+    const response = await fetch(API_BASE);
+    if (!response.ok)
+      throw new Error(
+        `Failed to fetch study rooms: ${response.status} ${response.statusText}`
+      );
+    allRooms = await response.json();
 
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  toast.id = toastId;
+    const emptyState = document.getElementById("emptyState");
+    if (emptyState && allRooms.length > 0) emptyState.remove();
 
-  let iconClass = "bi-check-circle-fill";
-  if (type === "error") iconClass = "bi-exclamation-circle-fill";
-  if (type === "info") iconClass = "bi-info-circle-fill";
+    renderRoomPage();
 
-  toast.innerHTML = `
-          <div class="toast-icon ${type}">
-            <i class="bi ${iconClass}"></i>
-          </div>
-          <div class="toast-content">
-            <div class="toast-title">${
-              type.charAt(0).toUpperCase() + type.slice(1)
-            }</div>
-            <div class="toast-message">${message}</div>
-          </div>
-          <div class="toast-close" onclick="closeToast('${toastId}')">
-            <i class="bi bi-x"></i>
-          </div>
-        `;
+    window._backendRooms = allRooms;
 
-  toastContainer.appendChild(toast);
-
-  // Auto remove after 5 seconds
-  setTimeout(() => {
-    closeToast(toastId);
-  }, 5000);
+    const activeRoomsCount = document.getElementById("activeRoomsCount");
+    const yourRoomsCount = document.getElementById("yourRoomsCount");
+    if (activeRoomsCount) activeRoomsCount.textContent = allRooms.length;
+    if (yourRoomsCount) yourRoomsCount.textContent = allRooms.length;
+  } catch (err) {
+    console.error("Error fetching rooms:", err);
+    showToast("Unable to load study rooms. Please try again later.", "error");
+  }
 }
 
-function closeToast(toastId) {
-  const toast = document.getElementById(toastId);
-  if (toast) {
-    toast.style.opacity = "0";
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
+function renderRoomPage() {
+  const roomsContainer = document.getElementById("roomContainer");
+  if (!roomsContainer) {
+    console.error("Room container not found");
+    return;
+  }
+
+  let roomGrid = document.getElementById("roomGrid");
+  if (!roomGrid) {
+    roomGrid = document.createElement("div");
+    roomGrid.className = "room-grid";
+    roomGrid.id = "roomGrid";
+    roomsContainer.appendChild(roomGrid);
+  }
+  roomGrid.innerHTML = "";
+
+  if (allRooms.length === 0) {
+    roomGrid.innerHTML = `<div class="empty-state" id="emptyState">
+      <div class="empty-state-icon"><i class="bi bi-door-closed"></i></div>
+      <h3>No Study Rooms Yet</h3>
+      <p>Create your first study room to collaborate with other students on projects, assignments, or exam prep.</p>
+      <div class="empty-state-action">
+        <button class="btn btn-success" id="createFirstRoomButton"><i class="bi bi-plus-lg"></i> Create Your First Room</button>
+      </div>
+    </div>`;
+    const createFirstRoomButton = document.getElementById(
+      "createFirstRoomButton"
+    );
+    if (createFirstRoomButton)
+      createFirstRoomButton.addEventListener("click", openCreateRoomModal);
+    return;
+  }
+
+  roomsPerPage = getRoomsPerPage();
+  const totalPages = Math.ceil(allRooms.length / roomsPerPage);
+  if (currentRoomPage > totalPages) currentRoomPage = totalPages || 1;
+  const start = (currentRoomPage - 1) * roomsPerPage;
+  const end = start + roomsPerPage;
+  const roomsToShow = allRooms.slice(start, end);
+
+  roomsToShow.forEach((room) => {
+    const newRoom = document.createElement("div");
+    newRoom.className = "room-card";
+    newRoom.setAttribute("data-tags", (room.tags || []).join(","));
+    newRoom.setAttribute("data-subject", room.subject || "");
+    newRoom.innerHTML = `
+      <div class="room-status ${
+        room.isActive ? "active" : ""
+      }" title="Active room"></div>
+      <div class="room-header">
+        <div>
+          <h3 class="room-title">${room.name}</h3>
+          <p class="room-description">${
+            room.description || "No description provided."
+          }</p>
+        </div>
+      </div>
+      <div class="room-tags">
+        ${(room.tags || [])
+          .map((tag) => `<span class="room-tag">${tag}</span>`)
+          .join("")}
+      </div>
+      <div class="room-footer">
+        <span class="participant-count"><i class="bi bi-people"></i> ${
+          room.participants ? room.participants.length : 1
+        } participant${
+      room.participants && room.participants.length > 1 ? "s" : ""
+    }</span>
+        <button class="join-btn" onclick="window.enterRoom('${
+          room.id
+        }')">Enter Now</button>
+      </div>
+    `;
+    roomGrid.appendChild(newRoom);
+  });
+
+  let paginationDiv = document.getElementById("roomPagination");
+  if (paginationDiv) paginationDiv.remove();
+
+  if (totalPages > 1) {
+    paginationDiv = document.createElement("div");
+    paginationDiv.className = "pagination-controls";
+    paginationDiv.id = "roomPagination";
+
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "Previous";
+    prevBtn.disabled = currentRoomPage === 1;
+    prevBtn.onclick = () => {
+      if (currentRoomPage > 1) {
+        currentRoomPage--;
+        renderRoomPage();
       }
-    }, 300);
+    };
+    paginationDiv.appendChild(prevBtn);
+
+    const pageInfo = document.createElement("span");
+    pageInfo.style.cssText =
+      "margin: 0 12px; font-weight: 500; color: var(--dark-text);";
+    pageInfo.textContent = `Page ${currentRoomPage} of ${totalPages}`;
+    paginationDiv.appendChild(pageInfo);
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next";
+    nextBtn.disabled = currentRoomPage === totalPages;
+    nextBtn.onclick = () => {
+      if (currentRoomPage < totalPages) {
+        currentRoomPage++;
+        renderRoomPage();
+      }
+    };
+    paginationDiv.appendChild(nextBtn);
+
+    roomGrid.parentNode.appendChild(paginationDiv);
   }
 }
 
-function enterRoom(roomId) {
-  // Store the room ID in local storage to allow access
-  const userRooms = JSON.parse(localStorage.getItem("userRooms") || "[]");
-  if (!userRooms.includes(roomId)) {
-    userRooms.push(roomId);
-    localStorage.setItem("userRooms", JSON.stringify(userRooms));
-  }
-
-  showToast("Entering study room...", "info");
-  // Navigate to study room
-  setTimeout(() => {
-    window.location.href = "study-room-inside.html?room=" + roomId;
-  }, 1000);
+function getRoomsPerPage() {
+  const sidebar = document.getElementById("sidebar");
+  return sidebar && sidebar.classList.contains("open") ? 9 : 12;
 }
 
-// FIXED: Use direct navigation instead of a function
-window.goToProfile = function () {
-  window.location.href = "profile.html";
-};
-
-// Keyboard shortcuts
 document.addEventListener("keydown", function (e) {
-  if (e.ctrlKey && e.key === "t") {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
     e.preventDefault();
-    themeToggle.click();
+    const themeToggle = document.getElementById("themeToggle");
+    if (themeToggle) themeToggle.click();
   }
-  if (e.ctrlKey && e.key === "n") {
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
     e.preventDefault();
     openCreateRoomModal();
   }
+
   if (e.key === "Escape") {
-    if (createRoomModal._isShown) {
+    if (
+      createRoomModal &&
+      typeof createRoomModal._isShown === "boolean" &&
+      createRoomModal._isShown
+    ) {
       createRoomModal.hide();
     }
   }
 });
 
-// Export for debugging
-window.StudyRooms = {
-  showToast,
-  closeToast,
-  enterRoom,
-  openCreateRoomModal,
-  currentUser: CURRENT_SESSION.user,
-  currentSession: CURRENT_SESSION.philippinesTime,
-};
+export function logout() {
+  if (confirm("Are you sure you want to log out?")) {
+    try {
+      signOut(auth).catch((err) =>
+        console.error("Error signing out from Firebase:", err)
+      );
+    } catch (err) {
+      console.error("Error during logout:", err);
+    }
 
-// Make functions globally available
+    localStorage.removeItem("userSession");
+    const logoutMessage = document.createElement("div");
+    logoutMessage.className = "logout-message";
+    logoutMessage.innerHTML = `
+      <div class="logout-message-content">
+        <i class="bi bi-check-circle-fill"></i>
+        <p>You have been successfully logged out.</p>
+        <p class="redirect-text">Redirecting to login page...</p>
+      </div>
+    `;
+    document.body.appendChild(logoutMessage);
+
+    setTimeout(() => {
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split("/");
+      const loginPath =
+        pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
+      window.location.href = window.location.origin + loginPath;
+    }, 1200);
+  }
+}
+
+export function showToast(message, type = "success") {
+  const toastContainer = document.getElementById("toastContainer");
+  if (!toastContainer) return;
+  const toastId = "toast-" + Date.now();
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.id = toastId;
+  let iconClass = "bi-check-circle-fill";
+  if (type === "error") iconClass = "bi-exclamation-circle-fill";
+  if (type === "info") iconClass = "bi-info-circle-fill";
+  toast.innerHTML = `
+    <div class="toast-icon ${type}">
+      <i class="bi ${iconClass}"></i>
+    </div>
+    <div class="toast-content">
+      <div class="toast-title">${
+        type.charAt(0).toUpperCase() + type.slice(1)
+      }</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <div class="toast-close" onclick="window.closeToast('${toastId}')">
+      <i class="bi bi-x"></i>
+    </div>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => closeToast(toastId), 5000);
+}
+
+export function closeToast(toastId) {
+  const toast = document.getElementById(toastId);
+  if (toast) {
+    toast.style.opacity = "0";
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }
+}
+
+export function enterRoom(roomId) {
+  showToast("Entering study room...", "info");
+  setTimeout(() => {
+    window.location.href = `study-room-inside.html?room=${roomId}`;
+  }, 800);
+}
+
+// Expose helpers to window (backwards compatibility)
+window.enterRoom = enterRoom;
 window.showToast = showToast;
 window.closeToast = closeToast;
-window.enterRoom = enterRoom;
-
-// Final initialization log
-console.log(
-  `🎉 Study Rooms page ready for ${CURRENT_SESSION.user} at ${CURRENT_SESSION.philippinesTime} Philippines Time`
-);
-console.log(`🌙 Late evening session - perfect time for study planning!`);
-console.log(`🎨 Dark mode toggle available for night viewing`);
