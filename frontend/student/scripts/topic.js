@@ -3,7 +3,7 @@
 // Expects topicsClient to export: getTopic, getTopicPosts, postReply, incrementView, editPost, deletePostApi.
 // If the server is unreachable the code falls back to the previous localStorage simulation.
 
-import { auth, db } from "../../config/firebase.js";
+import { auth, db } from "../config/firebase.js";
 import {
   doc,
   getDoc,

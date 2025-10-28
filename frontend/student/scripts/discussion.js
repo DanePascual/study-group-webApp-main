@@ -7,7 +7,7 @@
 // - keeps server-backed topics (via topicsClient) and falls back to localStorage if server unavailable
 // - ensures sort/category selectors work when server returns full topic list by applying client-side filtering/sorting/pagination
 
-import { auth, db } from "../../config/firebase.js";
+import { auth, db } from "../config/firebase.js";
 import {
   doc,
   getDoc,
@@ -17,7 +17,7 @@ import {
   postTopic as apiPostTopic,
   incrementView as apiIncrementView,
 } from "./topicsClient.js";
-import { apiUrl } from "../../config/appConfig.js";
+import { apiUrl } from "../config/appConfig.js";
 import fetchWithAuth, { fetchJsonWithAuth } from "./apiClient.js";
 
 let CURRENT_SESSION = null;

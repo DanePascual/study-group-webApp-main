@@ -4,7 +4,7 @@
 // - Now uses dynamic API_BASE from appConfig.js
 // - Maintains all existing functionality
 
-import { apiUrl } from "../../config/appConfig.js";
+import { apiUrl } from "../config/appConfig.js";
 
 // Wait for the DOM to be fully loaded before attaching event listeners
 document.addEventListener("DOMContentLoaded", function () {

@@ -4,8 +4,8 @@
 // - Keeps server-first behavior with localStorage fallback used by discussion/topic pages.
 // - Exports: getTopics, postTopic, incrementView, getTopic, getTopicPosts, postReply, editPost, deletePostApi
 
-import { API_BASE } from "../../config/appConfig.js";
-import { auth } from "../../config/firebase.js";
+import { API_BASE } from "../config/appConfig.js";
+import { auth } from "../config/firebase.js";
 import fetchWithAuth, {
   fetchJsonWithAuth,
   postJsonWithAuth,

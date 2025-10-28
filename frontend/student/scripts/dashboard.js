@@ -4,7 +4,7 @@
 // - Keeps behavior otherwise unchanged (sidebar integration, theme, DOM handling).
 // Save as: frontend/student/scripts/dashboard.js
 
-import { auth, db, onAuthStateChanged } from "../../config/firebase.js";
+import { auth, db, onAuthStateChanged } from "../config/firebase.js";
 import {
   doc,
   getDoc,
@@ -15,7 +15,7 @@ import fetchWithAuth, {
   patchJsonWithAuth,
   deleteWithAuth,
 } from "./apiClient.js";
-import { apiUrl } from "../../config/appConfig.js";
+import { apiUrl } from "../config/appConfig.js";
 
 // Wait for Firebase Authentication to load and set CURRENT_SESSION dynamically
 let CURRENT_SESSION = null;

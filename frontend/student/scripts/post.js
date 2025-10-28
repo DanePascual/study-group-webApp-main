@@ -4,8 +4,8 @@
 // - Replaced manual fetch() calls for comments and post header with fetchJsonWithAuth.
 // - Kept existing behavior (server-first with local fallback) and preserved offline/localStorage logic.
 
-import { auth } from "../../config/firebase.js";
-import { apiUrl } from "../../config/appConfig.js";
+import { auth } from "../config/firebase.js";
+import { apiUrl } from "../config/appConfig.js";
 import {
   postJsonWithAuth,
   patchJsonWithAuth,

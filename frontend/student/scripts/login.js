@@ -9,7 +9,7 @@
 
 // NOTE: path adjustments: this file lives at frontend/student/scripts/
 // so the shared firebase module lives at ../../config/firebase.js (frontend/config/firebase.js)
-import { auth, getIdToken, onAuthStateChanged } from "../../config/firebase.js";
+import { auth, getIdToken, onAuthStateChanged } from "../config/firebase.js";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
