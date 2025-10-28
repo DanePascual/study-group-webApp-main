@@ -1,15 +1,37 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "frontend/student/pages",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "backend/**",
+      "*.md"
     ],
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/dashboard.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.{js,css}",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=600"
+          }
+        ]
       }
     ]
   }
