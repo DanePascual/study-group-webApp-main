@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "frontend/student/pages",
+    "public": "frontend/student",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -11,7 +11,7 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "/dashboard.html"
+        "destination": "/pages/dashboard.html"
       }
     ],
     "headers": [
