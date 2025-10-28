@@ -3,6 +3,8 @@
 
 import { showToast } from "./utils.js";
 import { CONFIG } from "./config.js";
+import { fetchJsonWithAuth } from "../apiClient.js";
+import { apiUrl } from "../../config/appConfig.js";
 
 export class VideoManager {
   constructor(userAuth, roomManager) {
@@ -119,37 +121,33 @@ export class VideoManager {
         return;
       }
 
-      // ===== Get JWT token from backend =====
+      // ===== Get JWT token from backend using authFetch =====
       let token;
+      let domain;
       try {
         const roomName =
           this.roomManager.currentRoomData?.name ||
           this.roomManager.currentRoomData?.title ||
           "study-room";
 
-        const response = await fetch(
-          `${window.__CONFIG__.backendBase}/api/jaas`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${
-                (await this.userAuth.getIdToken?.()) || ""
-              }`,
-            },
-            body: JSON.stringify({
-              roomName: roomName, // ✅ Ensure it's a string
-            }),
-          }
-        );
+        console.log("[VideoManager] Requesting JWT token for room:", roomName);
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to get video token");
+        // ✅ Use fetchJsonWithAuth to include authentication automatically
+        const data = await fetchJsonWithAuth("/api/jaas", {
+          method: "POST",
+          body: JSON.stringify({
+            roomName: roomName,
+          }),
+        });
+
+        if (!data || !data.token) {
+          throw new Error(data?.error || "No token in response");
         }
 
-        const data = await response.json();
         token = data.token;
+        domain = data.domain || "8x8.vc";
+
+        console.log("[VideoManager] JWT token obtained successfully");
       } catch (err) {
         console.error("[VideoManager] Failed to get JWT token:", err);
         showToast(`Failed to start video call: ${err.message}`, "error");
@@ -185,7 +183,7 @@ export class VideoManager {
 
       // ===== Initialize Jitsi Meet =====
       const options = {
-        roomName: data.room, // Use sanitized room name from backend
+        roomName: roomName,
         jwt: token,
         width: "100%",
         height: "100%",
@@ -222,7 +220,7 @@ export class VideoManager {
       };
 
       try {
-        this.jitsiApi = new window.JitsiMeetExternalAPI(data.domain, options);
+        this.jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
 
         // ===== Setup event listeners =====
         this.jitsiApi.addEventListener("videoConferenceJoined", () => {
