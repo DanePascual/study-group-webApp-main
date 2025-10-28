@@ -72,6 +72,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       });
     }
 
+    // ✅ SANITIZE room name to match Jitsi requirements
     const sanitizedRoomName = roomName
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-")
@@ -95,7 +96,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       aud: "jitsi",
       iss: "chat",
       sub: JAAS_CONFIG.appId,
-      room: sanitizedRoomName,
+      room: sanitizedRoomName, // ✅ Use SANITIZED room name
       context: {
         user: {
           id: uid,
@@ -122,9 +123,10 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     };
 
     console.log("[jaas] Generating JWT...");
+    console.log("[jaas] Original room name:", roomName);
+    console.log("[jaas] Sanitized room name:", sanitizedRoomName);
     console.log("[jaas] App ID:", JAAS_CONFIG.appId);
     console.log("[jaas] Key ID (kid):", JAAS_CONFIG.keyId);
-    console.log("[jaas] Room:", sanitizedRoomName);
 
     if (!JAAS_CONFIG.privateKey) {
       console.error("[jaas] ❌ No private key available!");
@@ -152,7 +154,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       );
       console.log("[jaas] JWT Payload - aud:", decoded.payload.aud);
       console.log("[jaas] JWT Payload - iss:", decoded.payload.iss);
-      console.log("[jaas] JWT Payload - sub:", decoded.payload.sub);
+      console.log("[jaas] JWT Payload - room:", decoded.payload.room);
     } catch (signErr) {
       console.error("[jaas] ❌ JWT signing error:", signErr.message);
       logSecurityEvent("JAAS_TOKEN_SIGN_FAILED", uid, {
@@ -172,9 +174,10 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       expiresIn: JAAS_CONFIG.tokenExpiry,
     });
 
+    // ✅ Return SANITIZED room name so frontend uses the same one
     res.json({
       token: token,
-      room: sanitizedRoomName,
+      room: sanitizedRoomName, // ✅ CRITICAL: Send sanitized room name
       domain: "8x8.vc",
       virtualHost: JAAS_CONFIG.virtualHost,
       expiresIn: JAAS_CONFIG.tokenExpiry,
