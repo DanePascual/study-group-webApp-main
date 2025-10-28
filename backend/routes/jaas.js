@@ -7,13 +7,11 @@ const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 
 // ===== JaaS Configuration =====
 function getJaasPrivateKey() {
-  // Try environment variable first
   if (process.env.JAAS_PRIVATE_KEY) {
     console.log("[jaas] Using JAAS_PRIVATE_KEY from environment");
     return process.env.JAAS_PRIVATE_KEY;
   }
 
-  // Try loading from file path
   if (process.env.JAAS_PRIVATE_KEY_PATH) {
     try {
       const keyPath = path.resolve(process.env.JAAS_PRIVATE_KEY_PATH);
@@ -29,7 +27,6 @@ function getJaasPrivateKey() {
     }
   }
 
-  // Fallback to hardcoded (NOT recommended for production)
   console.warn("[jaas] WARNING: Using fallback private key");
   return `-----BEGIN RSA PRIVATE KEY-----
 MIIJKQIBAAKCAgEAwUZlCd40VLe2DY54xEnnY8yiaqaqfKB5WwrK04c7vvEx2BCZ
@@ -88,6 +85,7 @@ const JAAS_CONFIG = {
   appId:
     process.env.JAAS_APP_ID ||
     "vpaas-magic-cookie-d19e6743c9374edea0fea71dcfbc935f",
+  keyId: process.env.JAAS_KEY_ID || "7f7a46",
   virtualHost: "my-video-app",
   privateKey: getJaasPrivateKey(),
   tokenExpiry: 3600,
@@ -160,10 +158,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     };
 
     console.log("[jaas] Attempting to sign JWT...");
-    console.log(
-      "[jaas] Private key format check:",
-      JAAS_CONFIG.privateKey.substring(0, 30)
-    );
+    console.log("[jaas] Using JAAS_KEY_ID:", JAAS_CONFIG.keyId);
 
     let token;
     try {
@@ -171,16 +166,14 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
         algorithm: "RS256",
         header: {
           typ: "JWT",
-          kid: JAAS_CONFIG.appId,
+          kid: JAAS_CONFIG.keyId, // ✅ CORRECT: Use JAAS_KEY_ID from environment
         },
       });
       console.log("[jaas] ✅ JWT signed successfully");
     } catch (signErr) {
       console.error("[jaas] ❌ JWT signing error:", signErr.message);
-      console.error("[jaas] Error details:", signErr);
       logSecurityEvent("JAAS_TOKEN_SIGN_FAILED", uid, {
         error: signErr.message,
-        keyFormat: JAAS_CONFIG.privateKey.substring(0, 30),
       });
       return res.status(500).json({
         error: "Failed to generate token",
