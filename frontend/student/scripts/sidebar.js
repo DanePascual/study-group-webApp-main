@@ -6,7 +6,7 @@
 // - auth listener using authFetch for authoritative profile
 // - idempotent init guard so module can be included on every page safely
 
-import { onAuthStateChanged } from "../../config/firebase.js";
+import { onAuthStateChanged } from "../config/firebase.js";
 import { authFetch } from "./apiClient.js";
 
 /* ----------------------- Helpers ----------------------- */
