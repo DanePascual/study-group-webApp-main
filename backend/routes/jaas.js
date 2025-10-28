@@ -6,27 +6,29 @@ const path = require("path");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 
 function getJaasPrivateKey() {
+  // ✅ Try environment variable FIRST (for Heroku)
   if (process.env.JAAS_PRIVATE_KEY) {
-    console.log("[jaas] Using JAAS_PRIVATE_KEY from environment");
+    console.log("[jaas] ✅ Using JAAS_PRIVATE_KEY from environment");
     return process.env.JAAS_PRIVATE_KEY;
   }
 
+  // Try file path (for local development)
   if (process.env.JAAS_PRIVATE_KEY_PATH) {
     try {
       const keyPath = path.resolve(process.env.JAAS_PRIVATE_KEY_PATH);
       console.log("[jaas] Loading private key from:", keyPath);
       const key = fs.readFileSync(keyPath, "utf-8");
-      console.log("[jaas] Private key loaded successfully");
+      console.log("[jaas] ✅ Private key loaded successfully from file");
       return key;
     } catch (err) {
       console.error(
-        "[jaas] Failed to load private key from file:",
+        "[jaas] ❌ Failed to load private key from file:",
         err.message
       );
     }
   }
 
-  console.warn("[jaas] WARNING: No private key found!");
+  console.error("[jaas] ❌ CRITICAL: No private key found!");
   return null;
 }
 
@@ -88,6 +90,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     const now = Math.floor(Date.now() / 1000);
     const exp = now + JAAS_CONFIG.tokenExpiry;
 
+    // ✅ CORRECT JWT Body per Jitsi documentation
     const jwtPayload = {
       aud: "jitsi",
       iss: "chat",
@@ -137,7 +140,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
         algorithm: "RS256",
         header: {
           typ: "JWT",
-          kid: JAAS_CONFIG.keyId,
+          kid: JAAS_CONFIG.keyId, // ✅ CORRECT FORMAT: AppID/KeyID
         },
       });
 
@@ -147,6 +150,9 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
         "[jaas] JWT Header:",
         JSON.stringify(decoded.header, null, 2)
       );
+      console.log("[jaas] JWT Payload - aud:", decoded.payload.aud);
+      console.log("[jaas] JWT Payload - iss:", decoded.payload.iss);
+      console.log("[jaas] JWT Payload - sub:", decoded.payload.sub);
     } catch (signErr) {
       console.error("[jaas] ❌ JWT signing error:", signErr.message);
       logSecurityEvent("JAAS_TOKEN_SIGN_FAILED", uid, {
