@@ -131,11 +131,22 @@ export class VideoManager {
           "study-room";
 
         console.log("[VideoManager] Requesting JWT token for room:", roomName);
+        console.log("[VideoManager] DEBUG: About to call postJsonWithAuth");
+        console.log(
+          "[VideoManager] DEBUG: postJsonWithAuth function:",
+          typeof postJsonWithAuth
+        );
+        console.log(
+          "[VideoManager] DEBUG: Current user:",
+          this.userAuth.currentUser
+        );
 
         // ✅ Use postJsonWithAuth - automatically includes auth and handles body
         const data = await postJsonWithAuth("/api/jaas", {
           roomName: roomName,
         });
+
+        console.log("[VideoManager] DEBUG: postJsonWithAuth response:", data);
 
         if (!data || !data.token) {
           throw new Error(data?.error || "No token in response");
@@ -147,6 +158,11 @@ export class VideoManager {
         console.log("[VideoManager] JWT token obtained successfully");
       } catch (err) {
         console.error("[VideoManager] Failed to get JWT token:", err);
+        console.error("[VideoManager] Error details:", {
+          message: err.message,
+          status: err.status,
+          body: err.body,
+        });
         showToast(`Failed to start video call: ${err.message}`, "error");
         return;
       }
