@@ -316,6 +316,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+    <!-- Firebase Initialization -->
     <script>
       const firebaseConfig = {
         apiKey: "AIzaSyAn1-kQypHeeoqZRGYKhJfE5AiICkTX_Hw",
@@ -326,6 +327,7 @@
         appId: "1:857690286168:web:93e5f7bf374b62445a022d",
         measurementId: "G-MR51J9BKM0",
       };
+
       if (!firebase.apps || !firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
         console.log("Firebase (compat) initialized");
@@ -333,36 +335,8 @@
       window.firebaseAppInstance = firebase;
     </script>
 
-    <!-- Global Config Setup -->
-    <script>
-      // Initialize global config object if not already set
-      window.__CONFIG__ = window.__CONFIG__ || {};
-
-      // REMOVED: The jitsiConfig lines are no longer needed and were causing conflicts.
-      // The backend now provides all necessary JaaS configuration.
-
-      // Set API base URL for development/testing
-      //window.__CONFIG__.apiBaseUrl = "http://localhost:5000";
-      //window.__CONFIG__.backendBase = "http://localhost:5000";
-
-      // ✅ PRODUCTION HEROKU URL
-      window.__CONFIG__.apiBaseUrl =
-        "https://study-group-backend-d8fc93ae1b7a.herokuapp.com";
-      window.__CONFIG__.backendBase =
-        "https://study-group-backend-d8fc93ae1b7a.herokuapp.com";
-
-      console.debug("Global config initialized:", {
-        apiBaseUrl: window.__CONFIG__.apiBaseUrl,
-        backendBase: window.__CONFIG__.backendBase,
-      });
-    </script>
-
+    <!-- Module Scripts - Config is managed in modules (config.js and appConfig.js) -->
     <script type="module" src="../scripts/sidebar.js"></script>
     <script type="module" src="../scripts/study-group-inside/index.js"></script>
-
-    <!-- Bridge script to expose functions for HTML -->
-    <script>
-      // This script can be simplified or removed if all interactions are handled via event listeners in modules.
-    </script>
   </body>
 </html>
