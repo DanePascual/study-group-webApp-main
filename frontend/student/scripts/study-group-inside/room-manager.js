@@ -13,108 +13,146 @@ export class RoomManager {
 
   async loadRoomData() {
     this.isLoading = true;
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomId = urlParams.get("room");
-    if (!roomId) {
-      throw new Error("Room ID not found in URL");
-    }
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get("room");
 
-    const res = await fetch(`${window.__CONFIG__.apiBase}/${roomId}`);
-    if (!res.ok) throw new Error(`Failed to load room (status ${res.status})`);
-    this.currentRoomData = await res.json();
-    this.isOwner =
-      this.currentRoomData.creator === this.userAuth.currentUser.uid;
-    await this.loadParticipantsInfo();
-    this.isLoading = false;
-    return this.currentRoomData;
+      if (!roomId) {
+        console.error("[room-manager] No room ID in URL");
+        throw new Error("Room ID not found in URL");
+      }
+
+      console.log(`[room-manager] Loading room: ${roomId}`);
+
+      // ===== Build the correct API URL =====
+      const apiUrl = `${window.__CONFIG__.apiBase}/${roomId}`;
+      console.log(`[room-manager] Fetching from: ${apiUrl}`);
+
+      // ===== Use authenticated fetch =====
+      const data = await fetchJsonWithAuth(apiUrl, {
+        method: "GET",
+      });
+
+      if (!data) {
+        throw new Error("No room data returned");
+      }
+
+      console.log(`[room-manager] Room loaded successfully:`, data);
+      this.currentRoomData = data;
+      this.isOwner =
+        this.currentRoomData.creator === this.userAuth.currentUser.uid;
+
+      await this.loadParticipantsInfo();
+      this.isLoading = false;
+      return this.currentRoomData;
+    } catch (err) {
+      console.error("[room-manager] Error loading room:", err);
+      this.isLoading = false;
+
+      // Show error toast
+      if (typeof window.showToast === "function") {
+        window.showToast(`Failed to load room: ${err.message}`, "error");
+      }
+
+      // Redirect to study rooms after 2 seconds
+      setTimeout(() => {
+        window.location.href = "study-rooms.html";
+      }, 2000);
+
+      throw err;
+    }
   }
 
   async loadParticipantsInfo() {
-    this.participants = [];
+    try {
+      this.participants = [];
 
-    const currentUid = this.userAuth.currentUser?.uid;
+      const currentUid = this.userAuth.currentUser?.uid;
 
-    if (
-      !this.currentRoomData?.participants ||
-      !Array.isArray(this.currentRoomData.participants) ||
-      this.currentRoomData.participants.length === 0
-    ) {
-      const selfInfo = await this.userAuth.getUserDisplayInfo(currentUid);
-      this.participants = [
-        {
-          id: currentUid,
-          name: selfInfo.displayName,
-          avatar: selfInfo.avatar,
-          photo:
-            this.userAuth.currentUser.photoURL ||
-            this.userAuth.currentUser.photo ||
-            null,
-          status: "online",
-          isHost: this.isOwner,
-          inCall: false,
-        },
-      ];
-      this.updateParticipantsList();
-      return;
-    }
-
-    const uids = Array.from(
-      new Set(this.currentRoomData.participants.filter(Boolean))
-    );
-    const infosMap = await this.userAuth.getUserDisplayInfos(uids);
-
-    this.participants = await Promise.all(
-      uids.map(async (uid) => {
-        try {
-          const info = infosMap[uid] || {
-            displayName: uid.substring(0, 8),
-            avatar: "U",
-            photo: null,
-          };
-          let photo = null;
-          if (uid === currentUid) {
-            photo =
+      if (
+        !this.currentRoomData?.participants ||
+        !Array.isArray(this.currentRoomData.participants) ||
+        this.currentRoomData.participants.length === 0
+      ) {
+        const selfInfo = await this.userAuth.getUserDisplayInfo(currentUid);
+        this.participants = [
+          {
+            id: currentUid,
+            name: selfInfo.displayName,
+            avatar: selfInfo.avatar,
+            photo:
               this.userAuth.currentUser.photoURL ||
               this.userAuth.currentUser.photo ||
-              info.photo ||
-              null;
-          } else {
-            photo = info.photo || null;
-            if (!photo) {
-              try {
-                const doc = await db.collection("users").doc(uid).get();
-                if (doc.exists && doc.data().photo) photo = doc.data().photo;
-              } catch (e) {
-                // ignore read errors
+              null,
+            status: "online",
+            isHost: this.isOwner,
+            inCall: false,
+          },
+        ];
+        this.updateParticipantsList();
+        return;
+      }
+
+      const uids = Array.from(
+        new Set(this.currentRoomData.participants.filter(Boolean))
+      );
+      const infosMap = await this.userAuth.getUserDisplayInfos(uids);
+
+      this.participants = await Promise.all(
+        uids.map(async (uid) => {
+          try {
+            const info = infosMap[uid] || {
+              displayName: uid.substring(0, 8),
+              avatar: "U",
+              photo: null,
+            };
+            let photo = null;
+            if (uid === currentUid) {
+              photo =
+                this.userAuth.currentUser.photoURL ||
+                this.userAuth.currentUser.photo ||
+                info.photo ||
+                null;
+            } else {
+              photo = info.photo || null;
+              if (!photo) {
+                try {
+                  const doc = await db.collection("users").doc(uid).get();
+                  if (doc.exists && doc.data().photo) photo = doc.data().photo;
+                } catch (e) {
+                  // ignore read errors
+                }
               }
             }
+
+            return {
+              id: uid,
+              name: info.displayName,
+              avatar: info.avatar,
+              photo: photo,
+              status: "online",
+              isHost: this.currentRoomData.creator === uid,
+              inCall: false,
+            };
+          } catch (err) {
+            console.error("Error building participant info for", uid, err);
+            return {
+              id: uid,
+              name: uid.substring(0, 8),
+              avatar: "U",
+              photo: null,
+              status: "online",
+              isHost: this.currentRoomData.creator === uid,
+              inCall: false,
+            };
           }
+        })
+      );
 
-          return {
-            id: uid,
-            name: info.displayName,
-            avatar: info.avatar,
-            photo: photo,
-            status: "online",
-            isHost: this.currentRoomData.creator === uid,
-            inCall: false,
-          };
-        } catch (err) {
-          console.error("Error building participant info for", uid, err);
-          return {
-            id: uid,
-            name: uid.substring(0, 8),
-            avatar: "U",
-            photo: null,
-            status: "online",
-            isHost: this.currentRoomData.creator === uid,
-            inCall: false,
-          };
-        }
-      })
-    );
-
-    this.updateParticipantsList();
+      this.updateParticipantsList();
+    } catch (err) {
+      console.error("[room-manager] Error loading participants:", err);
+    }
   }
 
   updateParticipantsList() {
