@@ -4,9 +4,40 @@ const admin = require("../config/firebase-admin");
 const supabase = require("../config/supabase");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 
-// GET current user's profile (protected)
+// ===== SECURITY: Constants =====
+const ALLOWED_COLLEGE_DOMAIN = "@paterostechnologicalcollege.edu.ph";
+const MAX_NAME_LENGTH = 255;
+const MAX_BIO_LENGTH = 2000;
+const MAX_STUDENT_NUMBER_LENGTH = 50;
+const MAX_PROGRAM_LENGTH = 100;
+const MAX_INSTITUTION_LENGTH = 255;
+const MAX_YEAR_LEVEL_LENGTH = 50;
+const MAX_SPECIALIZATION_LENGTH = 100;
+const MAX_GRADUATION_LENGTH = 50;
+
+// ===== SECURITY: Sanitization helpers =====
+function sanitizeString(str, maxLength = 255) {
+  if (typeof str !== "string") return "";
+  return str.trim().substring(0, maxLength);
+}
+
+function validateCollegeEmail(email) {
+  if (typeof email !== "string") return false;
+  const trimmed = email.trim().toLowerCase();
+  return trimmed.endsWith(ALLOWED_COLLEGE_DOMAIN);
+}
+
+function logSecurityEvent(eventType, uid, details) {
+  const timestamp = new Date().toISOString();
+  console.warn(
+    `[SECURITY] ${timestamp} | Event: ${eventType} | User: ${uid} | Details:`,
+    details
+  );
+}
+
+// ===== GET current user's profile (protected) =====
 router.get("/profile", firebaseAuthMiddleware, async (req, res) => {
-  const uid = req.user.uid; // Provided by the auth middleware
+  const uid = req.user.uid;
 
   try {
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
@@ -14,10 +45,11 @@ router.get("/profile", firebaseAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
     const data = userDoc.data();
-    // Only return fields that exist in auth.js/signup
+
+    // Return sanitized profile data (email is NEVER editable, so it's safe to return)
     res.json({
       name: data.name || "",
-      email: data.email || "",
+      email: data.email || "", // ← Read-only from backend
       studentNumber: data.studentNumber || "",
       program: data.program || "",
       yearLevel: data.yearLevel || "",
@@ -31,14 +63,17 @@ router.get("/profile", firebaseAuthMiddleware, async (req, res) => {
       lastUpdated: data.lastUpdated || "",
     });
   } catch (error) {
+    console.error("[users] GET /profile error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// UPDATE current user's profile (protected)
+// ===== UPDATE current user's profile (protected) =====
 router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
-  const uid = req.user.uid; // Provided by the auth middleware
-  // Only allow updating fields from signup (plus photoFilename)
+  const uid = req.user.uid;
+  const firebaseEmail = req.user.email; // From Firebase auth
+
+  // ===== SECURITY: Email is NOT in allowedFields - it's LOCKED =====
   const allowedFields = [
     "name",
     "studentNumber",
@@ -52,11 +87,49 @@ router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
     "photoFilename",
   ];
 
-  // Only update allowed fields
+  // Validate that email is NOT being updated
+  if (req.body.email !== undefined) {
+    logSecurityEvent("UPDATE_EMAIL_ATTEMPTED", uid, {
+      attemptedEmail: req.body.email,
+      reason: "Email is read-only",
+    });
+    return res.status(400).json({
+      error:
+        "Email cannot be changed. Contact support if you need to update your email.",
+    });
+  }
+
+  // Build updates with validation & sanitization
   const updates = {};
+
   for (const field of allowedFields) {
     if (req.body[field] !== undefined) {
-      updates[field] = req.body[field];
+      let value = req.body[field];
+
+      // ===== SECURITY: Sanitize and validate each field =====
+      if (field === "name") {
+        value = sanitizeString(value, MAX_NAME_LENGTH);
+        if (!value) {
+          logSecurityEvent("UPDATE_NAME_EMPTY", uid, {});
+          return res.status(400).json({ error: "Name cannot be empty" });
+        }
+      } else if (field === "bio") {
+        value = sanitizeString(value, MAX_BIO_LENGTH);
+      } else if (field === "studentNumber") {
+        value = sanitizeString(value, MAX_STUDENT_NUMBER_LENGTH);
+      } else if (field === "program") {
+        value = sanitizeString(value, MAX_PROGRAM_LENGTH);
+      } else if (field === "institution") {
+        value = sanitizeString(value, MAX_INSTITUTION_LENGTH);
+      } else if (field === "yearLevel") {
+        value = sanitizeString(value, MAX_YEAR_LEVEL_LENGTH);
+      } else if (field === "specialization") {
+        value = sanitizeString(value, MAX_SPECIALIZATION_LENGTH);
+      } else if (field === "graduation") {
+        value = sanitizeString(value, MAX_GRADUATION_LENGTH);
+      }
+
+      updates[field] = value;
     }
   }
 
@@ -75,21 +148,19 @@ router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
         ? existingData.photoFilename
         : null;
 
-    // If a new photoFilename is provided and it differs from the old one, attempt to delete the old file from Supabase
+    // If a new photoFilename is provided and it differs from the old one, delete the old file
     if (
       updates.photoFilename &&
       oldFilename &&
       updates.photoFilename !== oldFilename
     ) {
       try {
-        // Try deleting from the 'profiles' bucket first (you created this bucket)
         const { error: delError1 } = await supabase.storage
           .from("profiles")
           .remove([oldFilename]);
         if (delError1) {
-          // If removal failed (perhaps the file is stored in a different bucket like 'resources'), try 'resources' as fallback
           console.warn(
-            "Could not remove old file from 'profiles' bucket:",
+            "[users] Could not remove old file from 'profiles' bucket:",
             delError1
           );
           const { error: delError2 } = await supabase.storage
@@ -97,25 +168,24 @@ router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
             .remove([oldFilename]);
           if (delError2) {
             console.warn(
-              "Could not remove old file from 'resources' bucket:",
+              "[users] Could not remove old file from 'resources' bucket:",
               delError2
             );
-            // Do not fail the whole update; log and continue
           } else {
             console.log(
-              "Removed old profile file from 'resources' bucket:",
+              "[users] Removed old profile file from 'resources' bucket:",
               oldFilename
             );
           }
         } else {
           console.log(
-            "Removed old profile file from 'profiles' bucket:",
+            "[users] Removed old profile file from 'profiles' bucket:",
             oldFilename
           );
         }
       } catch (e) {
         console.warn(
-          "Error deleting old profile file from Supabase (continuing):",
+          "[users] Error deleting old profile file (continuing):",
           e
         );
       }
@@ -130,9 +200,12 @@ router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
     // Get the updated document to return to the client
     const userDoc = await userRef.get();
     const data = userDoc.data() || {};
+
+    console.log(`[users] Profile updated for user=${uid}`);
+
     res.json({
       name: data.name || "",
-      email: data.email || "",
+      email: data.email || "", // ← Never changes
       studentNumber: data.studentNumber || "",
       program: data.program || "",
       yearLevel: data.yearLevel || "",
@@ -146,17 +219,24 @@ router.put("/profile", firebaseAuthMiddleware, async (req, res) => {
       lastUpdated: data.lastUpdated || "",
     });
   } catch (error) {
-    console.error("Error in PUT /api/users/profile:", error);
+    console.error("[users] PUT /profile error:", error);
+    logSecurityEvent("UPDATE_PROFILE_ERROR", uid, {
+      error: error.message,
+    });
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET user profile by UID (protected)
+// ===== GET user profile by UID (protected) =====
 router.get("/:uid", firebaseAuthMiddleware, async (req, res) => {
   const { uid } = req.params;
 
   // Security: Only allow users to access their own profile
   if (req.user.uid !== uid) {
+    logSecurityEvent("UNAUTHORIZED_PROFILE_ACCESS", req.user.uid, {
+      targetUid: uid,
+      reason: "UID mismatch",
+    });
     return res.status(403).json({ error: "Forbidden: UID mismatch" });
   }
 
@@ -182,6 +262,7 @@ router.get("/:uid", firebaseAuthMiddleware, async (req, res) => {
       lastUpdated: data.lastUpdated || "",
     });
   } catch (error) {
+    console.error("[users] GET /:uid error:", error);
     res.status(500).json({ error: error.message });
   }
 });
