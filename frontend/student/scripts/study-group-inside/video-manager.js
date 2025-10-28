@@ -124,6 +124,7 @@ export class VideoManager {
       // ===== Get JWT token from backend =====
       let token;
       let domain;
+      let sanitizedRoomName; // ✅ Store sanitized room name from backend
       try {
         const roomName =
           this.roomManager.currentRoomData?.name ||
@@ -154,8 +155,13 @@ export class VideoManager {
 
         token = data.token;
         domain = data.domain || "8x8.vc";
+        sanitizedRoomName = data.room; // ✅ Get sanitized room name from backend
 
         console.log("[VideoManager] JWT token obtained successfully");
+        console.log(
+          "[VideoManager] Sanitized room name from backend:",
+          sanitizedRoomName
+        );
       } catch (err) {
         console.error("[VideoManager] Failed to get JWT token:", err);
         console.error("[VideoManager] Error details:", {
@@ -195,8 +201,9 @@ export class VideoManager {
       }
 
       // ===== Initialize Jitsi Meet =====
+      // ✅ CRITICAL FIX: Use sanitized room name from backend, not the original
       const options = {
-        roomName: this.roomName,
+        roomName: sanitizedRoomName, // ✅ Use SANITIZED room name from backend
         jwt: token,
         width: "100%",
         height: "100%",
@@ -233,6 +240,10 @@ export class VideoManager {
       };
 
       try {
+        console.log(
+          "[VideoManager] Creating Jitsi instance with room:",
+          options.roomName
+        );
         this.jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
 
         // ===== Setup event listeners =====
