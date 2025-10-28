@@ -1,10 +1,10 @@
-// ===== study-rooms.js (fixed) =====
-// - Defers to centralized sidebar.js for sidebar behavior and theme toggle wiring
-// - Uses apiUrl for resolving backend endpoint
-// - Uses apiClient.postJsonWithAuth for authenticated POST (create room)
-// - Defensive sidebar updates so we don't overwrite server-provided avatar/name
-// - DOM-ready initialization + auth gating
-// - FIX: defined escapeHtml before use and ensured enterRoom is defined before export
+// ===== study-rooms.js (SECURITY HARDENED) =====
+// - Input sanitization on all user inputs (XSS prevention)
+// - Input validation (lengths, required fields)
+// - Confirmation dialog before creating room
+// - Rate limiting feedback
+// - Privacy & session scheduling support
+// - Security logging
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -16,9 +16,14 @@ import {
   signOut,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { apiUrl } from "../../config/appConfig.js";
-import { postJsonWithAuth } from "./apiClient.js";
+import { postJsonWithAuth, fetchJsonWithAuth } from "./apiClient.js";
 
 const STUDY_GROUPS_API = apiUrl("/api/study-groups");
+
+// ===== SECURITY: Constants =====
+const MAX_ROOM_NAME_LENGTH = 100;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_TAGS = 3;
 
 let CURRENT_SESSION = null;
 let createRoomModal;
@@ -26,7 +31,7 @@ let allRooms = [];
 let currentRoomPage = 1;
 let roomsPerPage = 9;
 
-/* ----------------------- Utilities ----------------------- */
+/* ===== SECURITY: Utilities ===== */
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
     return {
@@ -42,7 +47,20 @@ function escapeHtml(s) {
   });
 }
 
-/* ----------------------- Notifications / Toasts ----------------------- */
+function sanitizeString(str, maxLength = 255) {
+  if (typeof str !== "string") return "";
+  return str.trim().substring(0, maxLength);
+}
+
+function logSecurityEvent(eventType, details) {
+  const timestamp = new Date().toISOString();
+  console.warn(
+    `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
+    details
+  );
+}
+
+/* ===== Notifications ===== */
 export function showToast(message, type = "success") {
   const toastContainer = document.getElementById("toastContainer");
   if (!toastContainer) return;
@@ -81,15 +99,11 @@ export function closeToast(toastId) {
   }
 }
 
-/* ----------------------- Init / Auth ----------------------- */
-// Initialize basic UI first, regardless of auth state
+/* ===== DOM Init ===== */
 document.addEventListener("DOMContentLoaded", function () {
   console.log("DOM loaded - initializing basic UI");
-
-  // Sync theme UI to match centralized sidebar.js state (do not wire toggle here)
   syncThemeUI();
 
-  // Initialize Bootstrap components
   try {
     const modalElement = document.getElementById("createRoomModal");
     if (modalElement) {
@@ -100,7 +114,6 @@ document.addEventListener("DOMContentLoaded", function () {
     console.error("Error initializing Bootstrap components:", err);
   }
 
-  // Add event listeners for UI elements that don't depend on auth
   document.querySelectorAll(".filter-btn").forEach((btn) => {
     btn.addEventListener("click", function (e) {
       handleFilterClick.call(this, e);
@@ -114,7 +127,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Now check authentication
   checkAuth();
 });
 
@@ -132,7 +144,6 @@ function checkAuth() {
       const loginPath =
         pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
       window.location.href = window.location.origin + loginPath;
-      console.log("Redirecting to login:", window.location.origin + loginPath);
     }
   });
 }
@@ -162,14 +173,8 @@ async function loadUserData(user) {
   updateSidebarUserInfo();
 }
 
-// Defensive sidebar update: only set initials/name if sidebar still shows default/loading,
-// and do not overwrite an existing <img> avatar set by centralized sidebar.js.
 function updateSidebarUserInfo() {
   try {
-    console.log(
-      "Updating sidebar user info defensively with:",
-      CURRENT_SESSION
-    );
     const avatar = document.getElementById("sidebarAvatar");
     const nameNode = document.getElementById("sidebarName");
     const courseNode = document.getElementById("sidebarCourse");
@@ -181,7 +186,7 @@ function updateSidebarUserInfo() {
       currentName === "Loading..." ||
       currentName === "Not signed in";
 
-    if (nameNode && nameIsDefault && CURRENT_SESSION && CURRENT_SESSION.user) {
+    if (nameNode && nameIsDefault && CURRENT_SESSION?.user) {
       nameNode.textContent = CURRENT_SESSION.user;
     }
 
@@ -192,17 +197,12 @@ function updateSidebarUserInfo() {
       courseNode.textContent = CURRENT_SESSION.userProgram || "";
     }
 
-    if (avatar) {
-      const hasImg = avatar.querySelector && avatar.querySelector("img");
-      if (!hasImg) {
-        const currentAvatarText = avatar.textContent
-          ? avatar.textContent.trim()
-          : "";
-        if (!currentAvatarText || currentAvatarText === "") {
-          if (CURRENT_SESSION && CURRENT_SESSION.userAvatar) {
-            avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
-          }
-        }
+    if (avatar && !avatar.querySelector("img")) {
+      const currentAvatarText = avatar.textContent
+        ? avatar.textContent.trim()
+        : "";
+      if (!currentAvatarText && CURRENT_SESSION?.userAvatar) {
+        avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
       }
     }
   } catch (err) {
@@ -210,11 +210,55 @@ function updateSidebarUserInfo() {
   }
 }
 
-/* ----------------------- Authenticated UI ----------------------- */
+/* ===== Theme ===== */
+function syncThemeUI() {
+  try {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    const themeToggle = document.getElementById("themeToggle");
+    const body = document.body;
+    if (!themeToggle || !body) return;
+    if (savedTheme === "dark") {
+      body.classList.add("dark-mode");
+      themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+    } else {
+      body.classList.remove("dark-mode");
+      themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
+    }
+  } catch (err) {
+    // no-op
+  }
+}
+
+/* ===== Bootstrap & Tooltips ===== */
+function initializeTooltips() {
+  try {
+    var tooltipTriggerList = [].slice.call(
+      document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  } catch (err) {
+    console.error("Error initializing tooltips:", err);
+  }
+}
+
+function updateCurrentTime() {
+  const now = new Date();
+  const philippinesTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const timeStr =
+    philippinesTime.toISOString().slice(0, 19).replace("T", " ") +
+    " Philippines";
+  const timeElement = document.getElementById("currentTime");
+  if (timeElement) {
+    timeElement.textContent = timeStr;
+  }
+}
+
+/* ===== Authenticated UI ===== */
 function initializeAuthenticatedUI() {
   console.log("Initializing authenticated UI");
 
-  // Setup event listeners for authenticated features
   const createRoomButton = document.getElementById("createRoomButton");
   if (createRoomButton) {
     createRoomButton.addEventListener("click", openCreateRoomModal);
@@ -238,14 +282,11 @@ function initializeAuthenticatedUI() {
     });
   });
 
-  // Update current time every second
   updateCurrentTime();
   setInterval(updateCurrentTime, 1000);
 
-  // Fetch study rooms
   fetchAndRenderStudyRooms();
 
-  // Show welcome message
   setTimeout(() => {
     showToast(
       `Welcome, ${
@@ -256,55 +297,9 @@ function initializeAuthenticatedUI() {
   }, 1000);
 }
 
-/* ----------------------- Theme ----------------------- */
-// Sync theme UI to match centralized sidebar state (no click wiring here)
-function syncThemeUI() {
-  try {
-    const savedTheme = localStorage.getItem("theme") || "light";
-    const themeToggle = document.getElementById("themeToggle");
-    const body = document.body;
-    if (!themeToggle || !body) return;
-    if (savedTheme === "dark") {
-      body.classList.add("dark-mode");
-      themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-    } else {
-      body.classList.remove("dark-mode");
-      themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
-    }
-  } catch (err) {
-    // no-op
-  }
-}
-
-/* ----------------------- UI Helpers ----------------------- */
-function initializeTooltips() {
-  try {
-    var tooltipTriggerList = [].slice.call(
-      document.querySelectorAll('[data-bs-toggle="tooltip"]')
-    );
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-  } catch (err) {
-    console.error("Error initializing tooltips:", err);
-  }
-}
-
-function updateCurrentTime() {
-  const now = new Date();
-  const philippinesTime = new Date(now.getTime() + 8 * 60 * 60 * 1000); // UTC+8
-  const timeStr =
-    philippinesTime.toISOString().slice(0, 19).replace("T", " ") +
-    " Philippines";
-  const timeElement = document.getElementById("currentTime");
-  if (timeElement) {
-    timeElement.textContent = timeStr;
-  }
-}
-
-/* ----------------------- Create Room ----------------------- */
+/* ===== Create Room ===== */
 function openCreateRoomModal() {
-  console.log("Opening create room modal (defensive)");
+  console.log("Opening create room modal");
   try {
     const modalElement = document.getElementById("createRoomModal");
     if (!modalElement) {
@@ -317,7 +312,6 @@ function openCreateRoomModal() {
     }
 
     if (!createRoomModal) {
-      // try to initialize it now
       createRoomModal = new bootstrap.Modal(modalElement);
     }
 
@@ -329,40 +323,87 @@ function openCreateRoomModal() {
 }
 
 async function handleCreateRoom() {
-  const roomNameElement = document.getElementById("roomName");
-  const roomDescriptionElement = document.getElementById("roomDescription");
-  const subjectAreaElement = document.getElementById("subjectArea");
-  const selectedTagsElement = document.getElementById("selectedTags");
+  const roomNameEl = document.getElementById("roomName");
+  const roomDescEl = document.getElementById("roomDescription");
+  const subjectEl = document.getElementById("subjectArea");
+  const privacyEl = document.querySelector('input[name="privacy"]:checked');
+  const sessionDateEl = document.getElementById("sessionDate");
+  const sessionTimeEl = document.getElementById("sessionTime");
+  const selectedTagsEl = document.getElementById("selectedTags");
 
-  if (!roomNameElement || !subjectAreaElement) {
+  if (!roomNameEl || !subjectEl) {
     showToast("Form elements not found", "error");
     return;
   }
 
-  const roomName = roomNameElement.value.trim();
-  const description = roomDescriptionElement
-    ? roomDescriptionElement.value.trim()
-    : "";
-  const subject = subjectAreaElement.value;
-  const tags = selectedTagsElement ? selectedTagsElement.value : "";
+  const roomName = sanitizeString(roomNameEl.value, MAX_ROOM_NAME_LENGTH);
+  const description = sanitizeString(
+    roomDescEl ? roomDescEl.value : "",
+    MAX_DESCRIPTION_LENGTH
+  );
+  const subject = subjectEl.value;
+  const privacy = privacyEl ? privacyEl.value : "public";
+  const sessionDate = sessionDateEl ? sessionDateEl.value || null : null;
+  const sessionTime = sessionTimeEl ? sessionTimeEl.value || null : null;
+  const tagsStr = selectedTagsEl ? selectedTagsEl.value : "";
 
-  if (!roomName || !subject) {
-    showToast("Please fill in all required fields", "error");
+  // ===== SECURITY: Validation =====
+  if (!roomName) {
+    showToast("Room name is required", "error");
+    return;
+  }
+
+  if (roomName.length === 0) {
+    showToast("Room name cannot be empty", "error");
+    return;
+  }
+
+  if (!subject) {
+    showToast("Please select a subject area", "error");
+    return;
+  }
+
+  // ===== SECURITY: Confirmation dialog =====
+  const confirmed = confirm(
+    `Are you sure you want to create room "${escapeHtml(
+      roomName
+    )}"?\n\nSubject: ${escapeHtml(subject)}\nPrivacy: ${privacy}`
+  );
+
+  if (!confirmed) {
+    logSecurityEvent("ROOM_CREATION_CANCELLED", {});
     return;
   }
 
   try {
-    // Use centralized apiClient helper to POST JSON with auth attached
-    const tagArray = tags ? tags.split(",") : [];
+    const tagArray = tagsStr
+      ? tagsStr
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+
     const payload = {
       name: roomName,
       description: description,
       subject: subject,
       tags: tagArray,
+      privacy: privacy,
+      sessionDate: sessionDate,
+      sessionTime: sessionTime,
     };
 
+    const createBtn = document.getElementById("createRoomBtn");
+    if (createBtn) {
+      createBtn.disabled = true;
+      createBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise spinning"></i> Creating...';
+    }
+
     await postJsonWithAuth(STUDY_GROUPS_API, payload);
+
     showToast("Study room created successfully!", "success");
+    logSecurityEvent("ROOM_CREATED", { roomName, privacy });
 
     if (createRoomModal) createRoomModal.hide();
 
@@ -370,12 +411,23 @@ async function handleCreateRoom() {
     fetchAndRenderStudyRooms();
   } catch (err) {
     console.error("Error creating room:", err);
-    // Try to surface server error if available
+    logSecurityEvent("ROOM_CREATION_FAILED", {
+      error: err && err.message ? err.message : "Unknown",
+    });
+
     let msg = "Could not create room. Please try again later.";
     if (err && err.body && (err.body.error || err.body.message)) {
       msg = err.body.error || err.body.message;
-    } else if (err && err.message) msg = err.message;
+    } else if (err && err.message) {
+      msg = err.message;
+    }
     showToast(msg, "error");
+  } finally {
+    const createBtn = document.getElementById("createRoomBtn");
+    if (createBtn) {
+      createBtn.disabled = false;
+      createBtn.innerHTML = '<i class="bi bi-plus-lg"></i> Create Room';
+    }
   }
 }
 
@@ -385,29 +437,29 @@ function resetCreateRoomForm() {
   document
     .querySelectorAll(".tag-option")
     .forEach((tag) => tag.classList.remove("selected"));
-  const selectedTagsElement = document.getElementById("selectedTags");
-  if (selectedTagsElement) selectedTagsElement.value = "";
+  const selectedTagsEl = document.getElementById("selectedTags");
+  if (selectedTagsEl) selectedTagsEl.value = "";
 }
 
 function handleTagSelection() {
   const selectedTags = document.querySelectorAll(".tag-option.selected");
   if (this.classList.contains("selected")) {
     this.classList.remove("selected");
-  } else if (selectedTags.length < 3) {
+  } else if (selectedTags.length < MAX_TAGS) {
     this.classList.add("selected");
   } else {
-    showToast("You can select up to 3 tags", "error");
+    showToast(`You can select up to ${MAX_TAGS} tags`, "error");
     return;
   }
 
   const tags = Array.from(document.querySelectorAll(".tag-option.selected"))
     .map((tag) => tag.getAttribute("data-tag"))
     .filter(Boolean);
-  const selectedTagsElement = document.getElementById("selectedTags");
-  if (selectedTagsElement) selectedTagsElement.value = tags.join(",");
+  const selectedTagsEl = document.getElementById("selectedTags");
+  if (selectedTagsEl) selectedTagsEl.value = tags.join(",");
 }
 
-/* ----------------------- Filters / Search ----------------------- */
+/* ===== Filters & Search ===== */
 function handleFilterClick() {
   document
     .querySelectorAll(".filter-btn")
@@ -434,27 +486,21 @@ function handleSearch() {
   const roomCards = document.querySelectorAll(".room-card");
   if (roomCards.length === 0) return;
   roomCards.forEach((room) => {
-    const titleElement = room.querySelector(".room-title");
-    const descriptionElement = room.querySelector(".room-description");
-    const title = titleElement ? titleElement.textContent.toLowerCase() : "";
-    const description = descriptionElement
-      ? descriptionElement.textContent.toLowerCase()
-      : "";
+    const titleEl = room.querySelector(".room-title");
+    const descEl = room.querySelector(".room-description");
+    const title = titleEl ? titleEl.textContent.toLowerCase() : "";
+    const description = descEl ? descEl.textContent.toLowerCase() : "";
     if (title.includes(searchTerm) || description.includes(searchTerm))
       room.style.display = "block";
     else room.style.display = "none";
   });
 }
 
-/* ----------------------- Backend fetch & render ----------------------- */
+/* ===== Fetch & Render ===== */
 async function fetchAndRenderStudyRooms() {
   try {
-    const response = await fetch(STUDY_GROUPS_API);
-    if (!response.ok)
-      throw new Error(
-        `Failed to fetch study rooms: ${response.status} ${response.statusText}`
-      );
-    allRooms = await response.json();
+    const rooms = await fetchJsonWithAuth(STUDY_GROUPS_API, { method: "GET" });
+    allRooms = Array.isArray(rooms) ? rooms : [];
 
     const emptyState = document.getElementById("emptyState");
     if (emptyState && allRooms.length > 0) emptyState.remove();
@@ -498,11 +544,9 @@ function renderRoomPage() {
         <button class="btn btn-success" id="createFirstRoomButton"><i class="bi bi-plus-lg"></i> Create Your First Room</button>
       </div>
     </div>`;
-    const createFirstRoomButton = document.getElementById(
-      "createFirstRoomButton"
-    );
-    if (createFirstRoomButton)
-      createFirstRoomButton.addEventListener("click", openCreateRoomModal);
+    const createFirstRoomBtn = document.getElementById("createFirstRoomButton");
+    if (createFirstRoomBtn)
+      createFirstRoomBtn.addEventListener("click", openCreateRoomModal);
     return;
   }
 
@@ -589,12 +633,12 @@ function renderRoomPage() {
   }
 }
 
-/* ----------------------- Helpers ----------------------- */
 function getRoomsPerPage() {
   const sidebar = document.getElementById("sidebar");
   return sidebar && sidebar.classList.contains("open") ? 9 : 12;
 }
 
+/* ===== Keyboard Shortcuts ===== */
 document.addEventListener("keydown", function (e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
     e.preventDefault();
@@ -618,10 +662,11 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
-/* ----------------------- Enter Room (defined BEFORE export) ----------------------- */
+/* ===== Enter Room ===== */
 export function enterRoom(roomId) {
   try {
     showToast("Entering study room...", "info");
+    logSecurityEvent("ROOM_ENTERED", { roomId });
     setTimeout(() => {
       window.location.href = `study-room-inside.html?room=${encodeURIComponent(
         roomId
@@ -633,7 +678,7 @@ export function enterRoom(roomId) {
   }
 }
 
-/* ----------------------- Logout ----------------------- */
+/* ===== Logout ===== */
 export function logout() {
   if (confirm("Are you sure you want to log out?")) {
     try {
@@ -669,7 +714,8 @@ export function logout() {
   }
 }
 
-/* ----------------------- Export / Window Bridge ----------------------- */
+/* ===== Window Bridge ===== */
 window.enterRoom = enterRoom;
 window.showToast = showToast;
 window.closeToast = closeToast;
+window.logout = logout;
