@@ -5,7 +5,6 @@ const fs = require("fs");
 const path = require("path");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 
-// ===== JaaS Configuration =====
 function getJaasPrivateKey() {
   if (process.env.JAAS_PRIVATE_KEY) {
     console.log("[jaas] Using JAAS_PRIVATE_KEY from environment");
@@ -85,7 +84,7 @@ const JAAS_CONFIG = {
   appId:
     process.env.JAAS_APP_ID ||
     "vpaas-magic-cookie-d19e6743c9374edea0fea71dcfbc935f",
-  keyId: process.env.JAAS_KEY_ID || "7f7a46",
+  keyId: process.env.JAAS_KEY_ID || "03a917",
   virtualHost: "my-video-app",
   privateKey: getJaasPrivateKey(),
   tokenExpiry: 3600,
@@ -157,8 +156,9 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       iat: now,
     };
 
+    console.log("[jaas] JWT Payload:", JSON.stringify(jwtPayload, null, 2));
+    console.log("[jaas] Using key ID:", JAAS_CONFIG.keyId);
     console.log("[jaas] Attempting to sign JWT...");
-    console.log("[jaas] Using JAAS_KEY_ID:", JAAS_CONFIG.keyId);
 
     let token;
     try {
@@ -166,10 +166,18 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
         algorithm: "RS256",
         header: {
           typ: "JWT",
-          kid: JAAS_CONFIG.keyId, // ✅ CORRECT: Use JAAS_KEY_ID from environment
+          kid: JAAS_CONFIG.keyId,
         },
       });
+
+      // ✅ DEBUG: Decode and log the JWT header
+      const decoded = jwt.decode(token, { complete: true });
       console.log("[jaas] ✅ JWT signed successfully");
+      console.log(
+        "[jaas] JWT Header:",
+        JSON.stringify(decoded.header, null, 2)
+      );
+      console.log("[jaas] JWT sent to client with kid:", decoded.header.kid);
     } catch (signErr) {
       console.error("[jaas] ❌ JWT signing error:", signErr.message);
       logSecurityEvent("JAAS_TOKEN_SIGN_FAILED", uid, {
