@@ -122,6 +122,11 @@ export class VideoManager {
       // ===== Get JWT token from backend =====
       let token;
       try {
+        const roomName =
+          this.roomManager.currentRoomData?.name ||
+          this.roomManager.currentRoomData?.title ||
+          "study-room";
+
         const response = await fetch(
           `${window.__CONFIG__.backendBase}/api/jaas`,
           {
@@ -133,7 +138,7 @@ export class VideoManager {
               }`,
             },
             body: JSON.stringify({
-              roomName: this.roomName,
+              roomName: roomName, // ✅ Ensure it's a string
             }),
           }
         );
