@@ -1,3 +1,11 @@
+// frontend/student/scripts/sign-up.js
+// Updated to use centralized apiUrl helper from appConfig.js
+// - Removed all hardcoded http://localhost:5000 URLs
+// - Now uses dynamic API_BASE from appConfig.js
+// - Maintains all existing functionality
+
+import { apiUrl } from "../../config/appConfig.js";
+
 // Wait for the DOM to be fully loaded before attaching event listeners
 document.addEventListener("DOMContentLoaded", function () {
   // Password toggle functionality
@@ -59,7 +67,8 @@ document.addEventListener("DOMContentLoaded", function () {
       requestOtpBtn.disabled = true;
       requestOtpBtn.textContent = "Sending...";
 
-      fetch("http://localhost:5000/api/auth/request-otp", {
+      // Use apiUrl() helper instead of hardcoded URL
+      fetch(apiUrl("/api/auth/request-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -97,7 +106,8 @@ document.addEventListener("DOMContentLoaded", function () {
       verifyOtpBtn.disabled = true;
       verifyOtpBtn.textContent = "Verifying...";
 
-      fetch("http://localhost:5000/api/auth/verify-otp", {
+      // Use apiUrl() helper instead of hardcoded URL
+      fetch(apiUrl("/api/auth/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -325,8 +335,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       showLoadingState();
 
-      fetch("http://localhost:5000/api/auth/signup", {
-        // adjust URL if your backend is deployed elsewhere!
+      // Use apiUrl() helper instead of hardcoded URL
+      fetch(apiUrl("/api/auth/signup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

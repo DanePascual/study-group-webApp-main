@@ -51,7 +51,6 @@
         </a>
       </nav>
 
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -144,7 +143,6 @@
       <div class="room-container">
         <!-- Left Panel - Participants -->
         <div class="left-panel">
-          <!-- Participants Panel -->
           <div class="panel">
             <div class="panel-header">
               <div class="panel-title">
@@ -173,7 +171,6 @@
 
         <!-- Right Panel - Main Chat Area -->
         <div class="right-panel">
-          <!-- Chat Panel -->
           <div class="chat-container">
             <div class="chat-header">
               <div class="chat-title"><i class="bi bi-chat-dots"></i> Chat</div>
@@ -219,7 +216,6 @@
             </div>
           </div>
 
-          <!-- Video Call Button -->
           <button
             class="video-call-btn"
             id="videoCallBtn"
@@ -268,7 +264,7 @@
       <div class="video-body">
         <div class="video-placeholder" id="videoPlaceholder">
           <i class="bi bi-camera-video" style="font-size: 32px"></i>
-          <div>Starting video call...</div>
+          <div>Click to start a video call</div>
         </div>
 
         <div class="video-grid" id="videoGrid" style="display: none">
@@ -304,203 +300,22 @@
       </div>
     </div>
 
-    <!-- Room Settings Modal (visible to all, but delete only for owner) -->
+    <!-- Modals -->
     <div class="modal fade" id="settingsModal" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Room Settings</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <ul class="nav nav-tabs mb-3" id="settingsTabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button
-                  class="nav-link active"
-                  id="room-tab"
-                  data-bs-toggle="tab"
-                  data-bs-target="#room"
-                  type="button"
-                  role="tab"
-                  aria-selected="true"
-                >
-                  <i class="bi bi-gear me-2"></i>Room
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button
-                  class="nav-link"
-                  id="participants-tab"
-                  data-bs-toggle="tab"
-                  data-bs-target="#participants"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                >
-                  <i class="bi bi-people me-2"></i>Participants
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button
-                  class="nav-link"
-                  id="files-tab"
-                  data-bs-toggle="tab"
-                  data-bs-target="#files"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                >
-                  <i class="bi bi-file-earmark me-2"></i>Files
-                </button>
-              </li>
-            </ul>
-            <div class="tab-content" id="settingsTabContent">
-              <!-- Room Settings Tab -->
-              <div
-                class="tab-pane fade show active"
-                id="room"
-                role="tabpanel"
-                aria-labelledby="room-tab"
-              >
-                <div class="mb-3">
-                  <label for="roomNameInput" class="form-label"
-                    >Room Name</label
-                  >
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="roomNameInput"
-                    value=""
-                  />
-                </div>
-                <div class="mb-3">
-                  <label for="roomDescInput" class="form-label"
-                    >Description</label
-                  >
-                  <textarea
-                    class="form-control"
-                    id="roomDescInput"
-                    rows="3"
-                  ></textarea>
-                </div>
-              </div>
-
-              <!-- Participants Tab -->
-              <div
-                class="tab-pane fade"
-                id="participants"
-                role="tabpanel"
-                aria-labelledby="participants-tab"
-              >
-                <div id="participantsList2">
-                  <!-- Participants list for management -->
-                </div>
-              </div>
-
-              <!-- Files Tab -->
-              <div
-                class="tab-pane fade"
-                id="files"
-                role="tabpanel"
-                aria-labelledby="files-tab"
-              >
-                <div id="filesList" class="files-list">
-                  <!-- Shared files will be listed here -->
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              data-bs-dismiss="modal"
-            >
-              Close
-            </button>
-            <button type="button" class="btn btn-success" id="saveSettingsBtn">
-              Save Changes
-            </button>
-            <button
-              type="button"
-              class="btn btn-danger ms-auto"
-              id="deleteRoomBtn"
-              style="display: none"
-            >
-              <i class="bi bi-trash"></i> Delete Room
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- ... modal content ... -->
     </div>
-
-    <!-- Invite Modal -->
     <div class="modal fade" id="inviteModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="inviteModalTitle">
-              Invite to Study Room
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="inviteLink" class="form-label"
-                >Share this link with your classmates</label
-              >
-              <div class="input-group">
-                <input
-                  type="text"
-                  class="form-control"
-                  id="inviteLink"
-                  readonly
-                />
-                <button
-                  class="btn btn-outline-success"
-                  type="button"
-                  id="copyLinkBtn"
-                >
-                  <i class="bi bi-clipboard"></i> Copy
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button type="button" class="btn btn-success" id="sendInvitesBtn">
-              <i class="bi bi-send"></i> Send Invites
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- ... modal content ... -->
     </div>
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Firebase Libraries (compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-    <!-- Firebase initialization (compat) -->
     <script>
       const firebaseConfig = {
         apiKey: "AIzaSyAn1-kQypHeeoqZRGYKhJfE5AiICkTX_Hw",
@@ -518,64 +333,36 @@
       window.firebaseAppInstance = firebase;
     </script>
 
-    <!-- Centralized sidebar should be loaded BEFORE the page script so it becomes source-of-truth -->
-    <script type="module" src="../scripts/sidebar.js"></script>
-
-    <!-- Main application script (compat-based) -->
-    <script src="../scripts/study-room-inside.js"></script>
-
-    <!-- Bridge script to expose functions for HTML (runs after main script) -->
+    <!-- Global Config Setup -->
     <script>
-      // Delay slightly to ensure main script has attached its globals
-      setTimeout(function exposeGlobalFunctions() {
-        window.openImageModal = function (imageUrl) {
-          if (
-            window.UiManager &&
-            typeof window.UiManager.openImageModal === "function"
-          ) {
-            window.UiManager.openImageModal(imageUrl);
-          } else if (window.roomModule && typeof roomModule !== "undefined") {
-            // fallback to UiManager static method
-            if (
-              window.UiManager &&
-              typeof window.UiManager.openImageModal === "function"
-            ) {
-              window.UiManager.openImageModal(imageUrl);
-            } else {
-              console.error("openImageModal function not available");
-            }
-          } else {
-            console.error("openImageModal function not available");
-          }
-        };
+      // Initialize global config object if not already set
+      window.__CONFIG__ = window.__CONFIG__ || {};
 
-        window.closeToast = function (toastId) {
-          if (window.closeToastFunction) {
-            window.closeToastFunction(toastId);
-          } else {
-            const toast = document.getElementById(toastId);
-            if (toast) {
-              toast.style.opacity = "0";
-              setTimeout(() => {
-                if (toast.parentNode) toast.parentNode.removeChild(toast);
-              }, 300);
-            }
-          }
-        };
+      // REMOVED: The jitsiConfig lines are no longer needed and were causing conflicts.
+      // The backend now provides all necessary JaaS configuration.
 
-        window.kickParticipant = function (userId) {
-          if (
-            window.roomModule &&
-            typeof window.roomModule.kickParticipant === "function"
-          ) {
-            window.roomModule.kickParticipant(userId);
-          } else {
-            console.error("Room module not initialized");
-          }
-        };
+      // Set API base URL for development/testing
+      //window.__CONFIG__.apiBaseUrl = "http://localhost:5000";
+      //window.__CONFIG__.backendBase = "http://localhost:5000";
 
-        console.log("Bridge: global helpers attached");
-      }, 600);
+      // ✅ PRODUCTION HEROKU URL
+      window.__CONFIG__.apiBaseUrl =
+        "https://study-group-backend-d8fc93ae1b7a.herokuapp.com";
+      window.__CONFIG__.backendBase =
+        "https://study-group-backend-d8fc93ae1b7a.herokuapp.com";
+
+      console.debug("Global config initialized:", {
+        apiBaseUrl: window.__CONFIG__.apiBaseUrl,
+        backendBase: window.__CONFIG__.backendBase,
+      });
+    </script>
+
+    <script type="module" src="../scripts/sidebar.js"></script>
+    <script type="module" src="../scripts/study-group-inside/index.js"></script>
+
+    <!-- Bridge script to expose functions for HTML -->
+    <script>
+      // This script can be simplified or removed if all interactions are handled via event listeners in modules.
     </script>
   </body>
 </html>

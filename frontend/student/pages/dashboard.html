@@ -55,8 +55,6 @@
         </a>
       </nav>
 
-      <!-- FIXED: Changed the sidebar-footer to use a proper direct link -->
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -81,7 +79,6 @@
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
-      <!-- Top Navigation - WITHOUT CLOCK -->
       <div class="top-nav">
         <div class="nav-left">
           <button
@@ -117,9 +114,7 @@
       <!-- Dashboard Content -->
       <div class="dashboard-content">
         <div class="content-row">
-          <!-- Main Section -->
           <div class="main-section">
-            <!-- Active Study Rooms -->
             <div class="study-rooms">
               <h2 class="section-title">
                 <i class="bi bi-door-open"></i>
@@ -131,9 +126,7 @@
             </div>
           </div>
 
-          <!-- Side Section -->
           <div class="side-section">
-            <!-- To-Do Lists -->
             <div class="todo-section">
               <div class="todo-header">
                 <h3 class="section-title">
@@ -206,10 +199,13 @@
       </div>
     </div>
 
+    <!-- Load bootstrap JS first (optional) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <!-- IMPORTANT: load centralized sidebar BEFORE page script so sidebar is initialized first -->
     <script type="module" src="../scripts/sidebar.js"></script>
+
+    <!-- Page script depends on sidebar being ready (theme toggle, keyboard shortcut) -->
     <script type="module" src="../scripts/dashboard.js"></script>
   </body>
 </html>

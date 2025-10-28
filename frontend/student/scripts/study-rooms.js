@@ -1,7 +1,11 @@
-// ===== study-rooms.js (updated) =====
-// - Defers to centralized sidebar.js for sidebar behavior
+// ===== study-rooms.js (fixed) =====
+// - Defers to centralized sidebar.js for sidebar behavior and theme toggle wiring
+// - Uses apiUrl for resolving backend endpoint
+// - Uses apiClient.postJsonWithAuth for authenticated POST (create room)
 // - Defensive sidebar updates so we don't overwrite server-provided avatar/name
 // - DOM-ready initialization + auth gating
+// - FIX: defined escapeHtml before use and ensured enterRoom is defined before export
+
 import { auth, db } from "../../config/firebase.js";
 import {
   doc,
@@ -11,8 +15,10 @@ import {
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { apiUrl } from "../../config/appConfig.js";
+import { postJsonWithAuth } from "./apiClient.js";
 
-const API_BASE = "http://localhost:5000/api/study-groups";
+const STUDY_GROUPS_API = apiUrl("/api/study-groups");
 
 let CURRENT_SESSION = null;
 let createRoomModal;
@@ -20,12 +26,68 @@ let allRooms = [];
 let currentRoomPage = 1;
 let roomsPerPage = 9;
 
+/* ----------------------- Utilities ----------------------- */
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+      "/": "&#x2F;",
+      "`": "&#x60;",
+      "=": "&#x3D;",
+    }[c];
+  });
+}
+
+/* ----------------------- Notifications / Toasts ----------------------- */
+export function showToast(message, type = "success") {
+  const toastContainer = document.getElementById("toastContainer");
+  if (!toastContainer) return;
+  const toastId = "toast-" + Date.now();
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.id = toastId;
+  let iconClass = "bi-check-circle-fill";
+  if (type === "error") iconClass = "bi-exclamation-circle-fill";
+  if (type === "info") iconClass = "bi-info-circle-fill";
+  toast.innerHTML = `
+    <div class="toast-icon ${type}">
+      <i class="bi ${iconClass}"></i>
+    </div>
+    <div class="toast-content">
+      <div class="toast-title">${
+        type.charAt(0).toUpperCase() + type.slice(1)
+      }</div>
+      <div class="toast-message">${escapeHtml(message)}</div>
+    </div>
+    <div class="toast-close" onclick="window.closeToast('${toastId}')">
+      <i class="bi bi-x"></i>
+    </div>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => closeToast(toastId), 5000);
+}
+
+export function closeToast(toastId) {
+  const toast = document.getElementById(toastId);
+  if (toast) {
+    toast.style.opacity = "0";
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }
+}
+
+/* ----------------------- Init / Auth ----------------------- */
 // Initialize basic UI first, regardless of auth state
 document.addEventListener("DOMContentLoaded", function () {
   console.log("DOM loaded - initializing basic UI");
 
-  // Initialize theme
-  initializeTheme();
+  // Sync theme UI to match centralized sidebar.js state (do not wire toggle here)
+  syncThemeUI();
 
   // Initialize Bootstrap components
   try {
@@ -148,6 +210,7 @@ function updateSidebarUserInfo() {
   }
 }
 
+/* ----------------------- Authenticated UI ----------------------- */
 function initializeAuthenticatedUI() {
   console.log("Initializing authenticated UI");
 
@@ -193,35 +256,27 @@ function initializeAuthenticatedUI() {
   }, 1000);
 }
 
-function initializeTheme() {
-  const themeToggle = document.getElementById("themeToggle");
-  const body = document.body;
-
-  if (!themeToggle) {
-    console.error("Theme toggle element not found!");
-    return;
+/* ----------------------- Theme ----------------------- */
+// Sync theme UI to match centralized sidebar state (no click wiring here)
+function syncThemeUI() {
+  try {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    const themeToggle = document.getElementById("themeToggle");
+    const body = document.body;
+    if (!themeToggle || !body) return;
+    if (savedTheme === "dark") {
+      body.classList.add("dark-mode");
+      themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+    } else {
+      body.classList.remove("dark-mode");
+      themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
+    }
+  } catch (err) {
+    // no-op
   }
-
-  const savedTheme = localStorage.getItem("theme") || "light";
-  if (savedTheme === "dark") {
-    body.classList.add("dark-mode");
-    themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-  }
-
-  themeToggle.addEventListener("click", () => {
-    body.classList.toggle("dark-mode");
-    const isDark = body.classList.contains("dark-mode");
-    themeToggle.innerHTML = isDark
-      ? '<i class="bi bi-sun"></i>'
-      : '<i class="bi bi-moon"></i>';
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-    showToast(
-      `Theme switched to ${isDark ? "dark" : "light"} mode!`,
-      "success"
-    );
-  });
 }
 
+/* ----------------------- UI Helpers ----------------------- */
 function initializeTooltips() {
   try {
     var tooltipTriggerList = [].slice.call(
@@ -247,6 +302,7 @@ function updateCurrentTime() {
   }
 }
 
+/* ----------------------- Create Room ----------------------- */
 function openCreateRoomModal() {
   console.log("Opening create room modal (defensive)");
   try {
@@ -259,12 +315,6 @@ function openCreateRoomModal() {
       );
       return;
     }
-
-    // Log innerHTML for debugging (this will help confirm whether the form content exists)
-    console.log(
-      "createRoomModal.innerHTML:",
-      modalElement.innerHTML.slice(0, 400)
-    ); // trimmed log
 
     if (!createRoomModal) {
       // try to initialize it now
@@ -302,13 +352,7 @@ async function handleCreateRoom() {
   }
 
   try {
-    const user = auth.currentUser;
-    if (!user) {
-      showToast("You must be logged in to create a room.", "error");
-      return;
-    }
-    const idToken = await user.getIdToken();
-
+    // Use centralized apiClient helper to POST JSON with auth attached
     const tagArray = tags ? tags.split(",") : [];
     const payload = {
       name: roomName,
@@ -317,20 +361,7 @@ async function handleCreateRoom() {
       tags: tagArray,
     };
 
-    const response = await fetch(API_BASE, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create room: ${errorText}`);
-    }
-
+    await postJsonWithAuth(STUDY_GROUPS_API, payload);
     showToast("Study room created successfully!", "success");
 
     if (createRoomModal) createRoomModal.hide();
@@ -339,7 +370,12 @@ async function handleCreateRoom() {
     fetchAndRenderStudyRooms();
   } catch (err) {
     console.error("Error creating room:", err);
-    showToast("Could not create room. Please try again later.", "error");
+    // Try to surface server error if available
+    let msg = "Could not create room. Please try again later.";
+    if (err && err.body && (err.body.error || err.body.message)) {
+      msg = err.body.error || err.body.message;
+    } else if (err && err.message) msg = err.message;
+    showToast(msg, "error");
   }
 }
 
@@ -371,6 +407,7 @@ function handleTagSelection() {
   if (selectedTagsElement) selectedTagsElement.value = tags.join(",");
 }
 
+/* ----------------------- Filters / Search ----------------------- */
 function handleFilterClick() {
   document
     .querySelectorAll(".filter-btn")
@@ -409,9 +446,10 @@ function handleSearch() {
   });
 }
 
+/* ----------------------- Backend fetch & render ----------------------- */
 async function fetchAndRenderStudyRooms() {
   try {
-    const response = await fetch(API_BASE);
+    const response = await fetch(STUDY_GROUPS_API);
     if (!response.ok)
       throw new Error(
         `Failed to fetch study rooms: ${response.status} ${response.statusText}`
@@ -486,15 +524,15 @@ function renderRoomPage() {
       }" title="Active room"></div>
       <div class="room-header">
         <div>
-          <h3 class="room-title">${room.name}</h3>
-          <p class="room-description">${
+          <h3 class="room-title">${escapeHtml(room.name)}</h3>
+          <p class="room-description">${escapeHtml(
             room.description || "No description provided."
-          }</p>
+          )}</p>
         </div>
       </div>
       <div class="room-tags">
         ${(room.tags || [])
-          .map((tag) => `<span class="room-tag">${tag}</span>`)
+          .map((tag) => `<span class="room-tag">${escapeHtml(tag)}</span>`)
           .join("")}
       </div>
       <div class="room-footer">
@@ -503,9 +541,9 @@ function renderRoomPage() {
         } participant${
       room.participants && room.participants.length > 1 ? "s" : ""
     }</span>
-        <button class="join-btn" onclick="window.enterRoom('${
+        <button class="join-btn" onclick="window.enterRoom('${escapeHtml(
           room.id
-        }')">Enter Now</button>
+        )}')">Enter Now</button>
       </div>
     `;
     roomGrid.appendChild(newRoom);
@@ -551,6 +589,7 @@ function renderRoomPage() {
   }
 }
 
+/* ----------------------- Helpers ----------------------- */
 function getRoomsPerPage() {
   const sidebar = document.getElementById("sidebar");
   return sidebar && sidebar.classList.contains("open") ? 9 : 12;
@@ -579,6 +618,22 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
+/* ----------------------- Enter Room (defined BEFORE export) ----------------------- */
+export function enterRoom(roomId) {
+  try {
+    showToast("Entering study room...", "info");
+    setTimeout(() => {
+      window.location.href = `study-room-inside.html?room=${encodeURIComponent(
+        roomId
+      )}`;
+    }, 800);
+  } catch (err) {
+    console.error("enterRoom error:", err);
+    showToast("Could not enter room.", "error");
+  }
+}
+
+/* ----------------------- Logout ----------------------- */
 export function logout() {
   if (confirm("Are you sure you want to log out?")) {
     try {
@@ -589,7 +644,10 @@ export function logout() {
       console.error("Error during logout:", err);
     }
 
-    localStorage.removeItem("userSession");
+    try {
+      localStorage.removeItem("userSession");
+    } catch {}
+
     const logoutMessage = document.createElement("div");
     logoutMessage.className = "logout-message";
     logoutMessage.innerHTML = `
@@ -611,52 +669,7 @@ export function logout() {
   }
 }
 
-export function showToast(message, type = "success") {
-  const toastContainer = document.getElementById("toastContainer");
-  if (!toastContainer) return;
-  const toastId = "toast-" + Date.now();
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  toast.id = toastId;
-  let iconClass = "bi-check-circle-fill";
-  if (type === "error") iconClass = "bi-exclamation-circle-fill";
-  if (type === "info") iconClass = "bi-info-circle-fill";
-  toast.innerHTML = `
-    <div class="toast-icon ${type}">
-      <i class="bi ${iconClass}"></i>
-    </div>
-    <div class="toast-content">
-      <div class="toast-title">${
-        type.charAt(0).toUpperCase() + type.slice(1)
-      }</div>
-      <div class="toast-message">${message}</div>
-    </div>
-    <div class="toast-close" onclick="window.closeToast('${toastId}')">
-      <i class="bi bi-x"></i>
-    </div>
-  `;
-  toastContainer.appendChild(toast);
-  setTimeout(() => closeToast(toastId), 5000);
-}
-
-export function closeToast(toastId) {
-  const toast = document.getElementById(toastId);
-  if (toast) {
-    toast.style.opacity = "0";
-    setTimeout(() => {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 300);
-  }
-}
-
-export function enterRoom(roomId) {
-  showToast("Entering study room...", "info");
-  setTimeout(() => {
-    window.location.href = `study-room-inside.html?room=${roomId}`;
-  }, 800);
-}
-
-// Expose helpers to window (backwards compatibility)
+/* ----------------------- Export / Window Bridge ----------------------- */
 window.enterRoom = enterRoom;
 window.showToast = showToast;
 window.closeToast = closeToast;

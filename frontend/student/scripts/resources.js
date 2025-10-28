@@ -1,10 +1,19 @@
-// ======= Firebase Auth Dynamic Session for Resources Page =======
-// Updated to be defensive with sidebar updates and to rely on centralized sidebar.js
+// frontend/student/scripts/resources.js
+// Resources page script — migrated to use postFormWithAuth / putFormWithAuth from apiClient.
+// - Uses fetchJsonWithAuth for JSON endpoints (including the download endpoint).
+// - Uses postFormWithAuth / putFormWithAuth for multipart uploads/updates.
+// - Otherwise logic unchanged (UI, rendering, DOMPurify sanitization, lazy load).
+//
+// Overwrite frontend/student/scripts/resources.js with this file and hard-reload the page.
+
 import { auth, db } from "../../config/firebase.js";
-import {
-  doc,
-  getDoc,
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { apiUrl } from "../../config/appConfig.js";
+import fetchWithAuth, {
+  fetchJsonWithAuth,
+  getIdToken,
+  postFormWithAuth,
+  putFormWithAuth,
+} from "./apiClient.js";
 
 // Dynamic session info
 let CURRENT_SESSION = null;
@@ -21,19 +30,16 @@ const state = {
   editResourceId: null,
 };
 
-const API_BASE = "http://localhost:5000/api/resources";
+const API_BASE = apiUrl("/api/resources");
 
 // ===== Firebase Auth =====
-// When auth state changes, derive a lightweight CURRENT_SESSION and initialize page UI after DOM ready.
-// The centralized sidebar.js will fetch authoritative profile (name/photo) from backend and update the sidebar.
-// We make our sidebar updates defensive so we never overwrite an <img> set by sidebar.js.
 auth.onAuthStateChanged(async (user) => {
   if (user) {
     let userProgram = "";
     try {
-      const userDocSnap = await getDoc(doc(db, "users", user.uid));
-      if (userDocSnap.exists()) {
-        userProgram = userDocSnap.data().program || "";
+      const userDocSnap = await getDocSafe(user.uid);
+      if (userDocSnap) {
+        userProgram = userDocSnap.program || "";
       }
     } catch (e) {
       console.error("Could not fetch user program:", e);
@@ -52,18 +58,30 @@ auth.onAuthStateChanged(async (user) => {
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
     };
 
-    // Defensive sidebar update so we don't overwrite an image that sidebar.js may set later
     updateSidebarUserInfo();
 
-    // Initialize theme and UI after DOM is ready
-    initializeTheme();
+    // The sidebar handles theme toggle globally.
     scheduleResourceUIInit();
   } else {
     window.location.href = "login.html";
   }
 });
 
-// Update sidebar dynamically (defensive)
+// small helper to safely fetch user doc program (avoid direct firebase import everywhere)
+async function getDocSafe(uid) {
+  try {
+    if (!db) return null;
+    const { doc, getDoc } = await import(
+      "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"
+    );
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
+
+// Update sidebar defensively
 function updateSidebarUserInfo() {
   try {
     const avatar = document.getElementById("sidebarAvatar");
@@ -107,64 +125,34 @@ function updateSidebarUserInfo() {
   }
 }
 
-// ---- Theme toggle ----
-function initializeTheme() {
-  const themeToggle = document.getElementById("themeToggle");
-  const body = document.body;
-  if (!themeToggle || !body) return;
-  const savedTheme = localStorage.getItem("theme") || "light";
-  if (savedTheme === "dark") {
-    body.classList.add("dark-mode");
-    themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-  } else {
-    themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
-  }
-  themeToggle.addEventListener("click", () => {
-    body.classList.toggle("dark-mode");
-    const isDark = body.classList.contains("dark-mode");
-    themeToggle.innerHTML = isDark
-      ? '<i class="bi bi-sun"></i>'
-      : '<i class="bi bi-moon"></i>';
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-  });
+// ---- Utilities: escaping & URL validation ----
+function escapeHtml(s) {
+  if (s === null || s === undefined) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-// ---- Helper: Date Formatting ----
-function toJsDate(val) {
-  if (!val) return null;
-  if (typeof val.toDate === "function") return val.toDate();
-  if (typeof val === "object" && "_seconds" in val) {
-    return new Date(val._seconds * 1000 + Math.floor(val._nanoseconds / 1e6));
+function isSafeUrl(url) {
+  if (!url) return false;
+  try {
+    // allow relative URLs (starting with /) and https absolute URLs
+    if (url.startsWith("/")) return true;
+    const u = new URL(url);
+    return u.protocol === "https:";
+  } catch {
+    return false;
   }
-  if (typeof val === "string" || typeof val === "number") return new Date(val);
-  return val;
-}
-function formatDate(dateObj) {
-  if (!dateObj) return "";
-  const date = toJsDate(dateObj);
-  if (!date || isNaN(date.getTime())) return "";
-  const options = { year: "numeric", month: "short", day: "numeric" };
-  return date.toLocaleDateString(undefined, options);
-}
-function formatRelativeTime(dateObj) {
-  if (!dateObj) return "";
-  const date = toJsDate(dateObj);
-  if (!date || isNaN(date.getTime())) return "";
-  const now = new Date();
-  const diffMs = now - date;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return formatDate(date);
 }
 
-// ====== API Calls ======
+// ---- API Calls ----
 async function fetchResources() {
   try {
-    const res = await fetch(API_BASE);
-    if (!res.ok) throw new Error("Failed to fetch resources");
-    state.resources = await res.json();
+    const data = await fetchJsonWithAuth(API_BASE);
+    state.resources = Array.isArray(data) ? data : [];
     applyFiltersAndSort();
     renderFilesTable();
   } catch (err) {
@@ -175,26 +163,20 @@ async function fetchResources() {
 
 async function getResourceById(id) {
   try {
-    const res = await fetch(`${API_BASE}/${id}`);
-    if (!res.ok) throw new Error("Not found");
-    return res.json();
+    const data = await fetchJsonWithAuth(
+      `${API_BASE}/${encodeURIComponent(id)}`
+    );
+    return data;
   } catch (err) {
     console.error("Error fetching resource by ID:", err);
     throw err;
   }
 }
 
+// Use centralized postFormWithAuth helper for FormData uploads
 async function uploadResource(formData) {
   try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || "Failed to upload resource");
-    }
-    return res.json();
+    return await postFormWithAuth(API_BASE, formData);
   } catch (err) {
     console.error("Error uploading resource:", err);
     throw err;
@@ -203,7 +185,6 @@ async function uploadResource(formData) {
 
 async function updateResource(id, update, coverImageFile = null) {
   try {
-    let res;
     if (coverImageFile) {
       const formData = new FormData();
       for (const key in update) {
@@ -216,24 +197,21 @@ async function updateResource(id, update, coverImageFile = null) {
         }
       }
       formData.append("coverImage", coverImageFile);
-      res = await fetch(`${API_BASE}/${id}`, {
-        method: "PUT",
-        body: formData,
-      });
-    } else {
-      res = await fetch(`${API_BASE}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(update),
-      });
-    }
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(
-        `Failed to update resource: ${res.status} ${res.statusText} ${errorText}`
+      return await putFormWithAuth(
+        `${API_BASE}/${encodeURIComponent(id)}`,
+        formData
       );
+    } else {
+      const result = await fetchJsonWithAuth(
+        `${API_BASE}/${encodeURIComponent(id)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(update),
+        }
+      );
+      return result;
     }
-    return res.json();
   } catch (err) {
     console.error("Error updating resource:", err);
     throw err;
@@ -242,11 +220,30 @@ async function updateResource(id, update, coverImageFile = null) {
 
 async function deleteResource(id) {
   try {
-    const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Failed to delete resource");
-    return res.json();
+    const res = await fetchJsonWithAuth(
+      `${API_BASE}/${encodeURIComponent(id)}`,
+      { method: "DELETE" }
+    );
+    return res;
   } catch (err) {
     console.error("Error deleting resource:", err);
+    throw err;
+  }
+}
+
+// New helper: request signed download URL from server (POST /api/resources/:id/download)
+async function requestSignedDownload(resourceId) {
+  try {
+    const resp = await fetchJsonWithAuth(
+      `${API_BASE}/${encodeURIComponent(resourceId)}/download`,
+      {
+        method: "POST",
+      }
+    );
+    if (resp && resp.signedUrl) return resp.signedUrl;
+    throw new Error("Failed to obtain download link");
+  } catch (err) {
+    console.error("requestSignedDownload error:", err);
     throw err;
   }
 }
@@ -263,14 +260,14 @@ function getFileTypeInfo(filename) {
 }
 
 function applyFiltersAndSort() {
-  let filtered = state.resources;
+  let filtered = state.resources || [];
   if (state.currentType !== "all") {
     filtered = filtered.filter((res) => res.type === state.currentType);
   }
   if (state.currentSearch.length > 0) {
     filtered = filtered.filter(
       (res) =>
-        res.title.toLowerCase().includes(state.currentSearch) ||
+        (res.title && res.title.toLowerCase().includes(state.currentSearch)) ||
         (res.desc && res.desc.toLowerCase().includes(state.currentSearch)) ||
         (res.tags || []).some((tag) =>
           tag.toLowerCase().includes(state.currentSearch)
@@ -293,10 +290,14 @@ function applyFiltersAndSort() {
       );
       break;
     case "name-asc":
-      filtered = filtered.sort((a, b) => a.title.localeCompare(b.title));
+      filtered = filtered.sort((a, b) =>
+        (a.title || "").localeCompare(b.title || "")
+      );
       break;
     case "name-desc":
-      filtered = filtered.sort((a, b) => b.title.localeCompare(a.title));
+      filtered = filtered.sort((a, b) =>
+        (b.title || "").localeCompare(a.title || "")
+      );
       break;
     case "popular":
       filtered = filtered.sort(
@@ -323,68 +324,157 @@ function renderResourcesGrid(resources) {
   const grid = document.getElementById("resourcesGrid");
   if (!grid) return;
   grid.innerHTML = "";
-  if (resources.length === 0) {
-    grid.innerHTML = `<div class="empty-state">
+  if (!resources || resources.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = `
       <div class="empty-state-icon"><i class="bi bi-folder2-open"></i></div>
       <div class="empty-state-text">No resources found</div>
-      <button class="upload-btn" onclick="openUploadModal()">
-        <i class="bi bi-upload"></i> Upload a Resource
-      </button>
-    </div>`;
+    `;
+    const btn = document.createElement("button");
+    btn.className = "upload-btn";
+    btn.type = "button";
+    btn.innerHTML = `<i class="bi bi-upload"></i> Upload a Resource`;
+    btn.addEventListener("click", openUploadModal);
+    empty.appendChild(btn);
+    grid.appendChild(empty);
     return;
   }
+
   resources.forEach((res) => {
-    const typeInfo = getFileTypeInfo(res.title + "." + res.type);
-    const cover = res.coverImage || "";
-    const fileSizeText =
+    const card = document.createElement("div");
+    card.className = "resource-card";
+    card.dataset.id = res.id;
+
+    // header
+    const header = document.createElement("div");
+    header.className = "resource-card-header";
+
+    const img = document.createElement("img");
+    img.className = "resource-card-img lazy-image";
+    img.alt = "";
+    if (isSafeUrl(res.coverImage)) {
+      img.src = res.coverImage;
+    } else {
+      img.src = "";
+    }
+    header.appendChild(img);
+
+    const typeBadge = document.createElement("div");
+    typeBadge.className = "resource-type-badge";
+    const typeInfo = getFileTypeInfo(
+      (res.title || "") + "." + (res.type || "")
+    );
+    typeBadge.innerHTML = `<i class="bi ${typeInfo.icon}"></i> ${escapeHtml(
+      (res.type || "").toUpperCase()
+    )}`;
+    header.appendChild(typeBadge);
+
+    const actions = document.createElement("div");
+    actions.className = "resource-actions";
+    const editBtn = document.createElement("button");
+    editBtn.className = "resource-action-btn";
+    editBtn.type = "button";
+    editBtn.title = "Edit resource";
+    editBtn.innerHTML = `<i class="bi bi-pencil"></i>`;
+    editBtn.addEventListener("click", () => editResourceUI(res.id));
+    actions.appendChild(editBtn);
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "resource-action-btn";
+    delBtn.type = "button";
+    delBtn.title = "Delete resource";
+    delBtn.innerHTML = `<i class="bi bi-trash"></i>`;
+    delBtn.addEventListener("click", () => confirmDeleteResource(res.id));
+    actions.appendChild(delBtn);
+
+    header.appendChild(actions);
+    card.appendChild(header);
+
+    // body
+    const body = document.createElement("div");
+    body.className = "resource-card-body";
+
+    const titleEl = document.createElement("h3");
+    titleEl.className = "resource-card-title";
+    titleEl.textContent = res.title || "Untitled";
+    body.appendChild(titleEl);
+
+    const tagsContainer = document.createElement("div");
+    tagsContainer.className = "resource-card-tags";
+    (res.tags || []).forEach((tag) => {
+      const t = document.createElement("span");
+      t.className = "resource-card-tag";
+      t.textContent = tag;
+      tagsContainer.appendChild(t);
+    });
+    body.appendChild(tagsContainer);
+
+    const descEl = document.createElement("div");
+    descEl.className = "resource-card-desc";
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
+      const safeHtml = DOMPurify.sanitize(res.desc || "");
+      descEl.innerHTML = safeHtml;
+    } else {
+      descEl.textContent = res.desc || "";
+    }
+    body.appendChild(descEl);
+
+    // download button: request signed URL from server on click
+    const downloadBtn = document.createElement("button");
+    downloadBtn.className = "resource-download-btn";
+    downloadBtn.title = "Download";
+    downloadBtn.setAttribute("aria-label", "Download resource");
+    downloadBtn.innerHTML = `<i class="bi bi-download"></i> Download`;
+    downloadBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      downloadBtn.disabled = true;
+      const originalText = downloadBtn.innerHTML;
+      downloadBtn.innerHTML = `<span class="spinner"></span> Preparing...`;
+      try {
+        const signedUrl = await requestSignedDownload(res.id);
+        if (signedUrl) {
+          window.open(signedUrl, "_blank");
+        } else {
+          showToast("Download link unavailable", "error");
+        }
+      } catch (err) {
+        showToast("Failed to get download link", "error");
+      } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = originalText;
+      }
+    });
+    body.appendChild(downloadBtn);
+
+    // footer
+    const footer = document.createElement("div");
+    footer.className = "resource-card-footer";
+
+    const by = document.createElement("span");
+    by.className = "resource-card-by";
+    by.innerHTML = `<i class="bi bi-person"></i> ${escapeHtml(
+      res.by || "Anonymous"
+    )}`;
+    footer.appendChild(by);
+
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "resource-card-date";
+    dateSpan.textContent = formatRelativeTime(res.createdAt);
+    footer.appendChild(dateSpan);
+
+    const sizeSpan = document.createElement("span");
+    sizeSpan.className = "resource-card-size";
+    sizeSpan.textContent =
       typeof res.size === "number"
         ? (res.size / 1024 / 1024).toFixed(2) + " MB"
         : "";
-    grid.innerHTML += `
-      <div class="resource-card" data-id="${res.id}">
-        <div class="resource-card-header">
-          <img src="${cover}" class="resource-card-img lazy-image" alt="" loading="lazy" />
-          <div class="resource-type-badge">
-            <i class="bi ${typeInfo.icon}"></i> ${res.type?.toUpperCase() || ""}
-          </div>
-          <div class="resource-actions">
-            <button class="resource-action-btn" onclick="editResourceUI('${
-              res.id
-            }')">
-              <i class="bi bi-pencil"></i>
-            </button>
-            <button class="resource-action-btn" onclick="confirmDeleteResource('${
-              res.id
-            }')">
-              <i class="bi bi-trash"></i>
-            </button>
-          </div>
-        </div>
-        <div class="resource-card-body">
-          <h3 class="resource-card-title">${res.title}</h3>
-          <div class="resource-card-tags">
-            ${(res.tags || [])
-              .map((tag) => `<span class="resource-card-tag">${tag}</span>`)
-              .join("")}
-          </div>
-          <div class="resource-card-desc">${res.desc || ""}</div>
-          <a href="${
-            res.url
-          }" class="resource-download-btn" download title="Download">
-            <i class="bi bi-download"></i> Download
-          </a>
-          <div class="resource-card-footer">
-            <span class="resource-card-by">
-              <i class="bi bi-person"></i> ${res.by || "Anonymous"}
-            </span>
-            <span class="resource-card-date">${formatRelativeTime(
-              res.createdAt
-            )}</span>
-            <span class="resource-card-size">${fileSizeText}</span>
-          </div>
-        </div>
-      </div>
-    `;
+    footer.appendChild(sizeSpan);
+
+    body.appendChild(footer);
+    card.appendChild(body);
+
+    grid.appendChild(card);
   });
   initLazyLoading();
 }
@@ -393,62 +483,109 @@ function renderResourcesList(resources) {
   const list = document.getElementById("resourcesList");
   if (!list) return;
   list.innerHTML = "";
-  if (resources.length === 0) {
-    list.innerHTML = `<div class="empty-state">
+  if (!resources || resources.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = `
       <div class="empty-state-icon"><i class="bi bi-folder2-open"></i></div>
       <div class="empty-state-text">No resources found</div>
-      <button class="upload-btn" onclick="openUploadModal()">
-        <i class="bi bi-upload"></i> Upload a Resource
-      </button>
-    </div>`;
+    `;
+    const btn = document.createElement("button");
+    btn.className = "upload-btn";
+    btn.type = "button";
+    btn.innerHTML = `<i class="bi bi-upload"></i> Upload a Resource`;
+    btn.addEventListener("click", openUploadModal);
+    empty.appendChild(btn);
+    list.appendChild(empty);
     return;
   }
+
   resources.forEach((res) => {
-    const typeInfo = getFileTypeInfo(res.title + "." + res.type);
-    const fileSizeText =
-      typeof res.size === "number"
-        ? (res.size / 1024 / 1024).toFixed(2) + " MB"
-        : "";
-    list.innerHTML += `
-      <div class="resource-list-item" data-id="${res.id}">
-        <div class="resource-list-icon">
-          <i class="bi ${typeInfo.icon}"></i>
-        </div>
-        <div class="resource-list-info">
-          <div class="resource-list-title">${res.title}</div>
-          <div class="resource-list-meta">
-            <span><i class="bi bi-person"></i> ${res.by}</span>
-            <span><i class="bi bi-calendar3"></i> ${formatRelativeTime(
-              res.createdAt
-            )}</span>
-            <span class="resource-list-size">${fileSizeText}</span>
-          </div>
-          <div class="resource-list-tags">
-            ${(res.tags || [])
-              .slice(0, 3)
-              .map((tag) => `<span class="resource-list-tag">${tag}</span>`)
-              .join("")}
-          </div>
-        </div>
-        <div class="resource-list-actions">
-          <a href="${
-            res.url
-          }" class="resource-list-btn" download title="Download">
-            <i class="bi bi-download"></i>
-          </a>
-          <button class="resource-list-btn" onclick="editResourceUI('${
-            res.id
-          }')" title="Edit resource">
-            <i class="bi bi-pencil"></i>
-          </button>
-          <button class="resource-list-btn" onclick="confirmDeleteResource('${
-            res.id
-          }')" title="Delete resource">
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
-      </div>
-    `;
+    const item = document.createElement("div");
+    item.className = "resource-list-item";
+    item.dataset.id = res.id;
+
+    const icon = document.createElement("div");
+    icon.className = "resource-list-icon";
+    const typeInfo = getFileTypeInfo(
+      (res.title || "") + "." + (res.type || "")
+    );
+    icon.innerHTML = `<i class="bi ${typeInfo.icon}"></i>`;
+    item.appendChild(icon);
+
+    const info = document.createElement("div");
+    info.className = "resource-list-info";
+    const title = document.createElement("div");
+    title.className = "resource-list-title";
+    title.textContent = res.title || "Untitled";
+    info.appendChild(title);
+
+    const meta = document.createElement("div");
+    meta.className = "resource-list-meta";
+    meta.innerHTML = `<span><i class="bi bi-person"></i> ${escapeHtml(
+      res.by || "Anonymous"
+    )}</span>
+                      <span><i class="bi bi-calendar3"></i> ${escapeHtml(
+                        formatRelativeTime(res.createdAt)
+                      )}</span>
+                      <span class="resource-list-size">${
+                        typeof res.size === "number"
+                          ? (res.size / 1024 / 1024).toFixed(2) + " MB"
+                          : ""
+                      }</span>`;
+    info.appendChild(meta);
+
+    const tagWrap = document.createElement("div");
+    tagWrap.className = "resource-list-tags";
+    (res.tags || []).slice(0, 3).forEach((tag) => {
+      const t = document.createElement("span");
+      t.className = "resource-list-tag";
+      t.textContent = tag;
+      tagWrap.appendChild(t);
+    });
+    info.appendChild(tagWrap);
+
+    item.appendChild(info);
+
+    const actions = document.createElement("div");
+    actions.className = "resource-list-actions";
+
+    const aDownload = document.createElement("button");
+    aDownload.className = "resource-list-btn";
+    aDownload.title = "Download";
+    aDownload.innerHTML = `<i class="bi bi-download"></i>`;
+    aDownload.addEventListener("click", async (e) => {
+      e.preventDefault();
+      aDownload.disabled = true;
+      try {
+        const signedUrl = await requestSignedDownload(res.id);
+        if (signedUrl) window.open(signedUrl, "_blank");
+        else showToast("Download link unavailable", "error");
+      } catch {
+        showToast("Failed to get download link", "error");
+      } finally {
+        aDownload.disabled = false;
+      }
+    });
+    actions.appendChild(aDownload);
+
+    const editBtn2 = document.createElement("button");
+    editBtn2.className = "resource-list-btn";
+    editBtn2.title = "Edit resource";
+    editBtn2.innerHTML = `<i class="bi bi-pencil"></i>`;
+    editBtn2.addEventListener("click", () => editResourceUI(res.id));
+    actions.appendChild(editBtn2);
+
+    const delBtn2 = document.createElement("button");
+    delBtn2.className = "resource-list-btn";
+    delBtn2.title = "Delete resource";
+    delBtn2.innerHTML = `<i class="bi bi-trash"></i>`;
+    delBtn2.addEventListener("click", () => confirmDeleteResource(res.id));
+    actions.appendChild(delBtn2);
+
+    item.appendChild(actions);
+
+    list.appendChild(item);
   });
 }
 
@@ -461,7 +598,8 @@ function renderFilesTable() {
         (toJsDate(b.createdAt)?.getTime() || 0) -
         (toJsDate(a.createdAt)?.getTime() || 0)
       );
-    if (state.tableSort === "name-asc") return a.title.localeCompare(b.title);
+    if (state.tableSort === "name-asc")
+      return (a.title || "").localeCompare(b.title || "");
     if (state.tableSort === "size") return (b.size || 0) - (a.size || 0);
     return 0;
   });
@@ -475,20 +613,27 @@ function renderFilesTable() {
         typeof file.size === "number"
           ? (file.size / 1024 / 1024).toFixed(2) + " MB"
           : "";
+      const safeTitle = escapeHtml(file.title || "");
+      const safeBy = escapeHtml(file.by || "Anonymous");
+      const safeDate = escapeHtml(formatRelativeTime(file.createdAt));
+      const safeType = escapeHtml((file.type || "").toUpperCase());
+      // We will use a download button that calls the download endpoint (protected)
       return `
-      <tr data-id="${file.id}">
-        <td>${file.title}</td>
-        <td>${file.by || "Anonymous"}</td>
-        <td>${formatRelativeTime(file.createdAt)}</td>
-        <td>${file.type?.toUpperCase() || ""}</td>
-        <td>${sizeText}</td>
+      <tr data-id="${escapeHtml(file.id)}">
+        <td>${safeTitle}</td>
+        <td>${safeBy}</td>
+        <td>${safeDate}</td>
+        <td>${safeType}</td>
+        <td>${escapeHtml(sizeText)}</td>
         <td>
-          <a href="${file.url}" class="download-btn" download title="Download">
-            <i class="bi bi-download"></i>
-          </a>
-          <button class="download-btn" onclick="confirmDeleteResource('${
+          <button class="download-btn" data-id="${escapeHtml(
             file.id
-          }')" title="Delete file">
+          )}" title="Download">
+            <i class="bi bi-download"></i>
+          </button>
+          <button class="download-btn" onclick="confirmDeleteResource('${escapeHtml(
+            file.id
+          )}')" title="Delete file">
             <i class="bi bi-trash"></i>
           </button>
         </td>
@@ -496,8 +641,27 @@ function renderFilesTable() {
     `;
     })
     .join("");
+
+  // Attach click listeners for the table download buttons (delegated)
+  tbody.querySelectorAll(".download-btn[data-id]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const id = btn.getAttribute("data-id");
+      btn.disabled = true;
+      try {
+        const signedUrl = await requestSignedDownload(id);
+        if (signedUrl) window.open(signedUrl, "_blank");
+        else showToast("Download link unavailable", "error");
+      } catch {
+        showToast("Failed to get download link", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
+// Lazy loading
 function initLazyLoading() {
   const lazyImages = document.querySelectorAll(".lazy-image");
   if (!lazyImages) return;
@@ -532,7 +696,6 @@ function initLazyLoading() {
 }
 
 // ---- UI Initialization (binds event listeners) ----
-// NOTE: Sidebar toggle/close is handled centrally in sidebar.js. Do NOT add duplicate toggle listeners.
 function scheduleResourceUIInit() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initializeResourceUI);
@@ -542,7 +705,6 @@ function scheduleResourceUIInit() {
 }
 
 function initializeResourceUI() {
-  // Wire view buttons safely
   const gridBtn = document.getElementById("gridViewBtn");
   const listBtn = document.getElementById("listViewBtn");
   if (gridBtn) gridBtn.addEventListener("click", () => setViewMode("grid"));
@@ -612,7 +774,6 @@ function initializeResourceUI() {
         if (selectedFileName) selectedFileName.textContent = file.name;
         const fileDropArea = document.getElementById("fileDropArea");
         if (fileDropArea) fileDropArea.classList.add("file-input-hidden");
-        // Autofill title
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         const titleEl = document.getElementById("resourceTitle");
         if (titleEl && !titleEl.value) titleEl.value = fileName;
@@ -709,7 +870,6 @@ function initializeResourceUI() {
     });
   }
 
-  // Remove selected file in modal
   window.removeSelectedFile = function () {
     const fileInp = document.getElementById("fileInput");
     if (fileInp) fileInp.value = "";
@@ -719,7 +879,6 @@ function initializeResourceUI() {
     if (dropArea) dropArea.classList.remove("file-input-hidden");
   };
 
-  // Welcome notification on first visit
   if (!localStorage.getItem("resource_page_visited")) {
     setTimeout(() => {
       showToast(
@@ -730,10 +889,8 @@ function initializeResourceUI() {
     }, 1000);
   }
 
-  // Fetch resources on page load
   fetchResources();
 
-  // Modal focus fix
   const uploadModal = document.getElementById("uploadModal");
   if (uploadModal) {
     uploadModal.addEventListener("hidden.bs.modal", function () {
@@ -742,7 +899,6 @@ function initializeResourceUI() {
     });
   }
 
-  // Keyboard shortcut for logout (sidebar.js handles logout; this just triggers the button)
   document.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
       e.preventDefault();
@@ -767,7 +923,8 @@ function setViewMode(mode) {
   applyFiltersAndSort();
 }
 
-window.confirmDeleteResource = function (id) {
+// Declare confirmDeleteResource as a local function so it can be exported
+function confirmDeleteResource(id) {
   if (confirm("Are you sure you want to delete this resource?")) {
     deleteResource(id)
       .then(() => {
@@ -778,9 +935,10 @@ window.confirmDeleteResource = function (id) {
         showToast("Failed to delete resource", "error");
       });
   }
-};
+}
+window.confirmDeleteResource = confirmDeleteResource;
 
-window.editResourceUI = function (id) {
+function editResourceUI(id) {
   getResourceById(id)
     .then((resource) => {
       openUploadModal(resource);
@@ -788,7 +946,8 @@ window.editResourceUI = function (id) {
     .catch((err) => {
       showToast("Failed to load resource for editing", "error");
     });
-};
+}
+window.editResourceUI = editResourceUI;
 
 function openUploadModal(editResource = null) {
   const uploadForm = document.getElementById("uploadForm");
@@ -864,8 +1023,9 @@ function closeUploadModal() {
   state.editingMode = false;
   state.editResourceId = null;
 }
+window.closeUploadModal = closeUploadModal;
 
-// ---- Toast notification ----
+// ---- Toast notification (safe) ----
 function showToast(message, type = "success") {
   const toastContainer = document.getElementById("toastContainer");
   if (!toastContainer) return;
@@ -873,20 +1033,37 @@ function showToast(message, type = "success") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.id = id;
-  toast.innerHTML = `
-    <div class="toast-icon ${type}">
-      <i class="bi bi-${
-        type === "success" ? "check-circle" : "exclamation-circle"
-      }"></i>
-    </div>
-    <div class="toast-content">
-      <div class="toast-title">${type === "success" ? "Success" : "Error"}</div>
-      <div class="toast-message">${message}</div>
-    </div>
-    <button class="toast-close" onclick="closeToast('${id}')">
-      <i class="bi bi-x"></i>
-    </button>
-  `;
+
+  const icon = document.createElement("div");
+  icon.className = `toast-icon ${type}`;
+  const iconI = document.createElement("i");
+  iconI.className = `bi bi-${
+    type === "success" ? "check-circle" : "exclamation-circle"
+  }`;
+  icon.appendChild(iconI);
+
+  const content = document.createElement("div");
+  content.className = "toast-content";
+  const title = document.createElement("div");
+  title.className = "toast-title";
+  title.textContent = type === "success" ? "Success" : "Error";
+  const msg = document.createElement("div");
+  msg.className = "toast-message";
+  msg.textContent = message;
+
+  content.appendChild(title);
+  content.appendChild(msg);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close";
+  closeBtn.type = "button";
+  closeBtn.innerHTML = `<i class="bi bi-x"></i>`;
+  closeBtn.addEventListener("click", () => closeToast(id));
+
+  toast.appendChild(icon);
+  toast.appendChild(content);
+  toast.appendChild(closeBtn);
+
   toastContainer.appendChild(toast);
   setTimeout(() => {
     closeToast(id);
@@ -902,3 +1079,41 @@ window.closeToast = function (id) {
     toast.remove();
   }, 300);
 };
+
+// Export bindings (including confirmDeleteResource & editResourceUI)
+export {
+  openUploadModal,
+  closeUploadModal,
+  editResourceUI,
+  confirmDeleteResource,
+};
+
+// ---- Date helpers reused from original file ----
+function toJsDate(val) {
+  if (!val) return null;
+  if (typeof val.toDate === "function") return val.toDate();
+  if (typeof val === "object" && "_seconds" in val) {
+    return new Date(val._seconds * 1000 + Math.floor(val._nanoseconds / 1e6));
+  }
+  if (typeof val === "string" || typeof val === "number") return new Date(val);
+  return val;
+}
+function formatDate(dateObj) {
+  if (!dateObj) return "";
+  const date = toJsDate(dateObj);
+  if (!date || isNaN(date.getTime())) return "";
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  return date.toLocaleDateString(undefined, options);
+}
+function formatRelativeTime(dateObj) {
+  if (!dateObj) return "";
+  const date = toJsDate(dateObj);
+  if (!date || isNaN(date.getTime())) return "";
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return formatDate(date);
+}

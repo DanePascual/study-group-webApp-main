@@ -28,6 +28,16 @@
           <h1 class="login-title">
             LOG IN TO CONTINUE<br />LEARNING WITH BUDDIES!
           </h1>
+
+          <!-- Inline error area (replaces alert usage for most messages) -->
+          <div
+            id="loginError"
+            role="alert"
+            aria-live="assertive"
+            class="text-danger mb-3"
+            style="display: none"
+          ></div>
+
           <form id="loginForm">
             <div class="form-group">
               <i class="bi bi-envelope input-icon"></i>
@@ -62,12 +72,15 @@
                 >Forgot password?</a
               >
             </div>
-            <button type="submit" class="login-btn">Log in</button>
+            <button type="submit" class="login-btn" id="loginBtn">
+              <span id="loginBtnText">Log in</span>
+            </button>
           </form>
         </div>
       </div>
     </div>
-    <div id="forgotPasswordModal" class="modal">
+
+    <div id="forgotPasswordModal" class="modal" aria-hidden="true">
       <div class="modal-content">
         <div class="modal-header">
           <h3 class="modal-title"><i class="bi bi-key"></i> Reset Password</h3>
@@ -113,15 +126,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Bootstrap JS bundle (keeps modals etc working) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script
-      type="module"
-      src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js"
-    ></script>
-    <script
-      type="module"
-      src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js"
-    ></script>
+
+    <!-- App scripts: keep these as module imports so they can import the shared config -->
     <script type="module" src="../scripts/login.js"></script>
   </body>
 </html>

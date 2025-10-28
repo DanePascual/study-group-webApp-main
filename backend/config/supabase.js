@@ -9,9 +9,9 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error(
-    "Supabase config missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars."
+    "Supabase config missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars in backend/.env (or your host's secret store)."
   );
-  // Do not exit here if you prefer a softer failure during dev - but it's safer to fail fast.
+  // Optionally fail fast in production:
   // process.exit(1);
 }
 

@@ -1,14 +1,26 @@
-// ======= Firebase Auth Dynamic Session =======
-import { auth, db } from "../../config/firebase.js";
+// frontend/student/scripts/dashboard.js
+// Updated dashboard script to use apiClient JSON helpers (fetchJsonWithAuth / postJsonWithAuth / patchJsonWithAuth / deleteWithAuth)
+// - Replaces raw authFetch calls with the higher-level helpers for consistent error handling and parsing.
+// - Keeps behavior otherwise unchanged (sidebar integration, theme, DOM handling).
+// Save as: frontend/student/scripts/dashboard.js
+
+import { auth, db, onAuthStateChanged } from "../../config/firebase.js";
 import {
   doc,
   getDoc,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import fetchWithAuth, {
+  fetchJsonWithAuth,
+  postJsonWithAuth,
+  patchJsonWithAuth,
+  deleteWithAuth,
+} from "./apiClient.js";
+import { apiUrl } from "../../config/appConfig.js";
 
 // Wait for Firebase Authentication to load and set CURRENT_SESSION dynamically
 let CURRENT_SESSION = null;
 
-auth.onAuthStateChanged(async (user) => {
+onAuthStateChanged(async (user) => {
   if (user) {
     // Fetch user program from Firestore (keyed by UID)
     let userProgram = "";
@@ -20,8 +32,9 @@ auth.onAuthStateChanged(async (user) => {
     } catch (e) {
       console.error("Could not fetch user program:", e);
     }
+
     CURRENT_SESSION = {
-      uid: user.uid, // Added UID to session object
+      uid: user.uid,
       datetime: new Date().toISOString(),
       user: user.displayName || user.email,
       userAvatar: user.displayName
@@ -46,15 +59,9 @@ auth.onAuthStateChanged(async (user) => {
     console.log(`Dashboard ready for ${CURRENT_SESSION.user}`);
   } else {
     console.log("No user is signed in.");
-    // FIX: Use dynamic path resolution instead of hardcoded path
-    const currentPath = window.location.pathname;
-    const pathParts = currentPath.split("/");
-    const loginPath =
-      pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
-
-    // Use the current origin + dynamically constructed path
-    window.location.href = window.location.origin + loginPath;
-    console.log("Redirecting to login:", window.location.origin + loginPath);
+    // Redirect to login (relative to pages directory)
+    window.location.href = "login.html";
+    console.log("Redirecting to login: login.html");
   }
 });
 
@@ -113,7 +120,8 @@ let allRooms = [];
 let currentRoomPage = 1;
 let roomsPerPage = 9;
 
-const API_BASE = "http://localhost:5000/api/study-groups";
+// Use apiUrl to resolve runtime API base for local vs production
+const STUDY_GROUPS_API = apiUrl("/api/study-groups");
 
 // Utility: safe query selectors used after DOM ready
 function $(sel) {
@@ -137,37 +145,12 @@ function renderRoomPageDebounced() {
   }, 120);
 }
 
+// Theme: centralized in sidebar.js
+// NOTE: theme initialization and toggle are handled by sidebar.js (single source of truth).
+// Dashboard will not initialize or bind the toggle to avoid duplicate listeners.
+
 // Theme, search, todo, etc. wired here (DOM-ready)
 function initDashboardUI() {
-  // Theme toggle wiring
-  const themeToggle = document.getElementById("themeToggle");
-  const body = document.body;
-
-  // Load saved theme
-  const savedTheme = localStorage.getItem("theme") || "light";
-  if (savedTheme === "dark") {
-    body.classList.add("dark-mode");
-    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-  } else {
-    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
-  }
-
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      body.classList.toggle("dark-mode");
-      const isDark = body.classList.contains("dark-mode");
-      themeToggle.innerHTML = isDark
-        ? '<i class="bi bi-sun"></i>'
-        : '<i class="bi bi-moon"></i>';
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-      console.log(
-        `Theme switched to ${isDark ? "dark" : "light"} mode by ${
-          (CURRENT_SESSION && CURRENT_SESSION.user) || "Unknown"
-        }`
-      );
-    });
-  }
-
   // Sidebar state: watch for class changes (sidebar.js controls toggle)
   watchSidebarToggle();
 
@@ -349,7 +332,7 @@ function renderTodos() {
           todo.completed ? "completed" : ""
         }" style="border-left-color: ${priorityColor}">
           <div class="todo-content">
-            <input type="checkbox" class="todo-checkbox" ${
+            <input type="checkbox" class="todo-checkbox" $ ${
               todo.completed ? "checked" : ""
             } onchange="toggleTodo(${originalIndex})">
             <div class="todo-text ${todo.completed ? "completed" : ""}">${
@@ -418,7 +401,6 @@ function initUIEvents() {
       const themeToggle = document.getElementById("themeToggle");
       if (themeToggle) themeToggle.click();
     }
-    // Removed the Ctrl+L shortcut for logout since we're using sidebar.js logout
   });
 
   // sidebar.js provides logout handling - no double binding required
@@ -459,11 +441,12 @@ async function fetchAndRenderRooms() {
   if (!roomGrid) return;
   roomGrid.innerHTML = `<div style="text-align:center;">Loading rooms...</div>`;
   try {
-    const response = await fetch(API_BASE);
+    // Public endpoint - resolved via apiUrl
+    const response = await fetch(STUDY_GROUPS_API);
     if (!response.ok) throw new Error("Failed to fetch study rooms.");
     allRooms = await response.json();
 
-    if (!allRooms.length) {
+    if (!Array.isArray(allRooms) || allRooms.length === 0) {
       roomGrid.innerHTML = `<div style="text-align:center; color:var(--medium-text);">No active study rooms yet.</div>`;
       return;
     }
@@ -471,7 +454,7 @@ async function fetchAndRenderRooms() {
     renderRoomPage();
   } catch (err) {
     roomGrid.innerHTML = `<div style="text-align:center; color:red;">Could not load rooms.</div>`;
-    console.error(err);
+    console.error("Error: Failed to fetch study rooms.", err);
   }
 }
 
@@ -575,23 +558,20 @@ function animateRoomCards() {
   });
 }
 
-// ========== Todos Backend ==========
+// ========== Todos Backend (use apiClient helpers) ==========
 async function fetchTodos() {
-  const user = auth.currentUser;
-  if (!user) return;
-  const idToken = await user.getIdToken();
-
   try {
-    const response = await fetch("http://localhost:5000/api/todos", {
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-      },
-    });
-    if (!response.ok) throw new Error("Failed to fetch todos");
-    todos = await response.json();
+    const data = await fetchJsonWithAuth("/api/todos");
+    todos = Array.isArray(data) ? data : [];
     renderTodos();
   } catch (err) {
-    console.error(err);
+    if (err && err.status === 401) {
+      console.warn("fetchTodos: unauthenticated");
+      todos = [];
+      renderTodos();
+      return;
+    }
+    console.error("Error: Failed to fetch todos", err);
     showNotification("Could not load todos!", "error");
   }
 }
@@ -601,9 +581,6 @@ async function saveTodo() {
   const reminderEl = document.getElementById("todoReminder");
   const text = textEl ? textEl.value.trim() : "";
   const reminder = reminderEl ? reminderEl.value : "";
-  const user = auth.currentUser;
-  if (!user) return;
-  const idToken = await user.getIdToken();
 
   if (!text) {
     showNotification("Please enter a task description!", "error");
@@ -621,29 +598,20 @@ async function saveTodo() {
   try {
     if (editingTodoIndex >= 0) {
       const id = todos[editingTodoIndex].id;
-      await fetch(`http://localhost:5000/api/todos/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ ...todos[editingTodoIndex], text, reminder }),
+      await patchJsonWithAuth(`/api/todos/${encodeURIComponent(id)}`, {
+        ...todos[editingTodoIndex],
+        text,
+        reminder,
       });
       showNotification("Task updated successfully!", "success");
     } else {
-      await fetch("http://localhost:5000/api/todos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify(todo),
-      });
+      await postJsonWithAuth("/api/todos", todo);
       showNotification("New task added!", "success");
     }
     closeTodoModal();
     fetchTodos();
   } catch (err) {
+    console.error("Error: Could not save task.", err);
     showNotification("Could not save task.", "error");
   }
 }
@@ -652,25 +620,16 @@ async function toggleTodo(index) {
   const todo = todos[index];
   if (!todo) return;
   todo.completed = !todo.completed;
-  const user = auth.currentUser;
-  if (!user) return;
-  const idToken = await user.getIdToken();
 
   try {
-    await fetch(`http://localhost:5000/api/todos/${todo.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify(todo),
-    });
+    await patchJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo);
     fetchTodos();
     showNotification(
       `Task ${todo.completed ? "completed" : "reopened"}!`,
       "success"
     );
-  } catch {
+  } catch (err) {
+    console.error("Error: Could not update task.", err);
     showNotification("Could not update task.", "error");
   }
 }
@@ -678,23 +637,16 @@ async function toggleTodo(index) {
 async function deleteTodo(index) {
   const todo = todos[index];
   if (!todo) return;
-  const user = auth.currentUser;
-  if (!user) return;
-  const idToken = await user.getIdToken();
 
-  if (confirm("Are you sure you want to delete this task?")) {
-    try {
-      await fetch(`http://localhost:5000/api/todos/${todo.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-      fetchTodos();
-      showNotification("Task deleted!", "info");
-    } catch {
-      showNotification("Could not delete task.", "error");
-    }
+  if (!confirm("Are you sure you want to delete this task?")) return;
+
+  try {
+    await deleteWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`);
+    fetchTodos();
+    showNotification("Task deleted!", "info");
+  } catch (err) {
+    console.error("Error: Could not delete task.", err);
+    showNotification("Could not delete task.", "error");
   }
 }
 
@@ -715,5 +667,3 @@ window.editTodo = editTodo;
 window.deleteTodo = deleteTodo;
 window.toggleTodo = toggleTodo;
 window.joinRoom = joinRoom;
-
-// NOTE: Logout function completely removed - now using sidebar.js logout

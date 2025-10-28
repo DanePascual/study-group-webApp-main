@@ -1,28 +1,94 @@
 // server.js — updated Express server (full file)
-// - Mounts new topics route at /api/topics (Supabase-backed).
-// - Keeps existing routes and services intact.
-// - Uses dotenv for env vars (already present).
+// - Loads backend/.env explicitly so env vars work no matter where node is run from.
+// - Mounts topics + comments routes and keeps existing routes and services intact.
+// - Configures CORS to allow the frontend origin(s), required headers, and PATCH method.
+// - Adds a lightweight request logger and an error handler to surface server activity in the terminal.
+// - Mounts /api/jaas route for generating short-lived JaaS tokens (server-side only).
 // - Do NOT commit service account or Supabase service_role key into repo.
 
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cors = require("cors");
 const admin = require("./config/firebase-admin"); // Admin SDK (configured in backend/config)
-const path = require("path");
 
 const app = express();
 
-// Configure CORS - restrict in production via FRONTEND_ORIGIN
-const allowedOrigin = process.env.FRONTEND_ORIGIN || "*";
+// Temporary request logger for debugging (remove when finished)
+app.use((req, res, next) => {
+  const start = Date.now();
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${req.ip}`
+  );
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    console.log(
+      `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} -> ${
+        res.statusCode
+      } (${ms}ms)`
+    );
+  });
+  next();
+});
+
+// Configure CORS
+// FRONTEND_ORIGIN may be a single origin or a comma-separated list.
+// We also allow http://localhost:* and http://127.0.0.1:* for local static servers by default.
+// For production, FRONTEND_DOMAIN can be used to allow https://<domain> and https://www.<domain>.
+const rawOrigins = (
+  process.env.FRONTEND_ORIGIN || "http://127.0.0.1:5500,http://localhost:5500"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const extraProd = [];
+const frontDomain = (process.env.FRONTEND_DOMAIN || "").trim();
+if (frontDomain) {
+  const proto = (process.env.FRONTEND_PROTOCOL || "https").trim();
+  extraProd.push(`${proto}://${frontDomain}`);
+  extraProd.push(`${proto}://www.${frontDomain}`);
+}
+
+const explicitWhitelist = new Set([...rawOrigins, ...extraProd]);
+
+// CHANGED: Check NODE_ENV for production
+function isLocalHost(origin) {
+  // CRITICAL: In production, disable localhost
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    // Allow any port on localhost/127.0.0.1 for easier local dev (dev only)
+    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
-    origin: allowedOrigin,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: (origin, cb) => {
+      // Allow non-browser tools without Origin
+      if (!origin) return cb(null, true);
+      if (explicitWhitelist.has(origin) || isLocalHost(origin)) {
+        return cb(null, true);
+      }
+      console.warn(`CORS blocked for origin: ${origin}`);
+      return cb(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
 
-// Increase JSON / URL-encoded body size to accept file upload metadata if needed
+// Increase JSON / URL-encoded body size
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
@@ -46,19 +112,23 @@ app.use("/api/reports", reportsRoutes);
 const uploadsRoutes = require("./routes/uploads");
 app.use("/api/uploads", uploadsRoutes);
 
-// Topics (discussion) - new Supabase-backed endpoints
-// routes/topics.js should implement:
-//  GET /api/topics
-//  POST /api/topics            (protected by firebaseAuthMiddleware)
-//  POST /api/topics/:id/view   (increment view count)
+// Topics (discussion) - Supabase-backed endpoints
 const topicsRoutes = require("./routes/topics");
 app.use("/api/topics", topicsRoutes);
 
-// Study Group service and routes (kept in server.js per original structure)
+// Mount topic posts routes (edit / delete post). These routes expect the path /api/topics/:topicId/posts/:postId
+const topicPostsRoutes = require("./routes/topicPosts");
+app.use("/", topicPostsRoutes);
+
+// Comments routes (create/list/edit/delete/like) mounted under /api
+const commentsRoutes = require("./routes/comments");
+app.use("/api", commentsRoutes);
+
+// Study Group service and routes
 const studyGroupService = require("./services/studyGroupService");
 const firebaseAuthMiddleware = require("./middleware/firebaseAuthMiddleware");
 
-// Protected creation route (already present)
+// Protected creation route
 app.post("/api/study-groups", firebaseAuthMiddleware, async (req, res) => {
   try {
     const {
@@ -152,6 +222,19 @@ app.delete(
   }
 );
 
+// JaaS (Jitsi-as-a-Service) token endpoint router (server-side only).
+// Exposes: POST /api/jaas  (protected via firebaseAuthMiddleware inside the route)
+try {
+  const jaasRoutes = require("./routes/jaas");
+  app.use("/api/jaas", jaasRoutes);
+  console.log("Mounted /api/jaas route");
+} catch (e) {
+  console.warn(
+    "JaaS route not mounted (maybe backend/routes/jaas.js missing).",
+    e?.message || e
+  );
+}
+
 // Test root
 app.get("/", (req, res) => res.send("Study Group Backend is running!"));
 
@@ -174,6 +257,18 @@ app.get("/api/users", firebaseAuthMiddleware, async (req, res) => {
     console.error("Error listing users:", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Health check
+app.get("/healthz", (req, res) =>
+  res.json({ status: "ok", now: new Date().toISOString() })
+);
+
+// Generic error handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err && err.stack ? err.stack : err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ error: err.message || "Server error" });
 });
 
 // Start

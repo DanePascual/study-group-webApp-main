@@ -1,3 +1,4 @@
+/* resources.css (fixed variable usage: normalized variable names used across the file) */
 * {
   margin: 0;
   padding: 0;
@@ -42,10 +43,10 @@ body.dark-mode {
 
 body {
   font-family: "Segoe UI", "Arial", sans-serif;
-  background: var(--background-light);
+  background: var(--background-color);
   overflow-x: hidden;
-  transition: var(--transition);
-  color: var(--dark-text);
+  transition: var(--transition-slow);
+  color: var(--text-dark);
 }
 
 /* Skeleton loading animation */
@@ -202,6 +203,7 @@ body.dark-mode .sidebar-item.active {
   padding: 0 20px;
 }
 
+/* remaining CSS follows unchanged from earlier but uses normalized variables for colors */
 .user-info {
   display: flex;
   align-items: center;

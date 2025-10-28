@@ -4,15 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Resources - Study Group</title>
+
+    <!-- Bootstrap CSS (CDN) -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
       rel="stylesheet"
+      crossorigin="anonymous"
     />
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
       rel="stylesheet"
+      crossorigin="anonymous"
     />
+
+    <!-- Page styles -->
     <link rel="stylesheet" href="../styles/resources.css" />
+
+    <!-- DOMPurify for safe HTML sanitization (optional, used when descriptions include limited HTML) -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
   </head>
   <body>
     <!-- Sidebar -->
@@ -365,16 +378,27 @@
       </div>
     </div>
 
-    <!-- Toast Notifications Container -->
-    <div class="toast-container" id="toastContainer"></div>
+    <!-- Toast Notifications Container (accessible) -->
+    <div
+      id="toastContainer"
+      class="toast-container"
+      role="status"
+      aria-live="polite"
+    ></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS bundle (includes Popper) -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"
+      crossorigin="anonymous"
+    ></script>
 
-    <!-- Use modular firebase config used throughout the project -->
+    <!-- Firebase config (modular) -->
     <script type="module" src="../../config/firebase.js"></script>
 
-    <!-- IMPORTANT: load centralized sidebar BEFORE page script so sidebar is initialized first -->
+    <!-- Centralized sidebar must load before page script -->
     <script type="module" src="../scripts/sidebar.js"></script>
+
+    <!-- Page script (resources) -->
     <script type="module" src="../scripts/resources.js"></script>
   </body>
 </html>

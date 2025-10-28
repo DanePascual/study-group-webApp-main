@@ -1,54 +1,130 @@
 // frontend/student/scripts/sidebar.js
-// Centralized sidebar, auth listener and logout handling
-// Improved toggle robustness: ensures inline styles are cleared/restored so open/close works
-// even if other scripts previously set inline transforms/margins.
+// Hardened, idempotent sidebar implementation with:
+// - shared CSS injection
+// - theme toggle wiring (applies across pages)
+// - fast-path cached profile render + profile:updated listener
+// - auth listener using authFetch for authoritative profile
+// - idempotent init guard so module can be included on every page safely
 
-const API_BASE = "http://localhost:5000";
+import { onAuthStateChanged } from "../../config/firebase.js";
+import { authFetch } from "./apiClient.js";
 
-// Module imports (used if modular Firebase is available)
-import { auth as importedAuth } from "../../config/firebase.js";
-import { onAuthStateChanged as importedOnAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+/* ----------------------- Helpers ----------------------- */
+const el = (id) => document.getElementById(id);
 
-let auth = null;
-let onAuthStateChangedFn = null;
-
-// Detect which Firebase auth to use (compat/global or modular import)
-function initializeAuth() {
-  if (window.firebase && typeof window.firebase.auth === "function") {
-    try {
-      auth = window.firebase.auth();
-      onAuthStateChangedFn = (a, cb) => a.onAuthStateChanged(cb);
-      return;
-    } catch (e) {
-      // fall back to modular import below
-    }
+function injectSidebarCss() {
+  try {
+    if (document.getElementById("sidebar-shared-css")) return;
+    const href = "../styles/sidebar.css";
+    const link = document.createElement("link");
+    link.id = "sidebar-shared-css";
+    link.rel = "stylesheet";
+    link.href = href;
+    const head = document.head || document.getElementsByTagName("head")[0];
+    if (head) head.appendChild(link);
+  } catch (e) {
+    console.warn(
+      "Could not inject sidebar CSS:",
+      e && e.message ? e.message : e
+    );
   }
-  auth = importedAuth;
-  onAuthStateChangedFn = importedOnAuthStateChanged;
 }
 
-initializeAuth();
-
-// Safe DOM helper
-function el(id) {
-  return document.getElementById(id);
+/* ----------------------- Theme (global) ----------------------- */
+function applyInitialTheme() {
+  try {
+    const themeToggle = el("themeToggle");
+    const savedTheme = localStorage.getItem("theme") || "light";
+    const body = document.body;
+    if (savedTheme === "dark") {
+      body.classList.add("dark-mode");
+      if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+    } else {
+      body.classList.remove("dark-mode");
+      if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
+    }
+  } catch (e) {
+    // no-op
+  }
 }
 
-// Update sidebar UI with profile object (server-provided)
+function setTheme(isDark) {
+  const body = document.body;
+  const themeToggle = el("themeToggle");
+  if (isDark) {
+    body.classList.add("dark-mode");
+    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
+    try {
+      localStorage.setItem("theme", "dark");
+    } catch {}
+  } else {
+    body.classList.remove("dark-mode");
+    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
+    try {
+      localStorage.setItem("theme", "light");
+    } catch {}
+  }
+}
+
+function wireThemeToggle() {
+  const themeToggle = el("themeToggle");
+  if (!themeToggle) return;
+  themeToggle.addEventListener("click", () => {
+    const body = document.body;
+    const isDark = !body.classList.contains("dark-mode");
+    setTheme(isDark);
+    // propagate to other tabs
+    try {
+      localStorage.setItem("theme-sync", Date.now().toString());
+    } catch {}
+  });
+
+  // sync theme changes from other tabs
+  window.addEventListener("storage", (e) => {
+    if (!e.key) return;
+    if (e.key === "theme" || e.key === "theme-sync") {
+      applyInitialTheme();
+    }
+  });
+}
+
+/* ----------------------- Sidebar UI / Profile ----------------------- */
 function updateSidebar(profile = {}) {
   try {
     const nameNode = el("sidebarName");
     const courseNode = el("sidebarCourse");
     const avatarNode = el("sidebarAvatar");
 
-    if (nameNode && profile.name) nameNode.textContent = profile.name;
-    if (courseNode && profile.program) courseNode.textContent = profile.program;
+    if (nameNode && typeof profile.name === "string")
+      nameNode.textContent = profile.name;
+    if (courseNode && typeof profile.program === "string")
+      courseNode.textContent = profile.program;
 
     if (avatarNode) {
+      // defensive sizing: ensures avatar stays circular even if CSS hasn't loaded yet
+      avatarNode.style.minWidth = avatarNode.style.minWidth || "48px";
+      avatarNode.style.width = avatarNode.style.width || "48px";
+      avatarNode.style.height = avatarNode.style.height || "48px";
+      avatarNode.style.borderRadius = avatarNode.style.borderRadius || "50%";
+      avatarNode.style.overflow = avatarNode.style.overflow || "hidden";
+      avatarNode.style.display = avatarNode.style.display || "inline-flex";
+      avatarNode.style.alignItems = avatarNode.style.alignItems || "center";
+      avatarNode.style.justifyContent =
+        avatarNode.style.justifyContent || "center";
+
+      // clear previous children
+      avatarNode.innerHTML = "";
+
       if (profile.photo) {
-        avatarNode.innerHTML = `<img src="${profile.photo}" alt="${
-          (profile.name || "User") + " avatar"
-        }">`;
+        const img = document.createElement("img");
+        img.src = profile.photo;
+        img.alt = `${profile.name || "User"} avatar`;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "cover";
+        img.style.display = "block";
+        img.style.borderRadius = "50%";
+        avatarNode.appendChild(img);
       } else if (profile.name) {
         const initials = profile.name
           .split(" ")
@@ -57,24 +133,37 @@ function updateSidebar(profile = {}) {
           .slice(0, 2)
           .toUpperCase();
         avatarNode.textContent = initials;
+        avatarNode.style.color = "white";
+        avatarNode.style.fontWeight = "700";
+      } else {
+        avatarNode.textContent = "";
       }
     }
   } catch (err) {
-    console.warn("updateSidebar: could not update DOM", err && err.message);
+    console.warn(
+      "updateSidebar failed:",
+      err && err.message ? err.message : err
+    );
   }
 }
 
-// Fetch profile from backend using ID token
+function applyCachedProfileIfAny() {
+  try {
+    const json = localStorage.getItem("userProfile");
+    if (!json) return;
+    const profile = JSON.parse(json);
+    if (profile && typeof profile === "object") updateSidebar(profile);
+  } catch (e) {
+    // ignore parse errors
+  }
+}
+
 async function fetchAndUpdateSidebarProfile(user) {
   if (!user || !user.getIdToken) return;
   try {
-    const token = await user.getIdToken();
-    const resp = await fetch(`${API_BASE}/api/users/profile`, {
+    const resp = await authFetch("/api/users/profile", {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
     if (!resp.ok) {
       console.warn("Sidebar profile fetch returned non-ok:", resp.status);
@@ -82,18 +171,52 @@ async function fetchAndUpdateSidebarProfile(user) {
     }
     const profile = await resp.json();
     updateSidebar(profile);
+    try {
+      localStorage.setItem("userProfile", JSON.stringify(profile));
+    } catch {}
   } catch (err) {
-    console.warn("fetchAndUpdateSidebarProfile failed:", err && err.message);
+    console.warn(
+      "fetchAndUpdateSidebarProfile failed:",
+      err && err.message ? err.message : err
+    );
   }
 }
 
-// Listen for auth state changes and update sidebar when user signs in
-function setupAuthListener() {
-  if (!auth || !onAuthStateChangedFn) return;
+function setupProfileUpdatedListener() {
+  window.addEventListener("profile:updated", (e) => {
+    try {
+      const profile = e && e.detail ? e.detail : null;
+      if (profile) {
+        updateSidebar(profile);
+        try {
+          localStorage.setItem("userProfile", JSON.stringify(profile));
+        } catch {}
+      }
+    } catch (err) {
+      console.warn(
+        "profile:updated handler error:",
+        err && err.message ? err.message : err
+      );
+    }
+  });
 
-  onAuthStateChangedFn(auth, async (user) => {
+  window.addEventListener("storage", (e) => {
+    if (!e.key) return;
+    if (e.key === "userProfile") {
+      try {
+        const profile = e.newValue ? JSON.parse(e.newValue) : null;
+        if (profile) updateSidebar(profile);
+      } catch (err) {}
+    }
+  });
+}
+
+/* ----------------------- Auth / Toggle / Logout / Toggle wiring ----------------------- */
+function setupAuthListener() {
+  if (!onAuthStateChanged) return;
+  onAuthStateChanged(async (user) => {
     if (user) {
-      // Try to update sidebar from backend but don't block UI if it fails
+      applyCachedProfileIfAny();
       fetchAndUpdateSidebarProfile(user).catch(() => {});
     } else {
       const nameNode = el("sidebarName");
@@ -102,22 +225,24 @@ function setupAuthListener() {
       if (nameNode) nameNode.textContent = "Not signed in";
       if (avatarNode) avatarNode.textContent = "";
       if (courseNode) courseNode.textContent = "";
+      try {
+        localStorage.removeItem("userProfile");
+      } catch {}
     }
   });
 }
 
-// Apply initial sidebar preference on load
 function applySidebarPreferenceOnLoad() {
   const sidebar = el("sidebar");
   const mainContent = el("mainContent");
   if (!sidebar || !mainContent) return;
-
   const stored = localStorage.getItem("sidebarOpen");
   if (window.innerWidth > 768) {
     sidebar.classList.add("open");
     mainContent.classList.add("shifted");
-    localStorage.setItem("sidebarOpen", "true");
-    // ensure inline fallback cleared
+    try {
+      localStorage.setItem("sidebarOpen", "true");
+    } catch {}
     sidebar.style.transform = "";
     mainContent.style.marginLeft = "";
   } else if (stored === "true") {
@@ -128,25 +253,21 @@ function applySidebarPreferenceOnLoad() {
   } else {
     sidebar.classList.remove("open");
     mainContent.classList.remove("shifted");
-    // ensure inline fallback cleared on load
     sidebar.style.transform = "";
     mainContent.style.marginLeft = "";
   }
 }
 
-// Robust delegated toggle wiring — listens at document level and uses closest()
-// Also ensures inline styles are set/cleared consistently so repeated open/close works.
 function wireSidebarToggle() {
   const sidebar = el("sidebar");
   const mainContent = el("mainContent");
   if (!sidebar || !mainContent) return;
 
-  // compute sidebar width once (fallback if 0)
   function getSidebarWidth() {
     try {
       const w = sidebar.offsetWidth;
       return w && w > 0 ? w : 250;
-    } catch (e) {
+    } catch {
       return 250;
     }
   }
@@ -154,10 +275,7 @@ function wireSidebarToggle() {
   document.addEventListener("click", (e) => {
     const toggleBtn = e.target.closest && e.target.closest("#menuToggle");
     if (toggleBtn) {
-      // Determine current open state BEFORE toggling
       const currentlyOpen = sidebar.classList.contains("open");
-
-      // Toggle classes
       if (currentlyOpen) {
         sidebar.classList.remove("open");
         mainContent.classList.remove("shifted");
@@ -165,46 +283,26 @@ function wireSidebarToggle() {
         sidebar.classList.add("open");
         mainContent.classList.add("shifted");
       }
-
-      // Ensure inline styles reflect the visual state — clear inline transform when opening.
       const w = getSidebarWidth();
       if (currentlyOpen) {
-        // Was open -> now closing
-        // Move sidebar off-screen to the left and reset main margin
         sidebar.style.transition = "transform 200ms ease";
         sidebar.style.transform = `translateX(-${w}px)`;
         mainContent.style.transition = "margin-left 200ms ease";
         mainContent.style.marginLeft = "0px";
       } else {
-        // Was closed -> now opening
-        // Clear any inline transform/margin so CSS handles layout (important if previous script set inline)
         sidebar.style.transform = "";
         mainContent.style.marginLeft = "";
       }
-
-      // Persist preference
       const opening = !currentlyOpen;
       try {
         localStorage.setItem("sidebarOpen", opening ? "true" : "false");
-      } catch (err) {}
-
+      } catch {}
       try {
         toggleBtn.setAttribute("aria-expanded", opening ? "true" : "false");
-      } catch (err) {}
-
-      // Debug logs help diagnosing issues
-      console.log("Sidebar toggle:", opening ? "OPEN" : "CLOSED");
-      console.log("sidebar.className:", sidebar.className);
-      console.log("mainContent.className:", mainContent.className);
-      console.log("sidebar.style.transform:", sidebar.style.transform);
-      console.log(
-        "mainContent.style.marginLeft:",
-        mainContent.style.marginLeft
-      );
+      } catch {}
       return;
     }
 
-    // Close sidebar on outside click for small screens
     if (window.innerWidth <= 768) {
       if (
         !sidebar.contains(e.target) &&
@@ -213,15 +311,15 @@ function wireSidebarToggle() {
       ) {
         sidebar.classList.remove("open");
         mainContent.classList.remove("shifted");
-        // keep inline values reset
         sidebar.style.transform = "";
         mainContent.style.marginLeft = "";
-        localStorage.setItem("sidebarOpen", "false");
+        try {
+          localStorage.setItem("sidebarOpen", "false");
+        } catch {}
       }
     }
   });
 
-  // Ensure desktop always opens on resize back to large width
   window.addEventListener("resize", () => {
     if (window.innerWidth > 768) {
       sidebar.classList.add("open");
@@ -232,35 +330,27 @@ function wireSidebarToggle() {
   });
 }
 
-// Centralized logout handler
 async function logout() {
   const ok = confirm("Are you sure you want to log out?");
   if (!ok) return;
-
   try {
-    if (auth && typeof auth.signOut === "function") {
-      await auth.signOut();
+    if (window.firebase && typeof window.firebase.auth === "function") {
+      await window.firebase.auth().signOut();
     }
-  } catch (err) {
-    console.warn("Logout: firebase signOut failed (continuing cleanup)");
-  }
-
+  } catch {}
   try {
     localStorage.removeItem("userProfile");
     localStorage.removeItem("currentUser");
     localStorage.removeItem("currentSession");
     localStorage.removeItem("sidebarOpen");
     sessionStorage.clear();
-  } catch (e) {}
-
+  } catch {}
   window.location.replace("login.html");
 }
 
-// Wire logout UI and keyboard shortcut
 function wireLogoutUI() {
   const logoutBtn = el("logoutBtn");
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
-
   const userInfo = document.querySelector(".sidebar-footer .user-info");
   if (userInfo) {
     userInfo.addEventListener("click", () => {
@@ -270,7 +360,6 @@ function wireLogoutUI() {
     userInfo.setAttribute("role", "button");
     userInfo.setAttribute("aria-label", "Open Profile");
   }
-
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
       e.preventDefault();
@@ -279,19 +368,30 @@ function wireLogoutUI() {
   });
 }
 
-// Initialize everything (deferred until DOM ready)
+/* ----------------------- Init ----------------------- */
 function initSidebar() {
+  console.info("sidebar: init (idempotent)");
+  injectSidebarCss();
+  applyInitialTheme();
+  wireThemeToggle();
+  applyCachedProfileIfAny();
+  setupProfileUpdatedListener();
   setupAuthListener();
   applySidebarPreferenceOnLoad();
   wireSidebarToggle();
   wireLogoutUI();
 }
 
-// Defer initialization until DOMContentLoaded so elements exist and handlers attach reliably
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initSidebar);
+/* Guard against double-init */
+if (!window.__sidebarInitialized) {
+  window.__sidebarInitialized = true;
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSidebar);
+  } else {
+    initSidebar();
+  }
 } else {
-  initSidebar();
+  console.info("sidebar: already initialized - skipping init call");
 }
 
 export { initSidebar, fetchAndUpdateSidebarProfile, logout };

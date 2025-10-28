@@ -71,3 +71,6 @@ node_modules/
 backend/config/serviceAccountKey.json
 backend/.env
 .env
+backend/config/jaas_private.pem
+serviceAccountKey.json
+jaas_auth.key

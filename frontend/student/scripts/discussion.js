@@ -1,11 +1,24 @@
-// ======= Firebase Auth Dynamic Session (Modern Modular Pattern) =======
-// Uses modular Firebase imports, dynamic session/Firestore user info, and global sidebar.js logout
+// frontend/student/scripts/discussion.js
+// Updated discussion page logic: resolves author display names when server returns only an author_id (UID).
+// - quieter handling of Firestore permission-denied when resolving names client-side
+// - uses apiUrl from appConfig for direct fetches when needed
+// - uses topicsClient for server interactions (postTopic, getTopics, incrementView)
+// - uses apiClient.fetchJsonWithAuth for authenticated JSON PUT (topic edit) instead of manual token+fetch
+// - keeps server-backed topics (via topicsClient) and falls back to localStorage if server unavailable
+// - ensures sort/category selectors work when server returns full topic list by applying client-side filtering/sorting/pagination
 
 import { auth, db } from "../../config/firebase.js";
 import {
   doc,
   getDoc,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import {
+  getTopics as apiGetTopics,
+  postTopic as apiPostTopic,
+  incrementView as apiIncrementView,
+} from "./topicsClient.js";
+import { apiUrl } from "../../config/appConfig.js";
+import fetchWithAuth, { fetchJsonWithAuth } from "./apiClient.js";
 
 let CURRENT_SESSION = null;
 let CURRENT_USER_ID = null;
@@ -38,7 +51,7 @@ auth.onAuthStateChanged(async (user) => {
     };
     CURRENT_USER_ID = user.uid;
     updateSidebarUserInfo();
-    initializeTheme();
+    // theme is handled centrally by sidebar.js — do not re-wire it here
     initializeDiscussionPage();
   } else {
     window.location.href = "login.html";
@@ -52,12 +65,11 @@ function updateSidebarUserInfo() {
   const course = document.getElementById("sidebarCourse");
 
   try {
-    // Only set initials if there is no <img> inside avatar (don't overwrite server-provided photo)
     if (avatar) {
       const hasImg =
         typeof avatar.querySelector === "function" &&
         avatar.querySelector("img");
-      if (!hasImg && CURRENT_SESSION.userAvatar) {
+      if (!hasImg && CURRENT_SESSION && CURRENT_SESSION.userAvatar) {
         const current = (avatar.textContent || "").trim();
         if (!current || current === "" || current === "Loading...") {
           avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
@@ -65,8 +77,7 @@ function updateSidebarUserInfo() {
       }
     }
 
-    // Only overwrite name if sidebar still shows default text
-    if (name && CURRENT_SESSION.user) {
+    if (name && CURRENT_SESSION && CURRENT_SESSION.user) {
       const currentName = (name.textContent || "").trim();
       const isDefault =
         !currentName ||
@@ -76,7 +87,6 @@ function updateSidebarUserInfo() {
       if (isDefault) name.textContent = CURRENT_SESSION.user;
     }
 
-    // Course/program
     if (course) {
       const currentCourse = (course.textContent || "").trim();
       if (
@@ -92,43 +102,13 @@ function updateSidebarUserInfo() {
   }
 }
 
-// ---- Theme toggle ----
-function initializeTheme() {
-  const themeToggle = document.getElementById("themeToggle");
-  const body = document.body;
-  const savedTheme = localStorage.getItem("theme") || "light";
-  if (savedTheme === "dark") {
-    body.classList.add("dark-mode");
-    if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-  }
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      body.classList.toggle("dark-mode");
-      const isDark = body.classList.contains("dark-mode");
-      themeToggle.innerHTML = isDark
-        ? '<i class="bi bi-sun"></i>'
-        : '<i class="bi bi-moon"></i>';
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-    });
-  }
-}
-
 // ---- Main page initialization and UI logic ----
 function initializeDiscussionPage() {
-  // Guard: run initialization only once to avoid duplicate listeners
   if (initializeDiscussionPage._initialized) {
-    console.log(
-      "initializeDiscussionPage already run, skipping duplicate init"
-    );
     return;
   }
   initializeDiscussionPage._initialized = true;
 
-  // NOTE: Sidebar toggle wiring removed from this page to avoid conflict
-  // with centralized sidebar.js. sidebar.js now controls open/close and
-  // persistence for the sidebar across all pages.
-
-  // Format relative time
   function formatRelativeTime(dateString) {
     const date = new Date(dateString);
     const now = new Date();
@@ -138,6 +118,7 @@ function initializeDiscussionPage() {
     const diffHour = Math.round(diffMin / 60);
     const diffDay = Math.round(diffHour / 24);
 
+    if (isNaN(date.getTime())) return "Invalid Date";
     if (diffSec < 60) return "just now";
     if (diffMin < 60) return `${diffMin} min${diffMin !== 1 ? "s" : ""} ago`;
     if (diffHour < 24)
@@ -146,7 +127,6 @@ function initializeDiscussionPage() {
     return date.toLocaleDateString();
   }
 
-  // Show notification
   function showNotification(message, isError = false) {
     const existingNotification = document.querySelector(".notification");
     if (existingNotification) existingNotification.remove();
@@ -168,13 +148,180 @@ function initializeDiscussionPage() {
     }, 3000);
   }
 
-  // Simulate an API delay
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // Topic CRUD using localStorage
-  async function getTopics(
+  // ---- Server-backed functions via topicsClient (preferred) ----
+  // IMPORTANT: when the server returns *all* topics, we still need to apply
+  // category/sort/pagination client-side — topicsClient.getTopics currently
+  // doesn't accept sort/category parameters. This function applies client-side
+  // filtering/sorting/pagination to server results as-needed.
+  async function fetchTopicsFromServer(
+    page = 1,
+    limit = 6,
+    sort = "newest",
+    category = "all"
+  ) {
+    try {
+      const data = await apiGetTopics(); // expects { topics: [...] } or array
+      const rows =
+        data && data.topics ? data.topics : Array.isArray(data) ? data : [];
+      // normalize topics into the format UI expects
+      let normalized = (rows || []).map(normalizeTopic);
+
+      // If server provided pagination, prefer it (pass-through)
+      const serverPagination = data && data.pagination ? data.pagination : null;
+
+      // Apply category filter client-side if requested
+      if (category && category !== "all") {
+        normalized = normalized.filter((t) => {
+          // normalize category strings to lower-case for matching
+          const c = (t.category || "").toString().toLowerCase();
+          return c === category.toString().toLowerCase();
+        });
+      }
+
+      // Apply sort client-side if server didn't sort or if client explicitly requested
+      switch (sort) {
+        case "newest":
+          normalized.sort((a, b) => new Date(b.created) - new Date(a.created));
+          break;
+        case "oldest":
+          normalized.sort((a, b) => new Date(a.created) - new Date(b.created));
+          break;
+        case "activity":
+          normalized.sort((a, b) => (b.postCount || 0) - (a.postCount || 0));
+          break;
+        default:
+          // leave as-is
+          break;
+      }
+
+      // If server already provided pagination, honor it; otherwise do client-side pagination
+      if (serverPagination) {
+        // Resolve author names for the topics included in the server page
+        const pageTopics = normalized || [];
+        await resolveAuthorNames(pageTopics);
+        return { topics: pageTopics, pagination: serverPagination };
+      } else {
+        const total = normalized.length;
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedTopics = normalized.slice(startIndex, endIndex);
+        await resolveAuthorNames(paginatedTopics);
+        return {
+          topics: paginatedTopics,
+          pagination: { page, limit, total, totalPages },
+        };
+      }
+    } catch (err) {
+      console.warn("Server topics fetch failed, falling back to local:", err);
+      return null;
+    }
+  }
+
+  // Normalizes server or local topic shapes to fields used by UI
+  function normalizeTopic(t) {
+    const authorId = t.author_id || t.authorId || t.userId || t.user || null;
+    const rawAuthor =
+      t.author || (typeof authorId === "string" ? authorId : null) || "system";
+    return {
+      id: t.id || t._id || t.topic_id,
+      title: t.title || t.name || "",
+      description: t.content || t.description || "",
+      category:
+        (t.metadata && t.metadata.category) ||
+        t.category ||
+        t.type ||
+        "discussion",
+      tags: (t.metadata && t.metadata.tags) || t.tags || [],
+      // keep both author (display string) and authorId (uid) for resolution
+      author: rawAuthor,
+      authorId: authorId,
+      userId: t.author_id || t.userId || t.user || null,
+      created:
+        t.created_at ||
+        t.created ||
+        t.latestActivity ||
+        t.latest_activity ||
+        new Date().toISOString(),
+      updated: t.updated_at || t.updated || null,
+      postCount: t.post_count || t.postCount || 0,
+      viewCount: t.views || t.viewCount || t.view_count || 0,
+      pinned: !!t.pinned,
+      latestActivity:
+        t.latestActivity || t.latest_activity || t.updated || t.created,
+    };
+  }
+
+  // Resolve author display names by querying Firestore users/{uid}
+  const _authorCache = new Map(); // uid -> displayName or email or short id
+  async function resolveAuthorNames(topics) {
+    const toResolve = new Set();
+    for (const t of topics) {
+      // If author is already a friendly name, skip.
+      if (!t.authorId) continue;
+      // If author property is same as authorId (raw), then we need to resolve
+      if (t.author === t.authorId || looksLikeUid(t.author)) {
+        if (!_authorCache.has(t.authorId)) toResolve.add(t.authorId);
+      }
+    }
+    if (toResolve.size === 0) return;
+    // Batch fetch (sequential to keep code simple)
+    for (const uid of Array.from(toResolve)) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          const name =
+            data.displayName ||
+            data.name ||
+            data.fullName ||
+            data.email ||
+            shortId(uid);
+          _authorCache.set(uid, name);
+        } else {
+          _authorCache.set(uid, shortId(uid));
+        }
+      } catch (err) {
+        // Handle permission-denied quietly (expected if Firestore rules block reading other users)
+        const code = err && (err.code || (err.codeName ? err.codeName : ""));
+        if (
+          code === "permission-denied" ||
+          (err && /permission/i.test(err.message || ""))
+        ) {
+          // quietly fallback to short id — do not spam console for expected security behavior
+          _authorCache.set(uid, shortId(uid));
+        } else {
+          // Unexpected errors: log for debugging but still fallback
+          console.warn("Failed to resolve user", uid, err);
+          _authorCache.set(uid, shortId(uid));
+        }
+      }
+    }
+    // Apply resolved names
+    for (const t of topics) {
+      if (t.authorId && _authorCache.has(t.authorId)) {
+        t.author = _authorCache.get(t.authorId);
+      }
+    }
+  }
+
+  function looksLikeUid(s) {
+    // simple heuristic: firebase UIDs are long, alphanumeric, often contain '-' or sequences
+    if (!s || typeof s !== "string") return false;
+    return s.length > 12 && /[A-Za-z0-9]/.test(s);
+  }
+
+  function shortId(id) {
+    if (!id) return "unknown";
+    return id.length > 10 ? id.slice(0, 6) + "…" + id.slice(-4) : id;
+  }
+
+  // ---- LocalStorage fallback topic store (kept for offline/dev fallback) ----
+  async function getTopicsLocal(
     page = 1,
     limit = 6,
     sort = "newest",
@@ -201,13 +348,15 @@ function initializeDiscussionPage() {
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedTopics = topics.slice(startIndex, endIndex);
+    // ensure authors resolved for local topics as well (they usually already contain author name)
+    await resolveAuthorNames(paginatedTopics);
     return {
       topics: paginatedTopics,
       pagination: { page, limit, total, totalPages },
     };
   }
 
-  async function createTopic(topicData) {
+  async function createTopicLocal(topicData) {
     await delay(100);
     let topics = JSON.parse(localStorage.getItem("topics") || "[]");
     const now = new Date();
@@ -219,6 +368,7 @@ function initializeDiscussionPage() {
       tags: topicData.tags || [],
       userId: CURRENT_USER_ID,
       author: CURRENT_SESSION.user,
+      authorId: CURRENT_USER_ID,
       created: now.toISOString(),
       updated: now.toISOString(),
       pinned: false,
@@ -232,7 +382,8 @@ function initializeDiscussionPage() {
     return newTopic;
   }
 
-  async function updateTopic(topicId, topicData) {
+  // Keep update/delete/pin as local features for now (server equivalents may be added later)
+  async function updateTopicLocal(topicId, topicData) {
     await delay(100);
     let topics = JSON.parse(localStorage.getItem("topics") || "[]");
     const index = topics.findIndex((t) => t.id === topicId);
@@ -251,7 +402,7 @@ function initializeDiscussionPage() {
     return topics[index];
   }
 
-  async function deleteTopic(topicId) {
+  async function deleteTopicLocal(topicId) {
     await delay(100);
     let topics = JSON.parse(localStorage.getItem("topics") || "[]");
     const index = topics.findIndex((t) => t.id === topicId);
@@ -264,7 +415,7 @@ function initializeDiscussionPage() {
     return true;
   }
 
-  async function togglePinTopic(topicId) {
+  async function togglePinTopicLocal(topicId) {
     await delay(100);
     let topics = JSON.parse(localStorage.getItem("topics") || "[]");
     const index = topics.findIndex((t) => t.id === topicId);
@@ -274,54 +425,52 @@ function initializeDiscussionPage() {
     return topics[index];
   }
 
-  async function searchTopics(
-    term,
-    page = 1,
-    limit = 6,
-    sort = "newest",
-    category = "all"
-  ) {
-    const result = await getTopics(1, 1000, sort, category);
-    const allTopics = result.topics;
-    if (!term) return getTopics(page, limit, sort, category);
-    const filteredTopics = allTopics.filter(
-      (t) =>
-        t.title.toLowerCase().includes(term.toLowerCase()) ||
-        t.description.toLowerCase().includes(term.toLowerCase()) ||
-        t.tags.some((tag) => tag.toLowerCase().includes(term.toLowerCase()))
-    );
-    const total = filteredTopics.length;
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedTopics = filteredTopics.slice(startIndex, endIndex);
-    return {
-      topics: paginatedTopics,
-      pagination: { page, limit, total, totalPages },
-    };
-  }
-
   // Global state
   let currentPage = 1;
   let currentSort = "newest";
   let currentCategory = "all";
   let currentSearch = "";
 
-  // Render topic grid
+  // Render topic grid — prefers server, falls back to local
   async function renderTopics() {
     const topicGrid = document.getElementById("topicGrid");
     topicGrid.innerHTML =
       '<div class="text-center p-5"><i class="bi bi-hourglass-split"></i> Loading...</div>';
     try {
-      const result = await searchTopics(
-        currentSearch,
+      let result = await fetchTopicsFromServer(
         currentPage,
         6,
         currentSort,
         currentCategory
       );
-      const { topics, pagination } = result;
-      if (topics.length === 0) {
+      if (!result) {
+        // fallback to local
+        result = await getTopicsLocal(
+          currentPage,
+          6,
+          currentSort,
+          currentCategory
+        );
+      }
+      let { topics, pagination } = result;
+      // If search is active, filter client-side for either source
+      if (currentSearch) {
+        const lower = currentSearch.toLowerCase();
+        topics = topics.filter(
+          (t) =>
+            (t.title || "").toLowerCase().includes(lower) ||
+            (t.description || "").toLowerCase().includes(lower) ||
+            (t.tags || []).some((tag) => tag.toLowerCase().includes(lower))
+        );
+        // adjust pagination for client-side search (optional)
+        pagination = {
+          page: 1,
+          limit: topics.length || 1,
+          total: topics.length || 0,
+          totalPages: 1,
+        };
+      }
+      if (!topics || topics.length === 0) {
         topicGrid.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon"><i class="bi bi-chat-square-text"></i></div>
@@ -375,20 +524,27 @@ function initializeDiscussionPage() {
                     : ""
                 }
                 <div class="topic-card-content">
-                  <div class="topic-title">${topic.title}</div>
+                  <div class="topic-title">${escapeHtml(topic.title)}</div>
                   <div class="topic-meta">
-                    <div><i class="bi bi-person"></i> ${topic.author}</div>
+                    <div><i class="bi bi-person"></i> ${escapeHtml(
+                      topic.author
+                    )}</div>
                     <div><i class="bi bi-calendar3"></i> ${formatRelativeTime(
                       topic.created
                     )}</div>
                   </div>
                   <div>
                     ${(topic.tags || [])
-                      .map((tag) => `<span class="topic-tag">${tag}</span>`)
+                      .map(
+                        (tag) =>
+                          `<span class="topic-tag">${escapeHtml(tag)}</span>`
+                      )
                       .join("")}
                   </div>
                   <div class="topic-latest">
-                    ${topic.description || "No description provided."}
+                    ${escapeHtml(
+                      topic.description || "No description provided."
+                    )}
                   </div>
                   <div class="topic-actions">
                     <div class="topic-activity">
@@ -401,9 +557,11 @@ function initializeDiscussionPage() {
             } • ${topic.viewCount || 0} view${topic.viewCount !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <a href="topic.html?id=${
+                    <a href="topic.html?id=${encodeURIComponent(
                       topic.id
-                    }" class="view-btn">View</a>
+                    )}" class="view-btn" data-id="${encodeURIComponent(
+              topic.id
+            )}">View</a>
                   </div>
                 </div>
               </div>
@@ -411,7 +569,22 @@ function initializeDiscussionPage() {
           })
           .join("");
       }
-      renderPagination(pagination);
+      renderPagination(pagination || { page: currentPage, totalPages: 1 });
+      // Wire view buttons to increment view before navigation (server-backed)
+      document.querySelectorAll(".view-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const id = decodeURIComponent(btn.getAttribute("data-id"));
+          try {
+            // try server increment; ignore errors
+            await apiIncrementView(id);
+          } catch (err) {
+            console.warn("incrementView failed (non-fatal):", err);
+          }
+          // follow the link
+          window.location.href = btn.href;
+        });
+      });
     } catch (error) {
       topicGrid.innerHTML = `
           <div class="empty-state">
@@ -423,10 +596,10 @@ function initializeDiscussionPage() {
     }
   }
 
-  // Render pagination controls
   function renderPagination(pagination) {
     const paginationControls = document.getElementById("paginationControls");
-    const { page, totalPages } = pagination;
+    const page = (pagination && pagination.page) || currentPage;
+    const totalPages = (pagination && pagination.totalPages) || 1;
     if (totalPages <= 1) {
       paginationControls.innerHTML = "";
       return;
@@ -465,14 +638,12 @@ function initializeDiscussionPage() {
     paginationControls.innerHTML = paginationHTML;
   }
 
-  // Change page
   window.changePage = function (page) {
     currentPage = page;
     renderTopics();
     document.getElementById("topicGrid").scrollIntoView({ behavior: "smooth" });
   };
 
-  // Toggle topic dropdown menu
   window.toggleTopicOptions = function (event, topicId) {
     event.stopPropagation();
     const dropdown = document.getElementById(`dropdown-${topicId}`);
@@ -492,7 +663,7 @@ function initializeDiscussionPage() {
 
   window.togglePinTopic = async function (topicId) {
     try {
-      const topic = await togglePinTopic(topicId);
+      const topic = await togglePinTopicLocal(topicId);
       renderTopics();
       showNotification(
         `Topic ${topic.pinned ? "pinned" : "unpinned"} successfully`
@@ -508,7 +679,7 @@ function initializeDiscussionPage() {
     document.getElementById("cancelDeleteBtn").onclick = hideDeleteConfirmation;
     document.getElementById("confirmDeleteBtn").onclick = async function () {
       try {
-        await deleteTopic(topicId);
+        await deleteTopicLocal(topicId);
         hideDeleteConfirmation();
         renderTopics();
         showNotification("Topic deleted successfully");
@@ -556,7 +727,7 @@ function initializeDiscussionPage() {
     document.getElementById("modalBackdrop").classList.add("active");
   };
 
-  // Modal logic
+  // Modal logic wiring
   const createTopicBtn = document.getElementById("createTopicBtn");
   const modalBackdrop = document.getElementById("modalBackdrop");
   const closeModalBtn = document.getElementById("closeModalBtn");
@@ -608,7 +779,7 @@ function initializeDiscussionPage() {
     });
   });
 
-  // Create/Edit topic form submit
+  // Create/Edit topic form submit (uses server when available, fallback to local)
   topicForm.onsubmit = async function (e) {
     e.preventDefault();
     const title = document.getElementById("topicTitle").value.trim();
@@ -626,11 +797,41 @@ function initializeDiscussionPage() {
     }
     try {
       if (isEdit) {
-        await updateTopic(topicId, { title, description, category, tags });
-        showNotification("Topic updated successfully");
+        // Try server-side update if endpoint exists; otherwise fallback to local update
+        try {
+          // Use centralized fetchJsonWithAuth so token handling and error parsing are consistent
+          await fetchJsonWithAuth(
+            apiUrl(`/api/topics/${encodeURIComponent(topicId)}`),
+            {
+              method: "PUT",
+              body: JSON.stringify({
+                title,
+                content: description,
+                metadata: { category, tags },
+              }),
+            }
+          );
+          showNotification("Topic updated successfully");
+        } catch (serverErr) {
+          // fallback to local
+          await updateTopicLocal(topicId, {
+            title,
+            description,
+            category,
+            tags,
+          });
+          showNotification("Topic updated locally");
+        }
       } else {
-        await createTopic({ title, description, category, tags });
-        showNotification("Topic created successfully");
+        // Create: prefer server
+        try {
+          await apiPostTopic(title, description, { category, tags });
+          showNotification("Topic created successfully");
+        } catch (serverErr) {
+          // fallback to local storage creation
+          await createTopicLocal({ title, description, category, tags });
+          showNotification("Topic created locally (server unreachable)");
+        }
       }
       modalBackdrop.classList.remove("active");
       topicForm.reset();
@@ -640,11 +841,39 @@ function initializeDiscussionPage() {
     }
   };
 
-  // Search input handler
-  let searchTimeout;
-  document
-    .getElementById("searchInput")
-    .addEventListener("input", function (e) {
+  // Safe wiring for selects and search (do this after DOM is ready)
+  const sortEl = document.getElementById("sortFilter");
+  const categoryEl = document.getElementById("categoryFilter");
+  const searchEl = document.getElementById("searchInput");
+
+  // Initialize select UI values from state
+  if (sortEl) {
+    sortEl.value = currentSort || "newest";
+    sortEl.addEventListener("change", (e) => {
+      console.debug("sort changed to", e.target.value);
+      currentSort = e.target.value;
+      currentPage = 1;
+      renderTopics();
+    });
+  } else {
+    console.warn("sortFilter element not found; skipping wiring.");
+  }
+
+  if (categoryEl) {
+    categoryEl.value = currentCategory || "all";
+    categoryEl.addEventListener("change", (e) => {
+      console.debug("category changed to", e.target.value);
+      currentCategory = e.target.value;
+      currentPage = 1;
+      renderTopics();
+    });
+  } else {
+    console.warn("categoryFilter element not found; skipping wiring.");
+  }
+
+  if (searchEl) {
+    let searchTimeout;
+    searchEl.addEventListener("input", function (e) {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         currentSearch = e.target.value.trim();
@@ -652,24 +881,11 @@ function initializeDiscussionPage() {
         renderTopics();
       }, 300);
     });
+  } else {
+    console.warn("searchInput element not found; skipping wiring.");
+  }
 
-  document
-    .getElementById("sortFilter")
-    .addEventListener("change", function (e) {
-      currentSort = e.target.value;
-      currentPage = 1;
-      renderTopics();
-    });
-
-  document
-    .getElementById("categoryFilter")
-    .addEventListener("change", function (e) {
-      currentCategory = e.target.value;
-      currentPage = 1;
-      renderTopics();
-    });
-
-  // Generate some sample topics if none exist
+  // Initialize sample data if local empty (keeps previous behavior for offline/dev)
   async function initializeSampleData() {
     const topics = JSON.parse(localStorage.getItem("topics") || "[]");
     if (topics.length === 0) {
@@ -711,7 +927,7 @@ function initializeDiscussionPage() {
         },
       ];
       for (const topic of sampleTopics) {
-        await createTopic(topic);
+        await createTopicLocal(topic);
       }
     }
   }
@@ -723,7 +939,21 @@ function initializeDiscussionPage() {
       `Discussion forum loaded for ${CURRENT_SESSION.user} at ${CURRENT_SESSION.datetime}`
     );
   })();
+
+  // small helper:
+  function escapeHtml(s) {
+    return String(s || "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[c])
+    );
+  }
 }
 
 // ---- LOGOUT IS HANDLED BY SIDEBAR.JS GLOBALLY ----
-// No local logout handler here; sidebar.js (imported as type="module") handles global logout for all users.

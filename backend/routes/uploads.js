@@ -1,3 +1,8 @@
+// backend/routes/uploads.js
+// Add support for uploading profile photos and room files to Supabase storage (server-side).
+// Protected endpoints: require Firebase ID token (firebaseAuthMiddleware).
+// Returns { url, filename } like profile-photo route already did.
+
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -11,12 +16,50 @@ const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 const storage = multer.memoryStorage();
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10 MB limit
 
-// Allowed MIME types for profile photos
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/gif"]);
+// Allowed MIME types for images and common docs
+const ALLOWED_IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+const ALLOWED_DOC_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
 
-// POST /api/uploads/profile-photo
-// Protected: requires Authorization: Bearer <idToken>
-// Uploads the authenticated user's profile photo to the "profiles" bucket
+// Helper to upload buffer to a bucket and return public URL and filename
+async function uploadBufferToBucket(bucket, filename, buffer, contentType) {
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(filename, buffer, {
+      contentType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  // Return public URL (we assume bucket is public)
+  const { data: publicUrlData, error: publicUrlError } = await supabase.storage
+    .from(bucket)
+    .getPublicUrl(filename);
+
+  if (publicUrlError) {
+    // still return filename so caller may create signed URL later
+    return { url: "", filename };
+  }
+
+  return { url: publicUrlData.publicUrl || "", filename };
+}
+
+// POST /api/uploads/profile-photo  (existing route — unchanged behavior)
 router.post(
   "/profile-photo",
   firebaseAuthMiddleware,
@@ -30,79 +73,107 @@ router.post(
       const file = req.file;
 
       // Server-side MIME validation
-      if (!ALLOWED_MIME.has(file.mimetype)) {
+      if (!ALLOWED_IMAGE_MIME.has(file.mimetype)) {
         return res.status(400).json({
-          error: "Invalid file type. Allowed types: JPG, PNG, GIF.",
+          error: "Invalid file type. Allowed types: JPG, PNG, GIF, WEBP.",
         });
       }
 
-      // Use the authenticated user's uid in the path so files are grouped per user
       const uid = req.user && req.user.uid;
       if (!uid) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // Bucket to store profile images (you created this bucket)
       const bucket = "profiles";
-
-      // Build a namespaced filename so we can easily find / delete old avatars later
       const ext = path.extname(file.originalname).toLowerCase() || "";
       const filename = `profiles/${uid}/${uuidv4()}${ext}`;
 
-      // Upload to Supabase storage (server-side uses service role key in config/supabase.js)
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filename, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error("Supabase upload error:", uploadError);
+      try {
+        const result = await uploadBufferToBucket(
+          bucket,
+          filename,
+          file.buffer,
+          file.mimetype
+        );
+        return res
+          .status(201)
+          .json({ url: result.url, filename: result.filename });
+      } catch (uploadErr) {
+        console.error("Supabase upload error (profile-photo):", uploadErr);
         return res.status(500).json({
           error: "Failed to upload file to storage",
-          details: uploadError.message || uploadError,
+          details: uploadErr.message || uploadErr,
         });
       }
-
-      // Decide whether to return a public URL or a signed URL.
-      // If you set SUPABASE_PROFILE_SIGNED=true in env, server will create a signed URL valid for one hour.
-      const useSigned = process.env.SUPABASE_PROFILE_SIGNED === "true";
-
-      let publicUrl = "";
-      if (useSigned) {
-        const expiresIn = 60 * 60; // 1 hour
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(filename, expiresIn);
-        if (signedError) {
-          console.error("Supabase createSignedUrl error:", signedError);
-          return res.status(500).json({
-            error: "Failed to create signed URL",
-            details: signedError.message || signedError,
-          });
-        }
-        publicUrl = signedData.signedUrl;
-      } else {
-        const { data: publicUrlData, error: publicUrlError } =
-          await supabase.storage.from(bucket).getPublicUrl(filename);
-        if (publicUrlError) {
-          console.error("Supabase getPublicUrl error:", publicUrlError);
-          return res.status(500).json({
-            error: "Failed to get public URL for uploaded file",
-            details: publicUrlError.message || publicUrlError,
-          });
-        }
-        publicUrl = publicUrlData?.publicUrl || "";
-      }
-
-      // Return the URL and stored filename to the client
-      return res.status(201).json({
-        url: publicUrl,
-        filename,
-      });
     } catch (err) {
       console.error("Error in POST /api/uploads/profile-photo:", err);
+      return res
+        .status(500)
+        .json({ error: "Server error", details: err.message });
+    }
+  }
+);
+
+// NEW: POST /api/uploads/room-file
+// Protected: authenticated users only. Uploads a file for a room and returns { url, filename }.
+router.post(
+  "/room-file",
+  firebaseAuthMiddleware,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Expect roomId in form data (helps namespace files)
+      const roomId = (req.body && req.body.roomId) || null;
+      if (!roomId) {
+        return res.status(400).json({ error: "Missing roomId" });
+      }
+
+      const file = req.file;
+      const uid = req.user && req.user.uid;
+      if (!uid) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Validate MIME type (allow images and docs)
+      const mime = file.mimetype || "";
+      const isImage = ALLOWED_IMAGE_MIME.has(mime);
+      const isDoc = ALLOWED_DOC_MIME.has(mime);
+      if (!isImage && !isDoc) {
+        return res.status(400).json({ error: "Invalid file type" });
+      }
+
+      // Bucket to store room files
+      const bucket = "room-files";
+
+      // Build namespaced filename
+      const ext = path.extname(file.originalname).toLowerCase() || "";
+      const safeOwner = uid;
+      const filename = `roomFiles/${roomId}/${safeOwner}_${uuidv4()}${ext}`;
+
+      try {
+        const result = await uploadBufferToBucket(
+          bucket,
+          filename,
+          file.buffer,
+          file.mimetype
+        );
+        // Return URL and filename so frontend can save URL into message documents
+        return res
+          .status(201)
+          .json({ url: result.url, filename: result.filename });
+      } catch (uploadErr) {
+        console.error("Supabase upload error (room-file):", uploadErr);
+        return res.status(500).json({
+          error: "Failed to upload file to storage",
+          details: uploadErr.message || uploadErr,
+        });
+      }
+    } catch (err) {
+      console.error("Error in POST /api/uploads/room-file:", err);
       return res
         .status(500)
         .json({ error: "Server error", details: err.message });

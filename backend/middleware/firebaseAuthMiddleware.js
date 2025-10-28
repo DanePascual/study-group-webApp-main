@@ -1,24 +1,41 @@
+// backend/middleware/firebaseAuthMiddleware.js
+// Verifies Firebase ID token sent in Authorization: Bearer <token>
+// Attaches minimal req.user for safety, and keeps _raw for temporary compatibility.
+// IMPORTANT: Do NOT log req.user._raw or tokens anywhere.
+
 const admin = require("../config/firebase-admin");
 
 async function firebaseAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
-  console.log("Authorization header received:", authHeader); // <-- Add this
-
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("No token provided or header malformed."); // <-- Add this
     return res.status(401).json({ error: "No token provided" });
   }
 
   const idToken = authHeader.replace("Bearer ", "").trim();
-  console.log("ID token extracted:", idToken.substring(0, 20) + "..."); // <-- Just print first 20 chars
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    console.log("Decoded token:", decodedToken); // <-- Add this
-    req.user = decodedToken; // Attach the decoded user info to the request
-    next();
+
+    // Minimal safe user object for downstream code
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email || null,
+      name: decodedToken.name || decodedToken.displayName || null,
+      admin:
+        !!decodedToken.admin ||
+        !!(decodedToken.firebase && decodedToken.firebase.admin) ||
+        false,
+      // Compatibility: keep raw decoded token available but DO NOT log it
+      _raw: decodedToken,
+    };
+
+    return next();
   } catch (error) {
-    console.error("Token verification failed:", error); // <-- Add this
+    // Log only the error message, never the token or decoded payload
+    console.error(
+      "Token verification failed:",
+      error && error.message ? error.message : error
+    );
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }

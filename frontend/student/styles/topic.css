@@ -523,6 +523,8 @@ body.dark-mode .form-label {
   font-size: 14px;
   color: #666;
 }
+
+/* Make sure avatar images are properly contained */
 .author-avatar {
   width: 28px;
   height: 28px;
@@ -534,7 +536,21 @@ body.dark-mode .form-label {
   color: #388e3c;
   font-size: 12px;
   font-weight: bold;
+  position: relative;
+  overflow: hidden;
 }
+
+/* Add specific styling for the avatar images */
+.author-avatar img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 .post-options {
   position: relative;
 }

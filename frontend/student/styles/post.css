@@ -17,6 +17,7 @@
   --transition: all 0.3s ease;
 }
 
+/* Base page styles */
 body {
   font-family: "Segoe UI", "Arial", sans-serif;
   background: var(--background-light);
@@ -241,7 +242,7 @@ body.dark-mode .reply-path {
   align-items: center;
 }
 
-/* Updated sidebar CSS */
+/* Sidebar */
 .sidebar {
   position: fixed;
   left: -280px;
@@ -330,6 +331,7 @@ body.dark-mode .reply-path {
   display: block;
 }
 
+/* Main content */
 .main-content {
   margin-left: 0;
   transition: margin-left 0.3s ease;
@@ -346,6 +348,7 @@ body.dark-mode .reply-path {
   padding: 0 20px 20px 20px;
 }
 
+/* Top nav */
 .top-nav {
   background: white;
   padding: 15px 30px;
@@ -381,6 +384,7 @@ body.dark-mode .reply-path {
   color: #333;
 }
 
+/* Breadcrumbs */
 .breadcrumbs {
   display: flex;
   align-items: center;
@@ -404,6 +408,7 @@ body.dark-mode .reply-path {
   font-size: 12px;
 }
 
+/* Back link */
 .back-link {
   font-size: 16px;
   color: #388e3c;
@@ -423,6 +428,7 @@ body.dark-mode .reply-path {
   text-decoration: underline;
 }
 
+/* Post header */
 .post-header {
   margin: 10px 0 15px 0;
   background: white;
@@ -466,6 +472,13 @@ body.dark-mode .reply-path {
   color: #388e3c;
   font-size: 14px;
   font-weight: bold;
+}
+.comment-avatar img,
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 .post-content {
   font-size: 16px;
@@ -524,6 +537,85 @@ body.dark-mode .reply-path {
 .sort-dropdown:focus {
   outline: none;
   border-color: #4caf50;
+}
+
+/* Load more & toast styles (moved here from JS injection) */
+#loadMoreBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  margin: 20px 0 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #555;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+#loadMoreBtn:hover {
+  background-color: #f1f3f4;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+#loadMoreBtn:active {
+  transform: translateY(1px);
+}
+#loadMoreBtn .spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #555;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: spin 1s linear infinite;
+}
+
+/* Toast container */
+#toastContainer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 10px 14px;
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 320px;
+}
+.toast.info {
+  background: #2196f3;
+}
+.toast.success {
+  background: #4caf50;
+}
+.toast.error {
+  background: #f44336;
+}
+@keyframes toastFade {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast {
+  animation: toastFade 240ms ease;
 }
 
 /* Improved comment styling with better nesting indicators */
@@ -628,67 +720,67 @@ body.dark-mode .reply-path {
   color: #999;
 }
 
+/* Action buttons: text-style controls (Reply / Edit / Delete) */
 .comment-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 3px;
-}
-.reply-btn,
-.edit-btn,
-.delete-btn {
-  background: none;
-  border: none;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px 5px;
-  border-radius: 3px;
-  color: #666;
-  display: inline-flex;
+  gap: 8px;
+  margin-top: 8px;
   align-items: center;
-  gap: 3px;
-  transition: all 0.2s;
-}
-.reply-btn {
-  color: #388e3c;
-}
-.reply-btn:hover,
-.edit-btn:hover {
-  background-color: #f0f0f0;
-  color: #2e7d32;
-}
-.delete-btn:hover {
-  background-color: #ffebee;
-  color: #d32f2f;
+  flex-wrap: wrap;
 }
 
-.collapse-btn {
-  background: none;
+/* Text-based small action buttons resembling social UI */
+.btn-reply,
+.btn-edit,
+.btn-delete {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: transparent;
   border: none;
-  color: #666;
-  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--medium-text);
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 5px;
-  border-radius: 3px;
-  transition: all 0.2s;
-}
-.collapse-btn:hover {
-  background-color: #f0f0f0;
-  color: #388e3c;
-}
-.collapsed .comment-body {
-  display: none;
-}
-.collapsed .comment-actions {
-  display: none;
-}
-.collapsed .comment .comment {
-  display: none;
+  transition: var(--transition);
 }
 
-/* Improved inline reply form with larger textarea */
+/* Specific hover/active states */
+.btn-reply {
+  color: var(--medium-text);
+}
+.btn-reply:hover {
+  color: var(--primary-hover);
+  background: rgba(76, 175, 80, 0.04);
+}
+
+.btn-edit {
+  color: #666;
+}
+.btn-edit:hover {
+  color: #444;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.btn-delete {
+  color: var(--danger-color);
+}
+.btn-delete:hover {
+  color: #b71c1c;
+  background: rgba(244, 67, 54, 0.06);
+}
+
+/* Ensure icons inside actions (if any) inherit color and size but do not hide text */
+.comment-actions i {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  color: inherit;
+  margin-right: 4px;
+}
+
+/* reply form */
 .reply-form {
   margin: 10px 0 12px 36px;
   display: flex;
@@ -702,7 +794,9 @@ body.dark-mode .reply-path {
 }
 .reply-form.active {
   display: flex;
+  flex-direction: column;
 }
+/* Make reply input expand and keep reply actions to the right column vertically aligned */
 .reply-input {
   flex: 1;
   border: 1px solid #ddd;
@@ -720,24 +814,37 @@ body.dark-mode .reply-path {
   border-color: #4caf50;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
-.reply-btn-group {
+
+/* The actions container is placed to the right of the textarea and stacks vertically */
+.reply-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
-  justify-content: flex-end;
+  margin-left: 12px;
+  align-self: flex-start; /* top-align with textarea */
+  justify-content: flex-start;
 }
+/* Ensure the actions column sits to the right when reply-form is row-based */
+.reply-form:not(.active) .reply-actions {
+  /* fallback; in most cases reply-form will be visible and we rely on the layout above */
+}
+
+/* Buttons in the vertical layout */
 .reply-submit,
 .reply-cancel {
   border: none;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 88px;
+  text-align: center;
 }
 .reply-submit {
   background: #4caf50;
   color: white;
+  align-self: stretch;
 }
 .reply-submit:hover {
   background: #388e3c;
@@ -745,9 +852,69 @@ body.dark-mode .reply-path {
 .reply-cancel {
   background: #f1f1f1;
   color: #666;
+  align-self: stretch;
 }
 .reply-cancel:hover {
   background: #e0e0e0;
+}
+
+/* When screen is narrow, keep buttons horizontal to save vertical space */
+@media (max-width: 500px) {
+  .reply-actions {
+    flex-direction: row;
+    margin-left: 0;
+    width: 100%;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .reply-submit,
+  .reply-cancel {
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+}
+
+/* Inline editor controls (Save / Cancel) styling */
+.edit-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.edit-save,
+.edit-cancel {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #222;
+}
+.edit-save {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+}
+.edit-save:hover {
+  background: var(--primary-hover);
+}
+.edit-cancel {
+  background: #f1f1f1;
+  color: #333;
+}
+.edit-cancel:hover {
+  background: #e0e0e0;
+}
+
+/* Dark mode adjustments for inline editor controls */
+body.dark-mode .edit-save {
+  background: #388e3c;
+  color: #fff;
+}
+body.dark-mode .edit-cancel {
+  background: #333;
+  color: #e0e0e0;
+  border-color: #444;
 }
 
 /* Main comment form */
@@ -796,6 +963,7 @@ body.dark-mode .reply-path {
   background: #388e3c;
 }
 
+/* reactions */
 .post-reactions {
   display: flex;
   align-items: center;
@@ -828,6 +996,7 @@ body.dark-mode .reply-path {
   font-weight: 500;
 }
 
+/* Empty + loader */
 .empty-comments {
   text-align: center;
   padding: 20px;
@@ -893,6 +1062,41 @@ body.dark-mode .reply-path {
   color: #999;
 }
 
+/* Accessible modal dark-mode improvements */
+.modal-content {
+  background: #fff;
+  color: #222;
+}
+body.dark-mode .modal-content {
+  background: #2a2a2a;
+  color: #e6e6e6;
+  border: 1px solid #444;
+}
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+  border-color: #444;
+}
+body.dark-mode .modal-title {
+  color: #e6e6e6;
+}
+body.dark-mode .modal-body {
+  color: #e0e0e0;
+}
+body.dark-mode .btn-secondary {
+  background: #6c757d;
+  color: #fff;
+  border-color: #5a6268;
+}
+body.dark-mode .btn-danger {
+  background: #d9534f;
+  color: #fff;
+  border-color: #c9302c;
+}
+body.dark-mode .btn-close {
+  filter: invert(1) brightness(1.2);
+}
+
+/* Responsive tweaks */
 @media (max-width: 900px) {
   .post-header {
     padding: 15px;
@@ -968,12 +1172,10 @@ body.dark-mode .reply-path {
   font-size: 14px;
   font-weight: 500;
 }
-
 .logout-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
 }
-
 .logout-btn i {
   font-size: 16px;
 }
@@ -993,7 +1195,6 @@ body.dark-mode .reply-path {
   align-items: center;
   animation: fadeIn 0.3s ease;
 }
-
 .logout-message-content {
   background: white;
   padding: 30px;
@@ -1004,24 +1205,20 @@ body.dark-mode .reply-path {
   width: 90%;
   animation: slideUp 0.4s ease;
 }
-
 body.dark-mode .logout-message-content {
   background: #2a2a2a;
   color: #e0e0e0;
 }
-
 .logout-message-content i {
   font-size: 60px;
   color: var(--primary-color);
   margin-bottom: 20px;
   display: block;
 }
-
 .logout-message-content p {
   margin-bottom: 10px;
   font-size: 16px;
 }
-
 .logout-message-content .redirect-text {
   font-size: 14px;
   color: var(--medium-text);
@@ -1044,4 +1241,86 @@ body.dark-mode .logout-message-content {
   .logout-btn {
     margin-bottom: 15px;
   }
+}
+
+/* Explicit dark-mode rules for load-more button and related */
+body.dark-mode #loadMoreBtn,
+body.dark-mode .load-more,
+body.dark-mode .load-more.btn {
+  background: #2a2a2a; /* dark background */
+  color: #e6e6e6; /* light text */
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+/* Hover / focus in dark mode for load-more */
+body.dark-mode #loadMoreBtn:hover,
+body.dark-mode .load-more:hover,
+body.dark-mode .load-more.btn:hover {
+  background: #2f2f2f;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* System preference fallback for dark mode */
+@media (prefers-color-scheme: dark) {
+  .load-more,
+  #loadMoreBtn {
+    background: #2a2a2a;
+    color: #e6e6e6;
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+  }
+  .load-more:hover,
+  #loadMoreBtn:hover {
+    background: #2f2f2f;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Accessibility: focus-visible styles for keyboard navigation */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 3px solid rgba(76, 175, 80, 0.25);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* More specific focus-visible for interactive elements */
+.sidebar-item:focus-visible,
+.menu-toggle:focus-visible,
+.theme-toggle:focus-visible,
+.sort-dropdown:focus-visible,
+#loadMoreBtn:focus-visible,
+.create-comment-btn:focus-visible,
+.reply-submit:focus-visible,
+.reply-cancel:focus-visible,
+.comment-actions button:focus-visible {
+  outline: 3px solid rgba(76, 175, 80, 0.2);
+  outline-offset: 2px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+  }
+}
+
+/* Ensure high-contrast text in dark mode where needed */
+body.dark-mode .post-title,
+body.dark-mode .comments-title,
+body.dark-mode .comment-author {
+  color: var(--primary-color);
+}
+
+/* Small housekeeping: ensure consistent box-sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
