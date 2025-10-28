@@ -29,12 +29,26 @@ const updateRoomLimiter = rateLimit({
   skip: (req) => !req.user,
 });
 
+// ===== NEW: Rate limiter for joining rooms =====
+const joinRoomLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // Max 20 join attempts per minute per user
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many join attempts. Please try again later.",
+  },
+  skip: (req) => !req.user,
+});
+
 // ===== SECURITY: Constants =====
 const MAX_ROOM_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_SUBJECT_LENGTH = 50;
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS = 3;
+const MAX_PARTICIPANTS = 100; // ===== NEW: Max participants per room =====
 const VALID_SUBJECTS = [
   "programming",
   "web",
@@ -281,6 +295,7 @@ router.get("/", async (req, res) => {
         creatorEmail: data.creatorEmail,
         privacy: data.privacy || "public",
         participants: data.participants || [],
+        participantCount: (data.participants || []).length, // ===== NEW: Include count =====
         createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
         sessionDate: data.sessionDate || null,
         sessionTime: data.sessionTime || null,
@@ -288,6 +303,7 @@ router.get("/", async (req, res) => {
       };
     });
 
+    console.log(`[study-groups] Fetched ${rooms.length} rooms`);
     res.json(rooms);
   } catch (error) {
     console.error("[study-groups] Error listing rooms:", error);
@@ -317,6 +333,7 @@ router.get("/:id", async (req, res) => {
       creatorEmail: data.creatorEmail,
       privacy: data.privacy || "public",
       participants: data.participants || [],
+      participantCount: (data.participants || []).length, // ===== NEW: Include count =====
       createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
       sessionDate: data.sessionDate || null,
       sessionTime: data.sessionTime || null,
@@ -353,9 +370,9 @@ router.put(
           roomId: id,
           creator: roomData.creator,
         });
-        return res
-          .status(403)
-          .json({ error: "Forbidden: Only creator can update room" });
+        return res.status(403).json({
+          error: "Forbidden: Only creator can update room",
+        });
       }
 
       // ===== SECURITY: Validate update input =====
@@ -422,6 +439,7 @@ router.put(
         creatorEmail: updatedData.creatorEmail,
         privacy: updatedData.privacy || "public",
         participants: updatedData.participants || [],
+        participantCount: (updatedData.participants || []).length, // ===== NEW =====
         createdAt: updatedData.createdAt
           ? updatedData.createdAt.toDate().toISOString()
           : "",
@@ -460,9 +478,9 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
         roomId: id,
         creator: roomData.creator,
       });
-      return res
-        .status(403)
-        .json({ error: "Forbidden: Only creator can delete room" });
+      return res.status(403).json({
+        error: "Forbidden: Only creator can delete room",
+      });
     }
 
     await db.collection("study-groups").doc(id).delete();
@@ -480,54 +498,82 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-groups/:id/join - Join room =====
-router.post("/:id/join", firebaseAuthMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const uid = req.user.uid;
-    const db = admin.firestore();
-    const doc = await db.collection("study-groups").doc(id).get();
+// ===== POST /api/study-groups/:id/join - Join room (NOW WITH RATE LIMITING) =====
+router.post(
+  "/:id/join",
+  firebaseAuthMiddleware,
+  joinRoomLimiter,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const uid = req.user.uid;
+      const db = admin.firestore();
+      const doc = await db.collection("study-groups").doc(id).get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Room not found" });
-    }
+      if (!doc.exists) {
+        logSecurityEvent("JOIN_ROOM_NOT_FOUND", uid, { roomId: id });
+        return res.status(404).json({ error: "Room not found" });
+      }
 
-    const roomData = doc.data();
-    const participants = roomData.participants || [];
+      const roomData = doc.data();
+      const participants = roomData.participants || [];
 
-    // ===== SECURITY: Check privacy =====
-    if (roomData.privacy === "private" && roomData.creator !== uid) {
-      logSecurityEvent("JOIN_PRIVATE_ROOM_DENIED", uid, {
-        roomId: id,
+      // ===== SECURITY: Check privacy =====
+      if (roomData.privacy === "private" && roomData.creator !== uid) {
+        logSecurityEvent("JOIN_PRIVATE_ROOM_DENIED", uid, {
+          roomId: id,
+        });
+        return res.status(403).json({
+          error: "This is a private room. Invitation required.",
+        });
+      }
+
+      // ===== NEW: Check if already member =====
+      if (participants.includes(uid)) {
+        return res.status(400).json({
+          error: "You are already a member of this room",
+        });
+      }
+
+      // ===== NEW: Check max participants limit =====
+      if (participants.length >= MAX_PARTICIPANTS) {
+        logSecurityEvent("JOIN_ROOM_FULL", uid, {
+          roomId: id,
+          participantCount: participants.length,
+        });
+        return res.status(403).json({
+          error: "This room has reached its maximum participant limit",
+        });
+      }
+
+      // Add to participants
+      participants.push(uid);
+      await db.collection("study-groups").doc(id).update({
+        participants,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      return res
-        .status(403)
-        .json({ error: "This is a private room. Invitation required." });
+
+      console.log(
+        `[study-groups] User ${uid} joined room ${id} (${participants.length} participants)`
+      );
+      logSecurityEvent("ROOM_JOINED", uid, {
+        roomId: id,
+        participantCount: participants.length,
+      });
+
+      res.json({
+        success: true,
+        message: "Joined room successfully",
+        participantCount: participants.length,
+      });
+    } catch (error) {
+      console.error("[study-groups] Error joining room:", error);
+      logSecurityEvent("ROOM_JOIN_ERROR", req.user?.uid, {
+        error: error.message,
+      });
+      res.status(500).json({ error: "Failed to join room" });
     }
-
-    // Check if already member
-    if (participants.includes(uid)) {
-      return res.status(400).json({ error: "Already a member of this room" });
-    }
-
-    // Add to participants
-    participants.push(uid);
-    await db.collection("study-groups").doc(id).update({
-      participants,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`[study-groups] User ${uid} joined room ${id}`);
-    logSecurityEvent("ROOM_JOINED", uid, { roomId: id });
-
-    res.json({ success: true, message: "Joined room successfully" });
-  } catch (error) {
-    console.error("[study-groups] Error joining room:", error);
-    logSecurityEvent("ROOM_JOIN_ERROR", req.user?.uid, {
-      error: error.message,
-    });
-    res.status(500).json({ error: "Failed to join room" });
   }
-});
+);
 
 module.exports = router;
