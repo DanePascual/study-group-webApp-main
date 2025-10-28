@@ -4,7 +4,7 @@
 import { showToast } from "./utils.js";
 import { CONFIG } from "./config.js";
 import { postJsonWithAuth } from "../apiClient.js";
-import { apiUrl } from "../../config/appConfig.js";
+import { apiUrl } from "../../../config/appConfig.js";
 
 export class VideoManager {
   constructor(userAuth, roomManager) {
