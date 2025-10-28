@@ -105,21 +105,14 @@ app.use("/", topicPostsRoutes);
 const commentsRoutes = require("./routes/comments");
 app.use("/api", commentsRoutes);
 
-// ===== NEW: Study Groups Routes (extracted to separate file) =====
+// ===== Study Groups Routes (extracted to separate file) =====
 const studyGroupsRoutes = require("./routes/study-groups");
 app.use("/api/study-groups", studyGroupsRoutes);
 
-// ===== JaaS Routes =====
-try {
-  const jaasRoutes = require("./routes/jaas");
-  app.use("/api/jaas", jaasRoutes);
-  console.log("Mounted /api/jaas route");
-} catch (e) {
-  console.warn(
-    "JaaS route not mounted (maybe backend/routes/jaas.js missing).",
-    e?.message || e
-  );
-}
+// ===== JaaS Routes (for Jitsi video conferencing) =====
+const jaasRoutes = require("./routes/jaas");
+app.use("/api/jaas", jaasRoutes);
+console.log("[server] Mounted /api/jaas route for Jitsi video conferencing");
 
 // ===== Health check =====
 app.get("/", (req, res) => res.send("Study Group Backend is running!"));
