@@ -3,7 +3,7 @@
 
 import { showToast } from "./utils.js";
 import { CONFIG } from "./config.js";
-import { fetchJsonWithAuth } from "../apiClient.js";
+import { postJsonWithAuth } from "../apiClient.js";
 import { apiUrl } from "../../config/appConfig.js";
 
 export class VideoManager {
@@ -121,7 +121,7 @@ export class VideoManager {
         return;
       }
 
-      // ===== Get JWT token from backend using authFetch =====
+      // ===== Get JWT token from backend =====
       let token;
       let domain;
       try {
@@ -132,12 +132,9 @@ export class VideoManager {
 
         console.log("[VideoManager] Requesting JWT token for room:", roomName);
 
-        // ✅ Use fetchJsonWithAuth to include authentication automatically
-        const data = await fetchJsonWithAuth("/api/jaas", {
-          method: "POST",
-          body: JSON.stringify({
-            roomName: roomName,
-          }),
+        // ✅ Use postJsonWithAuth - automatically includes auth and handles body
+        const data = await postJsonWithAuth("/api/jaas", {
+          roomName: roomName,
         });
 
         if (!data || !data.token) {
@@ -183,7 +180,7 @@ export class VideoManager {
 
       // ===== Initialize Jitsi Meet =====
       const options = {
-        roomName: roomName,
+        roomName: this.roomName,
         jwt: token,
         width: "100%",
         height: "100%",
