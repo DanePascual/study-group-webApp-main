@@ -42,6 +42,20 @@ const JAAS_CONFIG = {
   tokenExpiry: 3600,
 };
 
+// 🧠 EINSTEIN DEBUG: Log JAAS config at startup
+console.log("[jaas] 🔍 STARTUP CONFIG CHECK:");
+console.log("[jaas] App ID:", JAAS_CONFIG.appId);
+console.log(
+  "[jaas] Key ID (kid):",
+  JAAS_CONFIG.keyId ? "✅ LOADED" : "❌ NOT LOADED"
+);
+console.log("[jaas] Key ID VALUE:", JAAS_CONFIG.keyId);
+console.log(
+  "[jaas] Private Key:",
+  JAAS_CONFIG.privateKey ? "✅ LOADED" : "❌ NOT LOADED"
+);
+console.log("[jaas] Token Expiry:", JAAS_CONFIG.tokenExpiry);
+
 function logSecurityEvent(eventType, uid, details) {
   const timestamp = new Date().toISOString();
   console.warn(
@@ -120,7 +134,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       iat: now,
     };
 
-    console.log("[jaas] Generating JWT...");
+    console.log("[jaas] 🚀 Generating JWT...");
     console.log("[jaas] Original room name:", roomName);
     console.log("[jaas] Sanitized room name:", sanitizedRoomName);
     console.log("[jaas] App ID:", JAAS_CONFIG.appId);
