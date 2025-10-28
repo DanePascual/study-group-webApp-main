@@ -36,9 +36,7 @@ const JAAS_CONFIG = {
   appId:
     process.env.JAAS_APP_ID ||
     "vpaas-magic-cookie-d19e6743c9374edea0fea71dcfbc935f",
-  keyId:
-    process.env.JAAS_KEY_ID ||
-    "vpaas-magic-cookie-d19e6743c9374edea0fea71dcfbc935f/1e5526",
+  keyId: process.env.JAAS_KEY_ID, // ✅ NO FALLBACK - use env var only
   virtualHost: "my-video-app",
   privateKey: getJaasPrivateKey(),
   tokenExpiry: 3600,
@@ -133,6 +131,14 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       return res.status(500).json({
         error: "Failed to generate token",
         details: "Private key not configured",
+      });
+    }
+
+    if (!JAAS_CONFIG.keyId) {
+      console.error("[jaas] ❌ No Key ID available!");
+      return res.status(500).json({
+        error: "Failed to generate token",
+        details: "Key ID not configured in JAAS_KEY_ID environment variable",
       });
     }
 
