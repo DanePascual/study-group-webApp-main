@@ -1,60 +1,63 @@
 // Central configuration for StudyGroup frontend (ES module)
-// NOTE: Sensitive JaaS credentials (magic cookie / API secret) MUST NOT be exposed here.
-// The client will request short-lived JaaS room tokens from the backend instead.
-// Server must implement a protected endpoint (e.g. POST /api/jaas) that mints
-// ephemeral tokens or returns a signed room identifier.
-
-// This config is optimized for development/testing on localhost.
-// When moving to production (studygroup.app), the apiBase will be automatically adjusted.
+// Updated for microphone-only setup (no camera)
 
 export const CONFIG = {
-  // API base URLs - default to localhost for development
-  // These will be overridden by window.__CONFIG__ if set in the HTML script tag
-  //apiBase: "http://localhost:5000/api/study-groups",
-  //backendBase: "http://localhost:5000",
-  // ✅ PRODUCTION HEROKU URL
+  // API base URLs
   apiBase:
     "https://study-group-backend-d8fc93ae1b7a.herokuapp.com/api/study-groups",
   backendBase: "https://study-group-backend-d8fc93ae1b7a.herokuapp.com",
 
-  jitsiDomain: "8x8.vc", // JaaS / Jitsi domain (public)
+  jitsiDomain: "8x8.vc",
   debug: true,
   defaultAvatar: "U",
-  // used by utils/upload checks
   clientMaxFileSizeBytes: 10 * 1024 * 1024, // 10 MB
 
-  // Jitsi (JaaS) configuration on client:
-  // - the client MUST NOT contain the magic cookie / secret
-  // - the client will call CONFIG.jitsi.tokenEndpoint to obtain a short-lived token/room info
   jitsiConfig: {
     domain: "8x8.vc",
-    roomPrefix: "SampleApp", // client-side prefix only (non-secret)
-    // Endpoint on your server that returns the ephemeral data required to join a JaaS meeting.
-    // FIXED: Corrected endpoint path to match actual backend route
-    // Backend mounts jaas router at /api/jaas with POST / as the token endpoint
-    // So the full path is POST /api/jaas (not /api/jaas/token)
-    tokenEndpoint: "/api/jaas",
-    // Optional client-side options for embedding Jitsi (will be merged with server-provided options)
+    virtualHost: "my-video-app",
+    // ✅ CORRECTED: Full URL to backend endpoint
+    tokenEndpoint:
+      "https://study-group-backend-d8fc93ae1b7a.herokuapp.com/api/jaas",
     options: {
       width: "100%",
       height: "100%",
       configOverwrite: {
+        // ✅ UPDATED: Start with audio enabled (mic on) but video disabled (no camera)
         startWithAudioMuted: false,
-        startWithVideoMuted: false,
+        startWithVideoMuted: true, // Video starts muted since no camera
         disableDeepLinking: true,
         prejoinPageEnabled: false,
-      },
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: false,
-        DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-        TOOLBAR_BUTTONS: [
-          "microphone",
-          "camera",
+        enableInsecureRoomNameWarning: false,
+        toolbarButtons: [
+          "microphone", // ✅ Mic control (enabled)
+          "camera", // Camera button (will be disabled/grayed out)
           "desktop",
           "fullscreen",
           "fodeviceselection",
           "hangup",
           "profile",
+          "settings",
+          "raisehand",
+          "chat",
+        ],
+      },
+      interfaceConfigOverwrite: {
+        SHOW_JITSI_WATERMARK: false,
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+        DISABLE_VIDEO_BACKGROUND: true, // No video background since video is off
+        MOBILE_APP_PROMO: false,
+        DEFAULT_BACKGROUND: "#222222",
+        // ✅ Hide camera button from toolbar since no camera
+        TOOLBAR_BUTTONS: [
+          "microphone", // Keep mic
+          "desktop",
+          "fullscreen",
+          "fodeviceselection",
+          "hangup",
+          "profile",
+          "settings",
+          "raisehand",
+          "chat",
         ],
       },
     },
