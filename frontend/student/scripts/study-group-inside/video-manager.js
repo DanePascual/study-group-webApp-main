@@ -1,10 +1,9 @@
-// VideoManager (ES module) - Jitsi Meet Integration
-// Handles video call setup, participant management, and meeting controls
+// VideoManager (ES module) - ZegoCloud Integration
+// Handles video call setup using ZegoCloud UI Kit
 
 import { showToast } from "./utils.js";
 import { CONFIG } from "./config.js";
 import { postJsonWithAuth } from "../apiClient.js";
-import { apiUrl } from "../../../config/appConfig.js";
 
 export class VideoManager {
   constructor(userAuth, roomManager) {
@@ -15,68 +14,54 @@ export class VideoManager {
     this.isInCall = false;
     this.videoMaximized = false;
     this.videoMinimized = false;
-    this.jitsiApi = null;
-    this.jitsiContainer = null;
-
-    // Controls state
-    this.micEnabled = true;
-    this.cameraEnabled = true;
-    this.screenShareActive = false;
+    this.zegoInstance = null;
+    this.videoContainer = null;
 
     // Room data
-    this.roomId = null;
+    this.roomID = null;
     this.roomName = null;
   }
 
   init() {
     this.setupEventListeners();
-    this.loadJitsiScript();
+    this.loadZegoCloudScript();
     console.log("[VideoManager] Initialized");
   }
 
   setupEventListeners() {
     const videoCallBtn = document.getElementById("videoCallBtn");
-    const micBtn = document.getElementById("micBtn");
-    const cameraBtn = document.getElementById("cameraBtn");
-    const screenShareBtn = document.getElementById("screenShareBtn");
     const leaveCallBtn = document.getElementById("leaveCallBtn");
     const minimizeBtn = document.getElementById("minimizeBtn");
     const maximizeBtn = document.getElementById("maximizeBtn");
     const closeVideoBtn = document.getElementById("closeVideoBtn");
 
     videoCallBtn?.addEventListener("click", () => this.toggleVideoCall());
-    micBtn?.addEventListener("click", () => this.toggleMicrophone());
-    cameraBtn?.addEventListener("click", () => this.toggleCamera());
-    screenShareBtn?.addEventListener("click", () => this.toggleScreenShare());
     leaveCallBtn?.addEventListener("click", () => this.endVideoCall());
     minimizeBtn?.addEventListener("click", () => this.minimizeVideo());
     maximizeBtn?.addEventListener("click", () => this.maximizeVideo());
     closeVideoBtn?.addEventListener("click", () => this.closeVideo());
 
-    // Double-click header to fullscreen
-    const videoHeader = document.getElementById("videoHeader");
-    videoHeader?.addEventListener("dblclick", () => this.maximizeVideo());
-
     // Expose to window for debugging
     window.videoManager = this;
   }
 
-  loadJitsiScript() {
-    // Load Jitsi Meet library
-    if (document.getElementById("jitsi-script")) {
-      console.log("[VideoManager] Jitsi script already loaded");
+  loadZegoCloudScript() {
+    // Load ZegoCloud UI Kit library
+    if (document.getElementById("zegocloud-script")) {
+      console.log("[VideoManager] ZegoCloud script already loaded");
       return;
     }
 
     const script = document.createElement("script");
-    script.id = "jitsi-script";
-    script.src = "https://8x8.vc/external_api.js";
+    script.id = "zegocloud-script";
+    script.src =
+      "https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js";
     script.async = true;
     script.onload = () => {
-      console.log("[VideoManager] Jitsi Meet script loaded");
+      console.log("[VideoManager] ZegoCloud Meet script loaded");
     };
     script.onerror = () => {
-      console.error("[VideoManager] Failed to load Jitsi script");
+      console.error("[VideoManager] Failed to load ZegoCloud script");
       showToast(
         "Failed to load video library. Please refresh the page.",
         "error"
@@ -100,9 +85,9 @@ export class VideoManager {
         return;
       }
 
-      if (!window.JitsiMeetExternalAPI) {
+      if (!window.ZegoUIKitPrebuilt) {
         showToast(
-          "Jitsi library not loaded. Please wait a moment and try again.",
+          "ZegoCloud library not loaded. Please wait a moment and try again.",
           "error"
         );
         return;
@@ -111,64 +96,38 @@ export class VideoManager {
       showToast("Starting video call...", "info");
 
       // ===== Get room info =====
-      this.roomId =
+      this.roomID =
         this.roomManager.currentRoomData?._id ||
         this.roomManager.currentRoomData?.id;
       this.roomName = this.roomManager.currentRoomData?.name;
 
-      if (!this.roomId || !this.roomName) {
+      if (!this.roomID || !this.roomName) {
         showToast("Room information not available", "error");
         return;
       }
 
-      // ===== Get JWT token from backend =====
-      let token;
-      let domain;
-      let sanitizedRoomName; // ✅ Store sanitized room name from backend
+      // ===== Get token from backend =====
+      let tokenData;
       try {
-        const roomName =
-          this.roomManager.currentRoomData?.name ||
-          this.roomManager.currentRoomData?.title ||
-          "study-room";
-
-        console.log("[VideoManager] Requesting JWT token for room:", roomName);
-        console.log("[VideoManager] DEBUG: About to call postJsonWithAuth");
         console.log(
-          "[VideoManager] DEBUG: postJsonWithAuth function:",
-          typeof postJsonWithAuth
-        );
-        console.log(
-          "[VideoManager] DEBUG: Current user:",
-          this.userAuth.currentUser
+          "[VideoManager] Requesting ZegoCloud token for room:",
+          this.roomName
         );
 
-        // ✅ Use postJsonWithAuth - automatically includes auth and handles body
-        const data = await postJsonWithAuth("/api/jaas", {
-          roomName: roomName,
+        const data = await postJsonWithAuth("/api/zegocloud", {
+          roomID: this.roomID,
         });
 
-        console.log("[VideoManager] DEBUG: postJsonWithAuth response:", data);
+        console.log("[VideoManager] ZegoCloud token response:", data);
 
-        if (!data || !data.token) {
-          throw new Error(data?.error || "No token in response");
+        if (!data || !data.appID) {
+          throw new Error(data?.error || "No token data in response");
         }
 
-        token = data.token;
-        domain = data.domain || "8x8.vc";
-        sanitizedRoomName = data.room; // ✅ Get sanitized room name from backend
-
-        console.log("[VideoManager] JWT token obtained successfully");
-        console.log(
-          "[VideoManager] Sanitized room name from backend:",
-          sanitizedRoomName
-        );
+        tokenData = data;
+        console.log("[VideoManager] ZegoCloud token obtained successfully");
       } catch (err) {
-        console.error("[VideoManager] Failed to get JWT token:", err);
-        console.error("[VideoManager] Error details:", {
-          message: err.message,
-          status: err.status,
-          body: err.body,
-        });
+        console.error("[VideoManager] Failed to get ZegoCloud token:", err);
         showToast(`Failed to start video call: ${err.message}`, "error");
         return;
       }
@@ -200,113 +159,76 @@ export class VideoManager {
         placeholder.style.display = "none";
       }
 
-      // ===== Initialize Jitsi Meet =====
-      // ✅ CRITICAL FIX: Use sanitized room name from backend, not the original
-      const options = {
-        roomName: sanitizedRoomName, // ✅ Use SANITIZED room name from backend
-        jwt: token,
-        width: "100%",
-        height: "100%",
-        parentNode: videoGrid,
-        configOverwrite: {
-          startWithAudioMuted: false,
-          startWithVideoMuted: false,
-          disableDeepLinking: true,
-          prejoinPageEnabled: false,
-          enableInsecureRoomNameWarning: false,
-          toolbarButtons: [
-            "microphone",
-            "camera",
-            "desktop",
-            "fullscreen",
-            "fodeviceselection",
-            "hangup",
-            "profile",
-            "settings",
-            "raisehand",
-            "chat",
-            "participants-pane",
-          ],
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-          DEFAULT_BACKGROUND: "#222222",
-          MOBILE_APP_PROMO: false,
-        },
-        onload: () => {
-          console.log("[VideoManager] Jitsi iframe loaded");
-        },
-      };
-
+      // ===== Initialize ZegoCloud =====
       try {
         console.log(
-          "[VideoManager] Creating Jitsi instance with room:",
-          options.roomName
+          "[VideoManager] Creating ZegoCloud instance for room:",
+          this.roomID
         );
-        this.jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
 
-        // ===== Setup event listeners =====
-        this.jitsiApi.addEventListener("videoConferenceJoined", () => {
-          console.log("[VideoManager] Joined video conference");
-          this.isInCall = true;
-          this.updateVideoUI();
-          this.roomManager.updateParticipantCallStatus(
-            this.userAuth.currentUser.uid,
-            true
-          );
-          showToast("Connected to video call", "success");
-        });
-
-        this.jitsiApi.addEventListener("videoConferenceLeft", () => {
-          console.log("[VideoManager] Left video conference");
-          this.isInCall = false;
-          this.updateVideoUI();
-          this.roomManager.updateParticipantCallStatus(
-            this.userAuth.currentUser.uid,
-            false
-          );
-        });
-
-        this.jitsiApi.addEventListener("participantJoined", (participant) => {
-          console.log("[VideoManager] Participant joined:", participant.id);
-          this.roomManager.updateParticipantCallStatus(participant.id, true);
-        });
-
-        this.jitsiApi.addEventListener("participantLeft", (participant) => {
-          console.log("[VideoManager] Participant left:", participant.id);
-          this.roomManager.updateParticipantCallStatus(participant.id, false);
-        });
-
-        this.jitsiApi.addEventListener("audioMuted", () => {
-          this.micEnabled = false;
-          this.updateControlButtons();
-        });
-
-        this.jitsiApi.addEventListener("audioUnmuted", () => {
-          this.micEnabled = true;
-          this.updateControlButtons();
-        });
-
-        this.jitsiApi.addEventListener("videoMuted", () => {
-          this.cameraEnabled = false;
-          this.updateControlButtons();
-        });
-
-        this.jitsiApi.addEventListener("videoUnmuted", () => {
-          this.cameraEnabled = true;
-          this.updateControlButtons();
-        });
-
-        this.jitsiApi.addEventListener(
-          "screenSharingStatusChanged",
-          (screen) => {
-            this.screenShareActive = screen.on;
-            this.updateControlButtons();
-          }
+        // Generate kit token using ZegoCloud method
+        const kitToken = window.ZegoUIKitPrebuilt.generateKitTokenForTest(
+          tokenData.appID,
+          tokenData.serverSecret,
+          tokenData.roomID,
+          tokenData.userID,
+          tokenData.userName
         );
+
+        // Create ZegoCloud instance
+        this.zegoInstance = window.ZegoUIKitPrebuilt.create(kitToken);
+
+        // Join room with configuration
+        this.zegoInstance.joinRoom({
+          container: videoGrid,
+          sharedLinks: [
+            {
+              name: "Personal link",
+              url:
+                window.location.protocol +
+                "//" +
+                window.location.host +
+                window.location.pathname +
+                "?roomID=" +
+                tokenData.roomID,
+            },
+          ],
+          scenario: {
+            mode: window.ZegoUIKitPrebuilt.VideoConference,
+          },
+          turnOnMicrophoneWhenJoining: true,
+          turnOnCameraWhenJoining: false, // Microphone-only setup
+          showMyCameraToggleButton: true,
+          showMyMicrophoneToggleButton: true,
+          showAudioVideoSettingsButton: true,
+          showScreenSharingButton: true,
+          showTextChat: false, // Use your own chat
+          showUserList: true,
+          maxUsers: 100,
+          layout: "Auto",
+          showLayoutButton: true,
+          onJoinRoom: () => {
+            console.log("[VideoManager] Joined video conference");
+            this.isInCall = true;
+            this.updateVideoUI();
+            this.roomManager.updateParticipantCallStatus(
+              this.userAuth.currentUser.uid,
+              true
+            );
+            showToast("Connected to video call", "success");
+          },
+          onLeaveRoom: () => {
+            console.log("[VideoManager] Left video conference");
+            this.isInCall = false;
+            this.updateVideoUI();
+            this.roomManager.updateParticipantCallStatus(
+              this.userAuth.currentUser.uid,
+              false
+            );
+          },
+        });
       } catch (err) {
-        console.error("[VideoManager] Failed to initialize Jitsi:", err);
+        console.error("[VideoManager] Failed to initialize ZegoCloud:", err);
         showToast("Failed to start video conference", "error");
         return;
       }
@@ -322,9 +244,9 @@ export class VideoManager {
 
   endVideoCall() {
     try {
-      if (this.jitsiApi) {
-        this.jitsiApi.dispose();
-        this.jitsiApi = null;
+      if (this.zegoInstance) {
+        this.zegoInstance.destroy();
+        this.zegoInstance = null;
       }
 
       this.isInCall = false;
@@ -356,36 +278,6 @@ export class VideoManager {
     } catch (err) {
       console.error("[VideoManager] Error ending video call:", err);
       showToast("Error ending video call", "error");
-    }
-  }
-
-  toggleMicrophone() {
-    if (this.jitsiApi) {
-      try {
-        this.jitsiApi.executeCommand("toggleAudio");
-      } catch (err) {
-        console.error("[VideoManager] Error toggling mic:", err);
-      }
-    }
-  }
-
-  toggleCamera() {
-    if (this.jitsiApi) {
-      try {
-        this.jitsiApi.executeCommand("toggleVideo");
-      } catch (err) {
-        console.error("[VideoManager] Error toggling camera:", err);
-      }
-    }
-  }
-
-  toggleScreenShare() {
-    if (this.jitsiApi) {
-      try {
-        this.jitsiApi.executeCommand("toggleShareScreen");
-      } catch (err) {
-        console.error("[VideoManager] Error toggling screen share:", err);
-      }
     }
   }
 
@@ -423,24 +315,6 @@ export class VideoManager {
     } else {
       videoCallBtn?.classList.remove("active");
       if (callIndicator) callIndicator.style.display = "none";
-    }
-
-    this.updateControlButtons();
-  }
-
-  updateControlButtons() {
-    const micBtn = document.getElementById("micBtn");
-    const cameraBtn = document.getElementById("cameraBtn");
-    const screenShareBtn = document.getElementById("screenShareBtn");
-
-    if (micBtn) {
-      micBtn.classList.toggle("active", this.micEnabled);
-    }
-    if (cameraBtn) {
-      cameraBtn.classList.toggle("active", this.cameraEnabled);
-    }
-    if (screenShareBtn) {
-      screenShareBtn.classList.toggle("active", this.screenShareActive);
     }
   }
 }

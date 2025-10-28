@@ -114,10 +114,12 @@ app.use("/api/comments", commentsRoutes);
 const studyGroupsRoutes = require("./routes/study-groups");
 app.use("/api/study-groups", studyGroupsRoutes);
 
-// ===== JaaS Routes (Jitsi) =====
-const jaasRoutes = require("./routes/jaas");
-app.use("/api/jaas", jaasRoutes);
-console.log("[server] Mounted /api/jaas route for Jitsi video conferencing");
+// ===== ZegoCloud Routes =====
+const zegoCloudRoutes = require("./routes/zegocloud");
+app.use("/api/zegocloud", zegoCloudRoutes);
+console.log(
+  "[server] Mounted /api/zegocloud route for ZegoCloud video conferencing"
+);
 
 // ===== 404 Handler =====
 app.use((req, res) => {
