@@ -77,6 +77,15 @@ app.use(
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
+// ===== Static File Serving =====
+// ✅ FIXED: Serve from ../frontend (includes config, student/pages, student/scripts, etc.)
+app.use(express.static(path.join(__dirname, "../frontend")));
+
+// ===== Health check =====
+app.get("/healthz", (req, res) =>
+  res.json({ status: "ok", now: new Date().toISOString() })
+);
+
 // ===== Routes =====
 const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
@@ -100,10 +109,10 @@ const topicsRoutes = require("./routes/topics");
 app.use("/api/topics", topicsRoutes);
 
 const topicPostsRoutes = require("./routes/topicPosts");
-app.use("/", topicPostsRoutes);
+app.use("/api/topic-posts", topicPostsRoutes);
 
 const commentsRoutes = require("./routes/comments");
-app.use("/api", commentsRoutes);
+app.use("/api/comments", commentsRoutes);
 
 // ===== Study Groups Routes (extracted to separate file) =====
 const studyGroupsRoutes = require("./routes/study-groups");
@@ -114,12 +123,22 @@ const jaasRoutes = require("./routes/jaas");
 app.use("/api/jaas", jaasRoutes);
 console.log("[server] Mounted /api/jaas route for Jitsi video conferencing");
 
-// ===== Health check =====
-app.get("/", (req, res) => res.send("Study Group Backend is running!"));
+// ===== SPA Fallback (serves index.html for non-API and non-static routes) =====
+// This MUST come AFTER all API and static routes
+app.use((req, res, next) => {
+  // Only serve index.html for HTML requests, not API requests
+  if (req.accepts("html") && !req.path.startsWith("/api")) {
+    return res.sendFile(
+      path.join(__dirname, "../frontend/student/pages/dashboard.html")
+    );
+  }
+  next();
+});
 
-app.get("/healthz", (req, res) =>
-  res.json({ status: "ok", now: new Date().toISOString() })
-);
+// ===== 404 Handler =====
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
 // ===== Error handler =====
 app.use((err, req, res, next) => {
