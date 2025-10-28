@@ -6,8 +6,8 @@
 // - Safe DOM updates
 // - Security logging for suspicious activities
 
-import { auth } from "../config/firebase.js";
-import { apiUrl } from "../config/appConfig.js";
+import { auth } from "../../config/firebase.js";
+import { apiUrl } from "../../config/appConfig.js";
 import {
   onAuthStateChanged,
   sendPasswordResetEmail,

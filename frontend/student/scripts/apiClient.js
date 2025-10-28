@@ -15,8 +15,8 @@
 // import { fetchWithAuth, fetchJsonWithAuth, postJsonWithAuth, getIdToken, postFormWithAuth } from "./apiClient.js";
 // or (backwards compat) import { authFetch } from "./apiClient.js";
 
-import { auth } from "../config/firebase.js";
-import { apiUrl } from "../config/appConfig.js";
+import { auth } from "../../config/firebase.js";
+import { apiUrl } from "../../config/appConfig.js";
 
 /**
  * Wait until Firebase auth state resolves (currentUser may be null if signed out).

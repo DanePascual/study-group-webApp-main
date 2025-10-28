@@ -8,9 +8,9 @@
 // - Rate limit feedback to user
 // - Security logging
 
-import { auth } from "../config/firebase.js";
+import { auth } from "../../config/firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { apiUrl } from "../config/appConfig.js";
+import { apiUrl } from "../../config/appConfig.js";
 import { postFormWithAuth, fetchJsonWithAuth } from "./apiClient.js";
 
 const ALLOWED_MIME = new Set([

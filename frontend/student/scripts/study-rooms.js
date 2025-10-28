@@ -6,7 +6,7 @@
 // - Privacy & session scheduling support
 // - Security logging
 
-import { auth, db } from "../config/firebase.js";
+import { auth, db } from "../../config/firebase.js";
 import {
   doc,
   getDoc,
@@ -15,7 +15,7 @@ import {
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { apiUrl } from "../config/appConfig.js";
+import { apiUrl } from "../../config/appConfig.js";
 import { postJsonWithAuth, fetchJsonWithAuth } from "./apiClient.js";
 
 const STUDY_GROUPS_API = apiUrl("/api/study-groups");

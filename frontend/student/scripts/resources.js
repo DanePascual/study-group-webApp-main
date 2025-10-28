@@ -6,8 +6,8 @@
 //
 // Overwrite frontend/student/scripts/resources.js with this file and hard-reload the page.
 
-import { auth, db } from "../config/firebase.js";
-import { apiUrl } from "../config/appConfig.js";
+import { auth, db } from "../../config/firebase.js";
+import { apiUrl } from "../../config/appConfig.js";
 import fetchWithAuth, {
   fetchJsonWithAuth,
   getIdToken,
