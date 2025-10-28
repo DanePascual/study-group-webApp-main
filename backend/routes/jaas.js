@@ -54,6 +54,7 @@ console.log(
   "[jaas] Private Key:",
   JAAS_CONFIG.privateKey ? "✅ LOADED" : "❌ NOT LOADED"
 );
+console.log("[jaas] Virtual Host:", JAAS_CONFIG.virtualHost);
 console.log("[jaas] Token Expiry:", JAAS_CONFIG.tokenExpiry);
 
 function logSecurityEvent(eventType, uid, details) {
@@ -100,6 +101,9 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       });
     }
 
+    // 🧠 EINSTEIN FIX: Format room as virtualHost/roomName for 8x8.vc
+    const jitsiRoomName = `${JAAS_CONFIG.virtualHost}/${sanitizedRoomName}`;
+
     const now = Math.floor(Date.now() / 1000);
     const exp = now + JAAS_CONFIG.tokenExpiry;
 
@@ -108,7 +112,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       aud: "jitsi",
       iss: "chat",
       sub: JAAS_CONFIG.appId,
-      room: sanitizedRoomName, // ✅ Use SANITIZED room name
+      room: jitsiRoomName, // ✅ FIXED: Use formatted room name (virtualHost/roomName)
       context: {
         user: {
           id: uid,
@@ -137,7 +141,9 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     console.log("[jaas] 🚀 Generating JWT...");
     console.log("[jaas] Original room name:", roomName);
     console.log("[jaas] Sanitized room name:", sanitizedRoomName);
+    console.log("[jaas] Jitsi room name (virtualHost/room):", jitsiRoomName);
     console.log("[jaas] App ID:", JAAS_CONFIG.appId);
+    console.log("[jaas] Virtual Host:", JAAS_CONFIG.virtualHost);
     console.log("[jaas] Key ID (kid):", JAAS_CONFIG.keyId);
 
     if (!JAAS_CONFIG.privateKey) {
@@ -187,22 +193,22 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     }
 
     console.log(
-      `[jaas] ✅ Token generated for user ${uid} in room ${sanitizedRoomName}`
+      `[jaas] ✅ Token generated for user ${uid} in room ${jitsiRoomName}`
     );
     logSecurityEvent("JAAS_TOKEN_GENERATED", uid, {
-      roomName: sanitizedRoomName,
+      roomName: jitsiRoomName,
       expiresIn: JAAS_CONFIG.tokenExpiry,
     });
 
-    // ✅ Return SANITIZED room name so frontend uses the same one
+    // ✅ Return FORMATTED room name (virtualHost/roomName) so frontend uses the same one
     res.json({
       token: token,
-      room: sanitizedRoomName, // ✅ CRITICAL: Send sanitized room name
+      room: jitsiRoomName, // ✅ FIXED: Send formatted room name
       domain: "8x8.vc",
       virtualHost: JAAS_CONFIG.virtualHost,
       expiresIn: JAAS_CONFIG.tokenExpiry,
       jitsiDomain: "8x8.vc",
-      jitsiMeetUrl: `https://8x8.vc/${JAAS_CONFIG.virtualHost}/${sanitizedRoomName}`,
+      jitsiMeetUrl: `https://8x8.vc/${jitsiRoomName}`,
     });
   } catch (error) {
     console.error("[jaas] Unexpected error in token generation:", error);
