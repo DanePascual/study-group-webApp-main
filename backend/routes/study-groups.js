@@ -29,7 +29,6 @@ const updateRoomLimiter = rateLimit({
   skip: (req) => !req.user,
 });
 
-// ===== NEW: Rate limiter for joining rooms =====
 const joinRoomLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 20, // Max 20 join attempts per minute per user
@@ -48,7 +47,7 @@ const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_SUBJECT_LENGTH = 50;
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS = 3;
-const MAX_PARTICIPANTS = 100; // ===== NEW: Max participants per room =====
+const MAX_PARTICIPANTS = 100;
 const VALID_SUBJECTS = [
   "programming",
   "web",
@@ -113,9 +112,11 @@ function validateRoomInput(data) {
     }
   }
 
-  // Validate subject
-  if (!data.subject || !VALID_SUBJECTS.includes(data.subject)) {
-    errors.push(`Subject must be one of: ${VALID_SUBJECTS.join(", ")}`);
+  // Validate subject (optional for updates)
+  if (data.subject !== undefined && data.subject !== null) {
+    if (!VALID_SUBJECTS.includes(data.subject)) {
+      errors.push(`Subject must be one of: ${VALID_SUBJECTS.join(", ")}`);
+    }
   }
 
   // Validate tags (optional but if provided, validate)
@@ -295,7 +296,7 @@ router.get("/", async (req, res) => {
         creatorEmail: data.creatorEmail,
         privacy: data.privacy || "public",
         participants: data.participants || [],
-        participantCount: (data.participants || []).length, // ===== NEW: Include count =====
+        participantCount: (data.participants || []).length,
         createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
         sessionDate: data.sessionDate || null,
         sessionTime: data.sessionTime || null,
@@ -333,7 +334,7 @@ router.get("/:id", async (req, res) => {
       creatorEmail: data.creatorEmail,
       privacy: data.privacy || "public",
       participants: data.participants || [],
-      participantCount: (data.participants || []).length, // ===== NEW: Include count =====
+      participantCount: (data.participants || []).length,
       createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
       sessionDate: data.sessionDate || null,
       sessionTime: data.sessionTime || null,
@@ -439,7 +440,7 @@ router.put(
         creatorEmail: updatedData.creatorEmail,
         privacy: updatedData.privacy || "public",
         participants: updatedData.participants || [],
-        participantCount: (updatedData.participants || []).length, // ===== NEW =====
+        participantCount: (updatedData.participants || []).length,
         createdAt: updatedData.createdAt
           ? updatedData.createdAt.toDate().toISOString()
           : "",
@@ -498,7 +499,7 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-// ===== POST /api/study-groups/:id/join - Join room (NOW WITH RATE LIMITING) =====
+// ===== POST /api/study-groups/:id/join - Join room =====
 router.post(
   "/:id/join",
   firebaseAuthMiddleware,
@@ -528,14 +529,14 @@ router.post(
         });
       }
 
-      // ===== NEW: Check if already member =====
+      // ===== Check if already member =====
       if (participants.includes(uid)) {
         return res.status(400).json({
           error: "You are already a member of this room",
         });
       }
 
-      // ===== NEW: Check max participants limit =====
+      // ===== Check max participants limit =====
       if (participants.length >= MAX_PARTICIPANTS) {
         logSecurityEvent("JOIN_ROOM_FULL", uid, {
           roomId: id,
@@ -572,6 +573,88 @@ router.post(
         error: error.message,
       });
       res.status(500).json({ error: "Failed to join room" });
+    }
+  }
+);
+
+// ✅ NEW: DELETE /api/study-groups/:id/participants/:userId - Remove participant
+router.delete(
+  "/:id/participants/:userId",
+  firebaseAuthMiddleware,
+  async (req, res) => {
+    try {
+      const { id, userId } = req.params;
+      const uid = req.user.uid;
+      const db = admin.firestore();
+
+      // Decode userId if URL encoded
+      const decodedUserId = decodeURIComponent(userId);
+
+      const doc = await db.collection("study-groups").doc(id).get();
+
+      if (!doc.exists) {
+        logSecurityEvent("REMOVE_PARTICIPANT_ROOM_NOT_FOUND", uid, {
+          roomId: id,
+        });
+        return res.status(404).json({ error: "Room not found" });
+      }
+
+      const roomData = doc.data();
+
+      // ===== SECURITY: Only room creator can remove participants =====
+      if (roomData.creator !== uid && req.user.admin !== true) {
+        logSecurityEvent("UNAUTHORIZED_REMOVE_PARTICIPANT", uid, {
+          roomId: id,
+          targetUserId: decodedUserId,
+          creator: roomData.creator,
+        });
+        return res.status(403).json({
+          error: "Forbidden: Only room creator can remove participants",
+        });
+      }
+
+      const participants = roomData.participants || [];
+
+      // ===== Check if participant exists =====
+      if (!participants.includes(decodedUserId)) {
+        logSecurityEvent("REMOVE_PARTICIPANT_NOT_FOUND", uid, {
+          roomId: id,
+          targetUserId: decodedUserId,
+        });
+        return res.status(400).json({
+          error: "User is not a participant in this room",
+        });
+      }
+
+      // ===== Remove participant =====
+      const updatedParticipants = participants.filter(
+        (p) => p !== decodedUserId
+      );
+
+      await db.collection("study-groups").doc(id).update({
+        participants: updatedParticipants,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(
+        `[study-groups] User ${decodedUserId} removed from room ${id} by ${uid}`
+      );
+      logSecurityEvent("PARTICIPANT_REMOVED", uid, {
+        roomId: id,
+        removedUserId: decodedUserId,
+      });
+
+      res.json({
+        success: true,
+        message: "Participant removed successfully",
+        participantCount: updatedParticipants.length,
+      });
+    } catch (error) {
+      console.error("[study-groups] Error removing participant:", error);
+      logSecurityEvent("REMOVE_PARTICIPANT_ERROR", req.user?.uid, {
+        error: error.message,
+      });
+      res.status(500).json({ error: "Failed to remove participant" });
     }
   }
 );
