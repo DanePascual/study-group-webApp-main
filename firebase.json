@@ -11,7 +11,7 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "/student/pages/dashboard.html"
+        "destination": "/student/pages/login.html"
       }
     ],
     "headers": [
