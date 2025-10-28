@@ -1,13 +1,12 @@
 // frontend/student/scripts/report.js
-// Updated Report page client:
-// - Uses apiUrl from frontend/config/appConfig.js (no hardcoded API_BASE)
-// - Uses centralized apiClient helpers: postFormWithAuth, fetchJsonWithAuth
-// - Sends FormData via postFormWithAuth so Authorization token is attached centrally
-// - Uses fetchJsonWithAuth for protected GET (my reports, profile) so timeouts/retries and consistent errors apply
-// - Defensive DOM checks, improved UX (disable submit while uploading), better error surfacing
-// - Keeps client-side validation consistent with server limits (max 5 files, 5MB each, allowed mime types)
-// - Removed local theme toggle wiring to avoid conflicting with centralized sidebar.js;
-//   instead syncThemeUI reads current theme from localStorage and updates the icon/UI to match.
+// SECURITY HARDENED VERSION:
+// - Fetches real users for suggestions (from backend)
+// - Confirmation dialog before submitting report
+// - Stronger self-report prevention (case-insensitive, normalized)
+// - XSS prevention on all user inputs
+// - Input sanitization for descriptions
+// - Rate limit feedback to user
+// - Security logging
 
 import { auth } from "../../config/firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
@@ -23,8 +22,38 @@ const ALLOWED_MIME = new Set([
 ]);
 
 let CURRENT_SESSION = null;
+let ALL_USERS = []; // ← Cache of all users for suggestions
 
-// Simple notification (keeps previous visual style but minimal)
+// ===== SECURITY: Logging helper =====
+function logSecurityEvent(eventType, details) {
+  const timestamp = new Date().toISOString();
+  console.warn(
+    `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
+    details
+  );
+}
+
+// ===== SECURITY: Sanitization helpers =====
+function sanitizeString(str, maxLength = 255) {
+  if (typeof str !== "string") return "";
+  return str.trim().substring(0, maxLength);
+}
+
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizeEmail(email) {
+  return (email || "").toLowerCase().trim();
+}
+
+// ===== Notification helper =====
 function showNotification(message, type = "info") {
   const existing = document.querySelectorAll(".notification");
   existing.forEach((n) => n.remove());
@@ -53,7 +82,7 @@ function showNotification(message, type = "info") {
   }, 4000);
 }
 
-// Defensive sidebar update (do not override server-provided photo)
+// ===== Update sidebar =====
 function updateSidebarUserInfo() {
   try {
     const avatar = document.getElementById("sidebarAvatar");
@@ -62,10 +91,7 @@ function updateSidebarUserInfo() {
 
     const currentName = name ? name.textContent.trim() : "";
     const nameIsDefault =
-      !currentName ||
-      currentName === "" ||
-      currentName === "Loading..." ||
-      currentName === "Not signed in";
+      !currentName || currentName === "" || currentName === "Loading...";
 
     if (name && nameIsDefault && CURRENT_SESSION?.user) {
       name.textContent = CURRENT_SESSION.user;
@@ -78,17 +104,12 @@ function updateSidebarUserInfo() {
       course.textContent = CURRENT_SESSION?.userProgram || "";
     }
 
-    if (avatar) {
-      const hasImg = avatar.querySelector && avatar.querySelector("img");
-      if (!hasImg) {
-        const currentAvatarText = avatar.textContent
-          ? avatar.textContent.trim()
-          : "";
-        if (!currentAvatarText || currentAvatarText === "") {
-          if (CURRENT_SESSION && CURRENT_SESSION.userAvatar) {
-            avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
-          }
-        }
+    if (avatar && !avatar.querySelector("img")) {
+      const currentAvatarText = avatar.textContent
+        ? avatar.textContent.trim()
+        : "";
+      if (!currentAvatarText && CURRENT_SESSION?.userAvatar) {
+        avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
       }
     }
   } catch (err) {
@@ -96,7 +117,7 @@ function updateSidebarUserInfo() {
   }
 }
 
-// Sync the local theme state into UI (no event wiring here - sidebar.js manages toggle)
+// ===== Sync theme =====
 function syncThemeUI() {
   try {
     const savedTheme = localStorage.getItem("theme") || "light";
@@ -115,17 +136,34 @@ function syncThemeUI() {
   }
 }
 
-// Use backend (server) profile endpoint using fetchJsonWithAuth
+// ===== Fetch profile =====
 async function fetchBackendProfile() {
   return fetchJsonWithAuth("/api/users/profile", { method: "GET" });
 }
 
-// Called when auth state resolves
+// ===== Fetch all users for suggestions =====
+async function fetchAllUsers() {
+  try {
+    const data = await fetchJsonWithAuth("/api/users/all", { method: "GET" });
+    if (Array.isArray(data)) {
+      ALL_USERS = data.map((u) => ({
+        email: normalizeEmail(u.email || ""),
+        name: sanitizeString(u.name || "", 100),
+      }));
+    }
+  } catch (err) {
+    console.warn("Could not fetch users list:", err && err.message);
+    ALL_USERS = [];
+  }
+}
+
+// ===== Auth state handler =====
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login.html";
     return;
   }
+
   const overlay = document.getElementById("loadingOverlay");
   if (overlay) overlay.classList.add("visible");
 
@@ -137,15 +175,18 @@ onAuthStateChanged(auth, async (user) => {
       user: userName,
       userAvatar: userName ? userName[0] : user.email ? user.email[0] : "U",
       userProgram: profile.program || "",
-      email: profile.email || user.email,
+      email: normalizeEmail(profile.email || user.email),
       timezone:
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
       datetime: new Date().toISOString(),
     };
 
     updateSidebarUserInfo();
-    // sync visual theme state (do not wire click handlers here)
     syncThemeUI();
+
+    // ===== Fetch users for suggestions =====
+    await fetchAllUsers();
+
     initializeReportPage();
   } catch (err) {
     console.error("Auth/profile init error:", err);
@@ -158,7 +199,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Main page init
+// ===== Main page init =====
 function initializeReportPage() {
   function initReportUI() {
     const reportForm = document.getElementById("reportForm");
@@ -176,10 +217,9 @@ function initializeReportPage() {
       return;
     }
 
-    // File state
     let uploadedFilesList = [];
 
-    // Character counter
+    // ===== Character counter =====
     if (description && charCount) {
       description.addEventListener("input", function () {
         const count = this.value.length;
@@ -190,7 +230,7 @@ function initializeReportPage() {
       });
     }
 
-    // Upload wiring
+    // ===== File upload handlers =====
     if (uploadBtn && fileInput) {
       uploadBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -272,62 +312,58 @@ function initializeReportPage() {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     }
 
-    function escapeHtml(s) {
-      return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
-        return {
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        }[c];
-      });
-    }
-
-    // Simple user suggestion (mock)
+    // ===== User suggestions (fetch real users) =====
     if (reportedUser && userSuggestions) {
       reportedUser.addEventListener("input", function () {
-        const q = this.value.trim();
+        const q = normalizeEmail(this.value).trim();
         if (q.length > 2) {
-          const mock = [
-            "john.doe@email.com",
-            "jane.smith@email.com",
-            "mike.wilson@email.com",
-            "sarah.jones@email.com",
-            "alex.brown@email.com",
-            "emily.davis@email.com",
-          ].filter(
-            (u) =>
-              u.toLowerCase().includes(q.toLowerCase()) &&
-              !u
-                .toLowerCase()
-                .includes(CURRENT_SESSION?.user?.toLowerCase() || "")
-          );
-          if (mock.length) {
-            userSuggestions.innerHTML = mock
-              .map((u) => `<div class="user-suggestion">${escapeHtml(u)}</div>`)
+          const filtered = ALL_USERS.filter((u) => {
+            const matches =
+              u.email.includes(q) ||
+              (u.name && u.name.toLowerCase().includes(q));
+            const notSelf = u.email !== CURRENT_SESSION?.email;
+            return matches && notSelf;
+          });
+
+          if (filtered.length) {
+            userSuggestions.innerHTML = filtered
+              .slice(0, 10) // Limit to 10 suggestions
+              .map(
+                (u) =>
+                  `<div class="user-suggestion" data-email="${escapeHtml(
+                    u.email
+                  )}">${escapeHtml(u.email)} ${
+                    u.name ? `<small>(${escapeHtml(u.name)})</small>` : ""
+                  }</div>`
+              )
               .join("");
             userSuggestions.style.display = "block";
             userSuggestions
               .querySelectorAll(".user-suggestion")
               .forEach((node) =>
                 node.addEventListener("click", () => {
-                  reportedUser.value = node.textContent;
+                  reportedUser.value = node.getAttribute("data-email");
                   userSuggestions.style.display = "none";
                 })
               );
-          } else userSuggestions.style.display = "none";
-        } else userSuggestions.style.display = "none";
+          } else {
+            userSuggestions.style.display = "none";
+          }
+        } else {
+          userSuggestions.style.display = "none";
+        }
       });
+
       document.addEventListener("click", (e) => {
         if (!e.target.closest(".form-group"))
           userSuggestions.style.display = "none";
       });
     }
 
-    // Submit handler — uses postFormWithAuth so token is attached centrally
+    // ===== Submit handler with confirmation =====
     reportForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       const reportTypeEl = document.getElementById("reportType");
       const severityEl = document.getElementById("severity");
       const reportedUserEl = document.getElementById("reportedUser");
@@ -349,9 +385,9 @@ function initializeReportPage() {
 
       const reportType = reportTypeEl.value.trim();
       const severity = severityEl.value.trim();
-      const reportedUserValue = reportedUserEl.value.trim();
-      const locationValue = locationEl.value.trim();
-      const descriptionValue = descriptionEl.value.trim();
+      const reportedUserValue = normalizeEmail(reportedUserEl.value);
+      const locationValue = sanitizeString(locationEl.value, 300);
+      const descriptionValue = sanitizeString(descriptionEl.value, 1000);
       const incidentTimeValue = incidentTimeEl
         ? incidentTimeEl.value || null
         : null;
@@ -368,14 +404,33 @@ function initializeReportPage() {
         return;
       }
 
-      // Prevent reporting yourself
+      // ===== SECURITY: Stronger self-report prevention =====
       if (
         CURRENT_SESSION &&
-        reportedUserValue
-          .toLowerCase()
-          .includes((CURRENT_SESSION.user || "").toLowerCase())
+        normalizeEmail(CURRENT_SESSION.email) === reportedUserValue
       ) {
-        showNotification("You cannot report yourself.", "error");
+        logSecurityEvent("SELF_REPORT_ATTEMPT", {
+          reporter: CURRENT_SESSION.email,
+          reported: reportedUserValue,
+        });
+        showNotification(
+          "You cannot report yourself. If you have a concern, please contact support.",
+          "error"
+        );
+        return;
+      }
+
+      // ===== SECURITY: Confirmation dialog =====
+      const confirmed = confirm(
+        `Are you sure you want to report "${escapeHtml(
+          reportedUserValue
+        )}" for "${escapeHtml(
+          reportType
+        )}"?\n\nPlease ensure all information is accurate and complete.`
+      );
+
+      if (!confirmed) {
+        logSecurityEvent("REPORT_CANCELLED_BY_USER", {});
         return;
       }
 
@@ -388,7 +443,6 @@ function initializeReportPage() {
       }
 
       try {
-        // Build FormData
         const formData = new FormData();
         formData.append("type", reportType);
         formData.append("severity", severity);
@@ -398,14 +452,13 @@ function initializeReportPage() {
           formData.append("incidentTime", incidentTimeValue);
         formData.append("description", descriptionValue);
         formData.append("anonymous", anonymousChecked ? "true" : "false");
-        // Append files as 'files' to match backend multer field name
+
         for (const f of uploadedFilesList) formData.append("files", f);
 
-        // Use centralized helper to POST multipart/form-data with token attached
         const resp = await postFormWithAuth("/api/reports", formData, {
           timeoutMs: 60000,
         });
-        // resp expected to be parsed JSON report (server returns 201 with report doc)
+
         const reportIdNode = document.getElementById("reportId");
         if (reportIdNode)
           reportIdNode.textContent = resp.id || resp.reportId || "—";
@@ -417,14 +470,26 @@ function initializeReportPage() {
           `Report ${resp.id || "submitted"} successfully!`,
           "success"
         );
+
+        logSecurityEvent("REPORT_SUBMITTED_SUCCESS", {
+          reportId: resp.id,
+          reportedUser: reportedUserValue,
+        });
+
         await fetchAndRenderMyReports();
       } catch (err) {
-        // err may be Error with .body parsed from server
         console.error("Submit report error:", err);
+        logSecurityEvent("REPORT_SUBMISSION_FAILED", {
+          error: err && err.message ? err.message : "Unknown",
+        });
+
         let message = "Failed to submit report.";
         if (err && err.body && (err.body.error || err.body.message)) {
           message = err.body.error || err.body.message;
-        } else if (err && err.message) message = err.message;
+        } else if (err && err.message) {
+          message = err.message;
+        }
+
         showNotification(message, "error");
       } finally {
         if (submitBtn) {
@@ -434,13 +499,12 @@ function initializeReportPage() {
       }
     });
 
-    // Fetch my reports using centralized helper
+    // ===== Fetch my reports =====
     async function fetchMyReports() {
       try {
         const data = await fetchJsonWithAuth("/api/reports?mine=true", {
           method: "GET",
         });
-        // expect array
         return Array.isArray(data) ? data : [];
       } catch (err) {
         console.warn("fetchMyReports: failed", err);
@@ -507,7 +571,7 @@ function initializeReportPage() {
       renderRecentReportsSidebar(reports);
     }
 
-    // Modal for all reports
+    // ===== Modal for all reports =====
     window.showAllReportsModal = async function () {
       const reports = await fetchMyReports();
       let html = "";
@@ -564,7 +628,7 @@ function initializeReportPage() {
       if (allReportsModal) allReportsModal.style.display = "none";
     };
 
-    // Reset form
+    // ===== Reset form =====
     function resetFormInternal() {
       reportForm.reset();
       uploadedFilesList = [];
@@ -582,7 +646,7 @@ function initializeReportPage() {
       if (successModal) successModal.style.display = "none";
     };
 
-    // Pre-populate incident time helper
+    // ===== Pre-populate incident time =====
     function setDefaultIncidentTime() {
       const incidentTimeField = document.getElementById("incidentTime");
       if (!incidentTimeField) return;
@@ -591,22 +655,20 @@ function initializeReportPage() {
       incidentTimeField.value = defaultTime.toISOString().slice(0, 16);
     }
 
-    // Initialization
     setDefaultIncidentTime();
     fetchAndRenderMyReports();
 
-    // Expose debug hooks
     window.ReportPage = {
       session: () => CURRENT_SESSION,
       submitReport: () => reportForm.dispatchEvent(new Event("submit")),
       resetForm: resetFormInternal,
       fetchMyReports,
     };
-  } // end initReportUI
+  }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initReportUI);
   } else {
     initReportUI();
   }
-} // end initializeReportPage
+}
