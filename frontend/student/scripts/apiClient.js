@@ -1,7 +1,7 @@
 // frontend/student/scripts/apiClient.js
 // Lightweight fetch wrapper that attaches Firebase ID token and retries once on 401.
 // Production-ready improvements:
-// - Convenience helpers: fetchWithAuth, fetchJsonWithAuth, postJsonWithAuth
+// - Convenience helpers: fetchWithAuth, fetchJsonWithAuth, postJsonWithAuth, putJsonWithAuth
 // - Request timeout via AbortController (default 30s)
 // - Automatic retry on transient network failures with exponential backoff
 // - Proper header merging (case-insensitive handling)
@@ -12,7 +12,7 @@
 // - Exports authFetch and authFetchJson aliases so older modules that import those names keep working.
 //
 // Usage:
-// import { fetchWithAuth, fetchJsonWithAuth, postJsonWithAuth, getIdToken, postFormWithAuth } from "./apiClient.js";
+// import { fetchWithAuth, fetchJsonWithAuth, postJsonWithAuth, putJsonWithAuth, deleteWithAuth, getIdToken, postFormWithAuth } from "./apiClient.js";
 // or (backwards compat) import { authFetch } from "./apiClient.js";
 
 import { auth } from "../../config/firebase.js";
@@ -237,6 +237,19 @@ export async function fetchJsonWithAuth(urlOrPath, options = {}) {
 export async function postJsonWithAuth(urlOrPath, obj = {}, options = {}) {
   const opts = {
     method: "POST",
+    body: JSON.stringify(obj),
+    ...options,
+  };
+  return fetchJsonWithAuth(urlOrPath, opts);
+}
+
+/**
+ * Convenience: PUT JSON and parse JSON response.
+ * ✅ ADDED: New export for PUT requests (used by dashboard todos)
+ */
+export async function putJsonWithAuth(urlOrPath, obj = {}, options = {}) {
+  const opts = {
+    method: "PUT",
     body: JSON.stringify(obj),
     ...options,
   };
