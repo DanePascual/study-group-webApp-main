@@ -23,15 +23,21 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
 });
 
 // POST a new todo
+// ✅ FIXED: Convert empty string reminder to null
 router.post("/", firebaseAuthMiddleware, async (req, res) => {
   const uid = req.user.uid;
-  const {
+  let {
     text,
     completed = false,
-    reminder = "",
+    reminder = null, // ✅ CHANGED: Default to null instead of ""
     created = new Date().toISOString(),
     priority = "medium",
   } = req.body;
+
+  // ✅ NEW: Convert empty string to null
+  if (reminder === "") {
+    reminder = null;
+  }
 
   try {
     const todoData = { uid, text, completed, reminder, created, priority };
@@ -44,6 +50,7 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
 });
 
 // PUT update a todo by ID (only if it belongs to the user)
+// ✅ FIXED: Convert empty string reminder to null
 router.put("/:id", firebaseAuthMiddleware, async (req, res) => {
   const uid = req.user.uid;
   const todoId = req.params.id;
@@ -53,8 +60,15 @@ router.put("/:id", firebaseAuthMiddleware, async (req, res) => {
     if (!doc.exists || doc.data().uid !== uid) {
       return res.status(403).json({ error: "Forbidden" });
     }
-    await docRef.update(req.body);
-    res.json({ id: todoId, ...req.body });
+
+    // ✅ NEW: Convert empty string reminder to null
+    let updateData = { ...req.body };
+    if (updateData.reminder === "") {
+      updateData.reminder = null;
+    }
+
+    await docRef.update(updateData);
+    res.json({ id: todoId, ...updateData });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
