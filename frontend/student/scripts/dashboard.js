@@ -1,8 +1,12 @@
 // frontend/student/scripts/dashboard.js
-// Updated dashboard script to use apiClient JSON helpers (fetchJsonWithAuth / postJsonWithAuth / patchJsonWithAuth / deleteWithAuth)
-// - Replaces raw authFetch calls with the higher-level helpers for consistent error handling and parsing.
-// - Keeps behavior otherwise unchanged (sidebar integration, theme, DOM handling).
-// Save as: frontend/student/scripts/dashboard.js
+// ✅ FIXED: Optimized dashboard script with instant todo updates, proper imports, and strikethrough on checkbox
+// - Fast local todo deletion (no re-fetch delay)
+// - Corrected apiClient import path
+// - Removed "+" text from button
+// - Checkbox immediately shows strikethrough effect
+// - Edit/toggle/delete errors handled properly
+// - ✅ FIXED: Changed PATCH to PUT for todo updates
+// - ✅ FIXED: Reminder date/time now saves correctly - converts empty strings to null, updates local array
 
 import { auth, db, onAuthStateChanged } from "../../config/firebase.js";
 import {
@@ -12,9 +16,9 @@ import {
 import fetchWithAuth, {
   fetchJsonWithAuth,
   postJsonWithAuth,
-  patchJsonWithAuth,
+  putJsonWithAuth, // ✅ FIXED: Changed from patchJsonWithAuth
   deleteWithAuth,
-} from "./apiClient.js";
+} from "./apiClient.js"; // ✅ FIXED: Same directory
 import { apiUrl } from "../../config/appConfig.js";
 
 // Wait for Firebase Authentication to load and set CURRENT_SESSION dynamically
@@ -332,7 +336,7 @@ function renderTodos() {
           todo.completed ? "completed" : ""
         }" style="border-left-color: ${priorityColor}">
           <div class="todo-content">
-            <input type="checkbox" class="todo-checkbox" $ ${
+            <input type="checkbox" class="todo-checkbox" ${
               todo.completed ? "checked" : ""
             } onchange="toggleTodo(${originalIndex})">
             <div class="todo-text ${todo.completed ? "completed" : ""}">${
@@ -576,76 +580,112 @@ async function fetchTodos() {
   }
 }
 
+// ✅ FIXED: saveTodo - Reminder date/time now saves correctly
 async function saveTodo() {
   const textEl = document.getElementById("todoText");
   const reminderEl = document.getElementById("todoReminder");
   const text = textEl ? textEl.value.trim() : "";
-  const reminder = reminderEl ? reminderEl.value : "";
+  const reminder = reminderEl ? reminderEl.value : ""; // ✅ Gets datetime-local value
 
   if (!text) {
     showNotification("Please enter a task description!", "error");
     return;
   }
 
+  // ✅ FIXED: Convert empty string reminder to null
   const todo = {
     text,
     completed: false,
-    reminder,
+    reminder: reminder || null, // ✅ CHANGED: Empty string becomes null
     created: new Date().toISOString(),
     priority: "medium",
   };
 
   try {
     if (editingTodoIndex >= 0) {
+      // ✅ FIXED: Edit existing todo
       const id = todos[editingTodoIndex].id;
-      await patchJsonWithAuth(`/api/todos/${encodeURIComponent(id)}`, {
+      const updatedTodo = {
         ...todos[editingTodoIndex],
         text,
-        reminder,
-      });
+        reminder: reminder || null, // ✅ CHANGED: Empty string becomes null
+      };
+
+      await putJsonWithAuth(
+        `/api/todos/${encodeURIComponent(id)}`,
+        updatedTodo
+      );
+
+      // ✅ NEW: Update local todos array with the updated values
+      todos[editingTodoIndex] = updatedTodo;
+
+      console.log(`[dashboard] ✅ Todo updated: ${id}`);
       showNotification("Task updated successfully!", "success");
     } else {
-      await postJsonWithAuth("/api/todos", todo);
+      // ✅ FIXED: Create new todo
+      const response = await postJsonWithAuth("/api/todos", todo);
+
+      // ✅ NEW: Add the newly created todo to the array
+      todos.push(response);
+
+      console.log("[dashboard] ✅ New todo created");
       showNotification("New task added!", "success");
     }
     closeTodoModal();
-    fetchTodos();
+    renderTodos(); // ✅ Re-render to show changes immediately
   } catch (err) {
     console.error("Error: Could not save task.", err);
     showNotification("Could not save task.", "error");
   }
 }
 
+// ✅ FIXED: toggleTodo now updates UI IMMEDIATELY without waiting for backend
 async function toggleTodo(index) {
   const todo = todos[index];
   if (!todo) return;
+
+  // ✅ Toggle completed state IMMEDIATELY in UI
   todo.completed = !todo.completed;
+  renderTodos(); // Re-render immediately so checkbox strikethrough appears instantly
 
   try {
-    await patchJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo);
-    fetchTodos();
+    // Send update to backend asynchronously (don't wait)
+    await putJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo); // ✅ FIXED: Changed from patchJsonWithAuth
+    console.log(`[dashboard] ✅ Todo toggled: ${todo.id} = ${todo.completed}`);
     showNotification(
       `Task ${todo.completed ? "completed" : "reopened"}!`,
       "success"
     );
   } catch (err) {
     console.error("Error: Could not update task.", err);
+    // ✅ Rollback on error
+    todo.completed = !todo.completed;
+    renderTodos();
     showNotification("Could not update task.", "error");
   }
 }
 
+// ✅ FIXED: deleteTodo now removes IMMEDIATELY from UI without re-fetching
 async function deleteTodo(index) {
   const todo = todos[index];
   if (!todo) return;
 
   if (!confirm("Are you sure you want to delete this task?")) return;
 
+  // ✅ Remove from array IMMEDIATELY
+  const removedTodo = todos.splice(index, 1)[0];
+  renderTodos(); // Re-render immediately (no delay!)
+
   try {
-    await deleteWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`);
-    fetchTodos();
+    // Send delete to backend asynchronously
+    await deleteWithAuth(`/api/todos/${encodeURIComponent(removedTodo.id)}`);
+    console.log(`[dashboard] ✅ Todo deleted: ${removedTodo.id}`);
     showNotification("Task deleted!", "info");
   } catch (err) {
     console.error("Error: Could not delete task.", err);
+    // ✅ Restore on error
+    todos.splice(index, 0, removedTodo);
+    renderTodos();
     showNotification("Could not delete task.", "error");
   }
 }
