@@ -5,14 +5,52 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 
-// Configure your mailer (replace with your SMTP credentials or use Gmail App Password)
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER, // replace with your email
-    pass: process.env.GMAIL_PASS, // replace with your Gmail App Password
-  },
-});
+// ===== NODEMAILER CONFIGURATION =====
+// ✅ FIXED: Better error handling and validation
+let transporter;
+
+function initializeMailer() {
+  try {
+    // Validate environment variables
+    if (!process.env.GMAIL_USER) {
+      console.error("[auth] ❌ CRITICAL: GMAIL_USER not set in .env file!");
+      return false;
+    }
+
+    if (!process.env.GMAIL_PASS) {
+      console.error("[auth] ❌ CRITICAL: GMAIL_PASS not set in .env file!");
+      return false;
+    }
+
+    // Remove spaces from Gmail App Password (in case they were included)
+    const cleanPassword = process.env.GMAIL_PASS.replace(/\s+/g, "");
+
+    transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER.trim(),
+        pass: cleanPassword, // Gmail App Password (16 chars without spaces)
+      },
+      // ✅ NEW: Add connection pool for better reliability
+      pool: {
+        maxConnections: 5,
+        maxMessages: 100,
+        rateDelta: 4000,
+        rateLimit: 5,
+      },
+    });
+
+    console.log("[auth] ✅ Nodemailer initialized successfully");
+    console.log(`[auth] ✅ Using email: ${process.env.GMAIL_USER}`);
+    return true;
+  } catch (err) {
+    console.error("[auth] ❌ Failed to initialize nodemailer:", err.message);
+    return false;
+  }
+}
+
+// Initialize on startup
+const mailerReady = initializeMailer();
 
 // ===== SECURITY: Password validation constants =====
 const PASSWORD_MIN_LENGTH = 8;
@@ -34,6 +72,8 @@ const verifyOtpLimiter = rateLimit({
   message: {
     error: "Too many OTP verification attempts. Try again in 15 minutes.",
   },
+  skip: (req) => false,
+  keyGenerator: (req) => req.body?.email || req.ip,
 });
 
 const signupLimiter = rateLimit({
@@ -42,14 +82,18 @@ const signupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many signup attempts. Please try again later." },
+  skip: (req) => false,
+  keyGenerator: (req) => req.body?.email || req.ip,
 });
 
 const requestOtpLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 3, // 3 OTP requests per minute per IP
+  max: 3, // 3 OTP requests per minute per IP/email
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many OTP requests. Please try again later." },
+  skip: (req) => false,
+  keyGenerator: (req) => req.body?.email || req.ip,
 });
 
 // ===== SECURITY: Logging helper =====
@@ -114,14 +158,19 @@ function hashOTP(otp) {
 
 // ===== Utility: Rate limit OTP requests per email (max 1 per 60 seconds) =====
 async function canRequestOTP(email) {
-  const doc = await admin
-    .firestore()
-    .collection("otpRateLimits")
-    .doc(email)
-    .get();
-  if (!doc.exists) return true;
-  const { lastRequested } = doc.data();
-  return Date.now() - lastRequested > 60 * 1000; // 60 seconds
+  try {
+    const doc = await admin
+      .firestore()
+      .collection("otpRateLimits")
+      .doc(email)
+      .get();
+    if (!doc.exists) return true;
+    const { lastRequested } = doc.data();
+    return Date.now() - lastRequested > 60 * 1000; // 60 seconds
+  } catch (err) {
+    console.error("[auth] Error checking OTP rate limit:", err);
+    return true; // Allow on error
+  }
 }
 
 // ===== Utility: Sanitize input =====
@@ -130,21 +179,75 @@ function sanitizeString(str, maxLength = 255) {
   return str.trim().substring(0, maxLength);
 }
 
-// ===== 1. Request OTP endpoint (with rate limiting and hashed OTP) =====
+// ===== TEST ENDPOINT: Check email configuration (for debugging) =====
+router.get("/test-email", async (req, res) => {
+  if (!transporter || !mailerReady) {
+    return res.status(500).json({
+      error: "Email service not configured",
+      details: "Check GMAIL_USER and GMAIL_PASS in .env file",
+    });
+  }
+
+  try {
+    const result = await transporter.sendMail({
+      from: `"StudyGroup Test" <${process.env.GMAIL_USER}>`,
+      to: "dcpascual@paterostechnologicalcollege.edu.ph",
+      subject: "Test Email from StudyGroup Backend",
+      text: "This is a test email to verify nodemailer is working.",
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h1>Test Email</h1>
+          <p>If you see this, email service is working!</p>
+          <p>Timestamp: ${new Date().toISOString()}</p>
+        </div>
+      `,
+    });
+
+    console.log("[auth] ✅ Test email sent successfully:", result.messageId);
+    res.json({
+      success: true,
+      messageId: result.messageId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[auth] ❌ Test email failed:", err.message);
+    logSecurityEvent("TEST_EMAIL_FAILED", { error: err.message });
+    res.status(500).json({
+      error: "Failed to send test email",
+      details: err.message,
+    });
+  }
+});
+
+// ===== 1. Request OTP endpoint =====
 router.post("/request-otp", requestOtpLimiter, async (req, res) => {
   const { email } = req.body;
 
+  console.log(`[auth] Received OTP request for email: ${email}`);
+
   // ===== SECURITY: Validate email format =====
   if (!email || !/^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/.test(email)) {
+    console.warn(`[auth] Invalid email format: ${email}`);
     logSecurityEvent("REQUEST_OTP_INVALID_EMAIL", { email });
     return res.status(400).json({ error: "Invalid email format." });
   }
 
+  // ===== SECURITY: Check if nodemailer is configured =====
+  if (!transporter || !mailerReady) {
+    console.error("[auth] ❌ Nodemailer not configured!");
+    logSecurityEvent("REQUEST_OTP_MAILER_NOT_CONFIGURED", { email });
+    return res.status(500).json({
+      error: "Email service is not configured. Contact administrator.",
+    });
+  }
+
   // ===== SECURITY: Rate limit OTP requests per email =====
   if (!(await canRequestOTP(email))) {
+    console.warn(`[auth] Rate limit exceeded for email: ${email}`);
     logSecurityEvent("REQUEST_OTP_RATE_LIMIT", { email });
     return res.status(429).json({
-      error: "OTP recently sent. Please wait before requesting again.",
+      error:
+        "OTP recently sent. Please wait 60 seconds before requesting again.",
     });
   }
 
@@ -153,41 +256,122 @@ router.post("/request-otp", requestOtpLimiter, async (req, res) => {
   const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
 
   try {
+    console.log(`[auth] Generated OTP for ${email}: ${otp}`);
+
     // Store hashed OTP in Firestore
     await admin.firestore().collection("pendingOtps").doc(email).set({
       otp: hashedOtp,
       expiresAt,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    console.log(`[auth] ✅ Stored OTP in Firestore for ${email}`);
 
     // Update rate limit info
     await admin.firestore().collection("otpRateLimits").doc(email).set({
       lastRequested: Date.now(),
     });
+    console.log(`[auth] ✅ Updated OTP rate limit for ${email}`);
 
-    // Send OTP via email
-    await transporter.sendMail({
-      from: '"StudyGroup" <mailerstudygroup@gmail.com>',
-      to: email,
-      subject: "Your StudyGroup OTP Code",
-      text: `Your verification code is: ${otp}\n\nThis code expires in 5 minutes.`,
-      html: `<b>Your verification code is:</b> <h2>${otp}</h2><p>This code expires in 5 minutes.</p>`,
-    });
+    // ===== SEND EMAIL =====
+    console.log(`[auth] Attempting to send email to ${email}...`);
 
-    console.log(`[auth] OTP sent to ${email}`);
-    res.json({ message: "OTP sent to email." });
+    try {
+      const mailOptions = {
+        from: `"StudyGroup" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: "Your StudyGroup OTP Code",
+        text: `Your verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request this code, please ignore this email.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+            <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; text-align: center; margin-bottom: 30px;">StudyGroup Email Verification</h2>
+              
+              <p style="color: #666; text-align: center; margin-bottom: 20px;">Your verification code is:</p>
+              
+              <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4CAF50; font-size: 48px; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
+              </div>
+              
+              <p style="color: #666; text-align: center; margin-bottom: 20px;">
+                This code expires in <strong>5 minutes</strong>.
+              </p>
+              
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <p style="color: #856404; margin: 0; font-size: 14px;">
+                  <strong>⚠️ Important:</strong> If you did not request this code, please ignore this email. Do not share this code with anyone.
+                </p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              
+              <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+                © ${new Date().getFullYear()} StudyGroup. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `,
+      };
+
+      const result = await transporter.sendMail(mailOptions);
+
+      console.log(
+        `[auth] ✅ Email sent successfully to ${email}. Message ID: ${result.messageId}`
+      );
+      logSecurityEvent("REQUEST_OTP_SUCCESS", { email });
+
+      res.json({
+        message: "OTP sent to email.",
+        expiresIn: "5 minutes",
+      });
+    } catch (emailErr) {
+      console.error(
+        `[auth] ❌ Email delivery failed for ${email}:`,
+        emailErr.message
+      );
+      logSecurityEvent("REQUEST_OTP_EMAIL_FAILED", {
+        email,
+        error: emailErr.message,
+        errorCode: emailErr.code,
+      });
+
+      // Return specific error message based on error type
+      if (emailErr.message.includes("Invalid login")) {
+        return res.status(500).json({
+          error:
+            "Email authentication failed. Check GMAIL_USER and GMAIL_PASS configuration.",
+        });
+      } else if (
+        emailErr.message.includes("No response") ||
+        emailErr.message.includes("timeout")
+      ) {
+        return res.status(503).json({
+          error: "Email service timeout. Please try again later.",
+        });
+      } else if (emailErr.message.includes("ECONNREFUSED")) {
+        return res.status(503).json({
+          error: "Cannot connect to email service. Try again later.",
+        });
+      }
+
+      return res.status(500).json({
+        error: "Failed to send email. Please try again later.",
+      });
+    }
   } catch (err) {
-    console.error("[auth] Failed to send OTP email:", err);
-    logSecurityEvent("REQUEST_OTP_EMAIL_FAILED", { email, error: err.message });
-    res.status(500).json({ error: "Failed to send email." });
+    console.error("[auth] Error in request-otp:", err.message);
+    logSecurityEvent("REQUEST_OTP_ERROR", { email, error: err.message });
+    res.status(500).json({ error: "Server error. Please try again later." });
   }
 });
 
-// ===== 2. Verify OTP endpoint (with hashed compare and rate limiting) =====
+// ===== 2. Verify OTP endpoint =====
 router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
   const { email, otp } = req.body;
 
+  console.log(`[auth] Received OTP verification request for email: ${email}`);
+
   if (!email || !otp) {
+    console.warn("[auth] Missing email or OTP in verification request");
     logSecurityEvent("VERIFY_OTP_MISSING_PARAMS", {
       email,
       otp: otp ? "***" : "missing",
@@ -203,6 +387,7 @@ router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
       .get();
 
     if (!doc.exists) {
+      console.warn(`[auth] No pending OTP found for ${email}`);
       logSecurityEvent("VERIFY_OTP_NOT_FOUND", { email });
       return res
         .status(400)
@@ -213,11 +398,13 @@ router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
 
     // ===== SECURITY: Constant-time comparison to prevent timing attacks =====
     if (hashOTP(otp) !== data.otp) {
+      console.warn(`[auth] Invalid OTP provided for ${email}`);
       logSecurityEvent("VERIFY_OTP_INVALID", { email });
       return res.status(400).json({ error: "Invalid OTP." });
     }
 
     if (Date.now() > data.expiresAt) {
+      console.warn(`[auth] OTP expired for ${email}`);
       logSecurityEvent("VERIFY_OTP_EXPIRED", { email });
       await admin.firestore().collection("pendingOtps").doc(email).delete();
       return res
@@ -229,10 +416,12 @@ router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
     await admin.firestore().collection("pendingOtps").doc(email).delete();
     await admin.firestore().collection("verifiedOtps").doc(email).set({
       verified: true,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`[auth] OTP verified for ${email}`);
+    console.log(`[auth] ✅ OTP verified successfully for ${email}`);
+    logSecurityEvent("VERIFY_OTP_SUCCESS", { email });
+
     res.json({ message: "OTP verified. You may now sign up." });
   } catch (error) {
     console.error("[auth] OTP verification error:", error);
@@ -241,10 +430,12 @@ router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
   }
 });
 
-// ===== 3. Updated Signup endpoint: Validate password strength =====
+// ===== 3. Signup endpoint =====
 router.post("/signup", signupLimiter, async (req, res) => {
   const { firstName, lastName, email, studentId, course, yearLevel, password } =
     req.body;
+
+  console.log(`[auth] Received signup request for email: ${email}`);
 
   // ===== SECURITY: Sanitize inputs =====
   const sanitizedFirstName = sanitizeString(firstName, 100);
@@ -254,6 +445,7 @@ router.post("/signup", signupLimiter, async (req, res) => {
 
   // ===== SECURITY: Validate institutional email =====
   if (!/^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/.test(email)) {
+    console.warn(`[auth] Invalid institutional email: ${email}`);
     logSecurityEvent("SIGNUP_INVALID_EMAIL", { email });
     return res.status(400).json({
       error:
@@ -263,6 +455,7 @@ router.post("/signup", signupLimiter, async (req, res) => {
 
   // ===== SECURITY: Validate Student ID format =====
   if (!/^\d{4}-\d{4}$/.test(studentId)) {
+    console.warn(`[auth] Invalid student ID format: ${studentId}`);
     logSecurityEvent("SIGNUP_INVALID_STUDENT_ID", { studentId });
     return res.status(400).json({
       error: "Student ID must be in format YYYY-NNNN (e.g., 2024-1234).",
@@ -272,6 +465,7 @@ router.post("/signup", signupLimiter, async (req, res) => {
   // ===== SECURITY: Validate password strength =====
   const passwordValidation = validatePassword(password);
   if (!passwordValidation.valid) {
+    console.warn(`[auth] Weak password for ${email}`);
     logSecurityEvent("SIGNUP_WEAK_PASSWORD", { email });
     return res.status(400).json({
       error: "Password does not meet requirements:",
@@ -287,6 +481,7 @@ router.post("/signup", signupLimiter, async (req, res) => {
       .doc(email)
       .get();
     if (!otpDoc.exists) {
+      console.warn(`[auth] Email not verified via OTP: ${email}`);
       logSecurityEvent("SIGNUP_OTP_NOT_VERIFIED", { email });
       return res
         .status(400)
@@ -294,11 +489,16 @@ router.post("/signup", signupLimiter, async (req, res) => {
     }
 
     // ===== Create user in Firebase Auth =====
+    console.log(`[auth] Creating Firebase Auth user for ${email}`);
+
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: `${sanitizedFirstName} ${sanitizedLastName}`,
+      emailVerified: true,
     });
+
+    console.log(`[auth] ✅ Firebase Auth user created: ${userRecord.uid}`);
 
     // ===== Store user profile in Firestore =====
     await admin
@@ -311,15 +511,25 @@ router.post("/signup", signupLimiter, async (req, res) => {
         studentNumber: studentId,
         program: sanitizedCourse,
         yearLevel: sanitizedYearLevel,
+        avatar: sanitizedFirstName.charAt(0).toUpperCase(),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       });
 
+    console.log(`[auth] ✅ User profile stored in Firestore for ${email}`);
+
     // ===== SECURITY: Delete the verified OTP flag to prevent re-use =====
     await admin.firestore().collection("verifiedOtps").doc(email).delete();
 
-    console.log(`[auth] User signup successful: ${email}`);
-    res.status(201).json({ message: "Signup successful", uid: userRecord.uid });
+    console.log(
+      `[auth] ✅ User signup successful: ${email} (UID: ${userRecord.uid})`
+    );
+    logSecurityEvent("SIGNUP_SUCCESS", { email, uid: userRecord.uid });
+
+    res.status(201).json({
+      message: "Signup successful. Welcome to StudyGroup!",
+      uid: userRecord.uid,
+    });
   } catch (error) {
     console.error("[auth] Signup error:", error);
     logSecurityEvent("SIGNUP_ERROR", { email, error: error.message });
@@ -329,6 +539,8 @@ router.post("/signup", signupLimiter, async (req, res) => {
       msg = "This email is already registered.";
     } else if (error.code === "auth/invalid-password") {
       msg = "Password does not meet Firebase security requirements.";
+    } else if (error.code === "auth/invalid-email") {
+      msg = "Invalid email format.";
     }
 
     res.status(400).json({ error: msg });
