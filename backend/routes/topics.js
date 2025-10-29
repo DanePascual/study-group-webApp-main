@@ -175,8 +175,10 @@ router.get("/", async (req, res) => {
     const userDataMap = await resolveUserData(uids);
 
     // apply resolved names and coerce created to ISO string where possible
+    // ✅ FIXED: Add userId field to match frontend expectations
     const topicsOut = normalized.map((t) => ({
       ...t,
+      userId: t.authorId,
       author:
         t.author ||
         (t.authorId
@@ -226,6 +228,9 @@ router.get("/:id", async (req, res) => {
       topic.author = topic.author || "system";
       topic.author_avatar = null;
     }
+
+    // ✅ FIXED: Add userId field
+    topic.userId = topic.authorId;
 
     // Normalize created to ISO
     topic.created = topic.created
@@ -327,6 +332,10 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
       topic.author = topic.author || "system";
       topic.author_avatar = null;
     }
+
+    // ✅ FIXED: Add userId field
+    topic.userId = topic.authorId;
+
     topic.created = topic.created
       ? new Date(topic.created).toISOString()
       : null;
@@ -334,6 +343,145 @@ router.post("/", firebaseAuthMiddleware, async (req, res) => {
     res.status(201).json({ topic });
   } catch (err) {
     console.error("Server error POST /api/topics:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ NEW: PUT /api/topics/:id (edit topic - owner only)
+// Protected: requires valid Firebase ID token, ownership required
+router.put("/:id", firebaseAuthMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const uid = req.user && req.user.uid;
+  const { title, content, metadata = null } = req.body;
+
+  if (!uid) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    // Fetch existing topic
+    const { data: existingTopic, error: fetchErr } = await supabase
+      .from("topics")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr || !existingTopic) {
+      console.warn("Topic not found for edit:", id, fetchErr);
+      return res.status(404).json({ error: "Topic not found" });
+    }
+
+    // Authorization: only author can edit
+    if (String(existingTopic.author_id) !== String(uid)) {
+      return res
+        .status(403)
+        .json({ error: "You can only edit your own topics" });
+    }
+
+    // Build update payload
+    const updatePayload = {};
+    if (typeof title !== "undefined" && title !== null) {
+      updatePayload.title = title.trim();
+    }
+    if (typeof content !== "undefined" && content !== null) {
+      updatePayload.content = content;
+    }
+    if (typeof metadata !== "undefined" && metadata !== null) {
+      updatePayload.metadata = metadata;
+    }
+    updatePayload.updated_at = new Date().toISOString();
+
+    // Update topic
+    const { data, error } = await supabase
+      .from("topics")
+      .update(updatePayload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase UPDATE topic error:", error);
+      return res.status(500).json({ error: error.message || "DB error" });
+    }
+
+    // Normalize and resolve author
+    const topic = normalizeTopicRow(data);
+    if (topic.authorId) {
+      const userDataMap = await resolveUserData(new Set([topic.authorId]));
+      const userData = userDataMap[topic.authorId];
+
+      topic.author = userData?.name || topic.authorId.slice(0, 8);
+      topic.author_avatar = userData?.photo || null;
+    }
+
+    // ✅ FIXED: Add userId field
+    topic.userId = topic.authorId;
+
+    topic.created = topic.created
+      ? new Date(topic.created).toISOString()
+      : null;
+
+    res.status(200).json({ topic });
+  } catch (err) {
+    console.error(`Server error PUT /api/topics/${id}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ NEW: DELETE /api/topics/:id (delete topic - owner only)
+// Protected: requires valid Firebase ID token, ownership required
+router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const uid = req.user && req.user.uid;
+
+  if (!uid) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    // Fetch existing topic
+    const { data: existingTopic, error: fetchErr } = await supabase
+      .from("topics")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr || !existingTopic) {
+      console.warn("Topic not found for delete:", id, fetchErr);
+      return res.status(404).json({ error: "Topic not found" });
+    }
+
+    // Authorization: only author can delete
+    if (String(existingTopic.author_id) !== String(uid)) {
+      return res
+        .status(403)
+        .json({ error: "You can only delete your own topics" });
+    }
+
+    // Delete associated posts (cascade)
+    const { error: postsDelErr } = await supabase
+      .from("posts")
+      .delete()
+      .eq("topic_id", id);
+
+    if (postsDelErr) {
+      console.warn(
+        "Failed to delete associated posts (non-fatal):",
+        postsDelErr
+      );
+      // Continue anyway
+    }
+
+    // Delete the topic
+    const { error: delErr } = await supabase
+      .from("topics")
+      .delete()
+      .eq("id", id);
+
+    if (delErr) {
+      console.error("Supabase DELETE topic error:", delErr);
+      return res.status(500).json({ error: delErr.message || "DB error" });
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    console.error(`Server error DELETE /api/topics/${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -518,6 +666,9 @@ router.post("/:id/view", async (req, res) => {
       topic.author = topic.author || null;
       topic.author_avatar = null;
     }
+
+    // ✅ FIXED: Add userId field
+    topic.userId = topic.authorId;
 
     topic.created = topic.created
       ? new Date(topic.created).toISOString()
