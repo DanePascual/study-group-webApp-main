@@ -104,11 +104,22 @@ app.use("/api/uploads", uploadsRoutes);
 const topicsRoutes = require("./routes/topics");
 app.use("/api/topics", topicsRoutes);
 
+// ✅ FIXED: Mount topicPosts at /api/topics (NOT /api/topic-posts)
+// Routes in topicPosts.js are:
+// PUT /api/topics/:topicId/posts/:postId
+// DELETE /api/topics/:topicId/posts/:postId
 const topicPostsRoutes = require("./routes/topicPosts");
-app.use("/api/topic-posts", topicPostsRoutes);
+app.use("/api/topics", topicPostsRoutes);
 
 const commentsRoutes = require("./routes/comments");
 app.use("/api/comments", commentsRoutes);
+
+// ===== NEW: Post Likes Routes =====
+// ✅ FIXED: Mount at /api/posts so routes match correctly
+// Routes in postLikes.js are /:postId/likes and /:postId/like
+// Final paths: /api/posts/:postId/likes and /api/posts/:postId/like
+const postLikesRoutes = require("./routes/postLikes");
+app.use("/api/posts", postLikesRoutes);
 
 // ===== Study Groups Routes =====
 const studyGroupsRoutes = require("./routes/study-groups");
@@ -135,4 +146,7 @@ app.use((err, req, res, next) => {
 
 // ===== Start server =====
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+  console.log(`[server] ✅ All routes mounted successfully`);
+});
