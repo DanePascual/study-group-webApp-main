@@ -6,8 +6,9 @@
 // - auth listener using authFetch for authoritative profile
 // - idempotent init guard so module can be included on every page safely
 // ✅ FIXED: Ignores profile:updated when viewing other users (/profile/uid)
+// ✅ FIXED: Uses absolute CSS path
 
-import { onAuthStateChanged } from "../../config/firebase.js";
+import { onAuthStateChanged } from "/config/firebase.js";
 import { authFetch } from "./apiClient.js";
 
 /* ----------------------- Helpers ----------------------- */
@@ -16,7 +17,8 @@ const el = (id) => document.getElementById(id);
 function injectSidebarCss() {
   try {
     if (document.getElementById("sidebar-shared-css")) return;
-    const href = "../styles/sidebar.css";
+    // ✅ FIXED: Use absolute path instead of relative
+    const href = "/student/styles/sidebar.css";
     const link = document.createElement("link");
     link.id = "sidebar-shared-css";
     link.rel = "stylesheet";
