@@ -6,7 +6,7 @@
 // - Safe DOM updates
 // - Security logging for suspicious activities
 // ✅ FIXED: Reads UID from URL path (/profile/uid) instead of query string (?uid=...)
-// ✅ FIXED: Uses /api/users/public/{uid} for public profile viewing (no auth required)
+// ✅ FIXED: Uses apiUrl() helper to get full backend URL for public profiles
 
 import { auth } from "../../config/firebase.js";
 import { apiUrl } from "../../config/appConfig.js";
@@ -67,12 +67,14 @@ function getUidFromUrl() {
   return null;
 }
 
-// ✅ NEW: Fetch public profile (no auth required)
+// ✅ FIXED: Fetch public profile with apiUrl() helper to get full backend URL
 async function fetchPublicProfile(uid) {
   try {
-    const response = await fetch(
-      `/api/users/public/${encodeURIComponent(uid)}`
-    );
+    // ✅ Use apiUrl() to get full backend URL
+    const fullUrl = apiUrl(`/api/users/public/${encodeURIComponent(uid)}`);
+    console.log("[profile] Fetching public profile from:", fullUrl);
+
+    const response = await fetch(fullUrl);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -315,7 +317,7 @@ onAuthStateChanged(auth, async (user) => {
 
     // ✅ FIXED: If viewing other user, fetch their PUBLIC profile (no auth required)
     if (VIEWING_UID && VIEWING_UID !== user.uid) {
-      // Use public endpoint (no auth required)
+      // Use public endpoint (no auth required) with apiUrl() helper
       profile = await fetchPublicProfile(VIEWING_UID);
     } else {
       // Viewing own profile - fetch with auth (includes all fields)
