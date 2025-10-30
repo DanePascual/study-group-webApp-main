@@ -111,8 +111,15 @@ app.use("/api/topics", topicsRoutes);
 const topicPostsRoutes = require("./routes/topicPosts");
 app.use("/api/topics", topicPostsRoutes);
 
+// ✅ FIXED: Mount comments at /api (so routes become /api/topics/:id/posts/:id/comments)
+// Routes in comments.js are:
+// POST /api/topics/:topicId/posts/:postId/comments
+// GET /api/topics/:topicId/posts/:postId/comments
+// PATCH /api/comments/:commentId
+// DELETE /api/comments/:commentId
+// POST /api/comments/:commentId/like
 const commentsRoutes = require("./routes/comments");
-app.use("/api/comments", commentsRoutes);
+app.use("/api", commentsRoutes);
 
 // ===== NEW: Post Likes Routes =====
 // ✅ FIXED: Mount at /api/posts so routes match correctly

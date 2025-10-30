@@ -107,6 +107,7 @@ function isSelfReport(reporterEmail, reportedUser) {
  * Protected: requires Authorization Bearer <ID_TOKEN>
  * Rate limited: max 10 per hour per user
  * Accepts: multipart/form-data (fields + up to 5 files)
+ * ✅ FIXED: Anonymous field removed
  */
 router.post(
   "/",
@@ -143,8 +144,6 @@ router.post(
       const incidentTime = req.body.incidentTime
         ? safeTrim(req.body.incidentTime, MAX_INCIDENT_TIME_LENGTH)
         : null;
-      const anonymous =
-        req.body.anonymous === "true" || req.body.anonymous === true;
 
       // ===== SECURITY: Validate required fields =====
       if (!type || !severity || !reportedUser || !location || !description) {
@@ -276,6 +275,7 @@ router.post(
         "-" +
         uuidv4().split("-")[0];
 
+      // ✅ FIXED: Removed 'anonymous' field from reportDoc
       const reportDoc = {
         id: reportId,
         reporterId,
@@ -287,7 +287,6 @@ router.post(
         location,
         incidentTime: incidentTime || null,
         description,
-        anonymous: !!anonymous,
         files: filesMeta,
         timestampISO: now.toISOString(),
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -303,7 +302,7 @@ router.post(
         reportedUser: reportedUser,
       });
 
-      // Return sanitized response
+      // ✅ FIXED: Removed 'anonymous' field from response
       const responseDoc = {
         id: reportId,
         reporterId,
@@ -314,7 +313,6 @@ router.post(
         location,
         incidentTime: reportDoc.incidentTime,
         description,
-        anonymous: reportDoc.anonymous,
         files: filesMeta.map((f) => ({
           name: f.name,
           url: f.url,
@@ -343,6 +341,7 @@ router.post(
  * GET /api/reports?mine=true
  * Protected: server derives uid from token
  * Returns reports for the authenticated user
+ * ✅ FIXED: Anonymous field removed
  */
 router.get("/", firebaseAuthMiddleware, async (req, res) => {
   try {
@@ -361,6 +360,7 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
         .orderBy("timestampISO", "desc")
         .get();
 
+      // ✅ FIXED: Removed 'anonymous' field from response mapping
       const reports = snapshot.docs.map((doc) => {
         const data = doc.data() || {};
         return {
@@ -373,7 +373,6 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
           location: data.location,
           incidentTime: data.incidentTime,
           description: data.description,
-          anonymous: data.anonymous,
           files: data.files || [],
           timestamp:
             data.timestampISO ||

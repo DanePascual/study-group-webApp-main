@@ -35,6 +35,26 @@ function logSecurityEvent(eventType, uid, details) {
   );
 }
 
+// ===== GET all users list (PUBLIC - for report form suggestions) =====
+// ✅ NEW ENDPOINT: No auth required, returns basic user info
+router.get("/list", async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection("users").select("email", "name").get();
+
+    const users = snapshot.docs.map((doc) => ({
+      email: doc.data().email || "",
+      name: doc.data().name || "",
+    }));
+
+    console.log(`[users] GET /list returned ${users.length} users`);
+    return res.json(users);
+  } catch (err) {
+    console.error("[users] GET /list error:", err);
+    return res.status(500).json({ error: "Could not fetch users list" });
+  }
+});
+
 // ===== GET current user's profile (protected) =====
 router.get("/profile", firebaseAuthMiddleware, async (req, res) => {
   const uid = req.user.uid;
