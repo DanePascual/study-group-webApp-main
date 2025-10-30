@@ -6,6 +6,7 @@
 // - Safe DOM updates
 // - Security logging for suspicious activities
 // ✅ FIXED: Reads UID from URL path (/profile/uid) instead of query string (?uid=...)
+// ✅ FIXED: Uses /api/users/public/{uid} for public profile viewing (no auth required)
 
 import { auth } from "../../config/firebase.js";
 import { apiUrl } from "../../config/appConfig.js";
@@ -64,6 +65,24 @@ function getUidFromUrl() {
     return uid || null;
   }
   return null;
+}
+
+// ✅ NEW: Fetch public profile (no auth required)
+async function fetchPublicProfile(uid) {
+  try {
+    const response = await fetch(
+      `/api/users/public/${encodeURIComponent(uid)}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error("Error fetching public profile:", err);
+    throw err;
+  }
 }
 
 // -------------------- Notification --------------------
@@ -292,13 +311,17 @@ onAuthStateChanged(auth, async (user) => {
   updateSidebarUserInfo();
 
   try {
-    // ✅ NEW: If viewing other user, fetch their profile; otherwise fetch own
-    let profileEndpoint = "/api/users/profile";
+    let profile;
+
+    // ✅ FIXED: If viewing other user, fetch their PUBLIC profile (no auth required)
     if (VIEWING_UID && VIEWING_UID !== user.uid) {
-      profileEndpoint = `/api/users/${encodeURIComponent(VIEWING_UID)}`;
+      // Use public endpoint (no auth required)
+      profile = await fetchPublicProfile(VIEWING_UID);
+    } else {
+      // Viewing own profile - fetch with auth (includes all fields)
+      profile = await fetchJsonWithAuth("/api/users/profile");
     }
 
-    const profile = await fetchJsonWithAuth(profileEndpoint);
     CURRENT_SESSION.userProgram = profile.program || "";
     updateSidebarUserInfo();
     currentPhotoURL = profile.photo || null;
