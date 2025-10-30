@@ -11,7 +11,8 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../styles/profile.css" />
+    <!-- ✅ FIXED: Changed from relative path to absolute path -->
+    <link rel="stylesheet" href="/student/styles/profile.css" />
     <style>
       /* Inline styles retained from original file for notifications, overlays, etc. */
       .notification {
@@ -596,12 +597,15 @@ Information Technology student passionate about web development, cybersecurity, 
     </div>
 
     <!-- Firebase SDK (as a module) -->
-    <script type="module" src="../../config/firebase.js"></script>
+    <!-- ✅ FIXED: Changed from relative path to absolute path -->
+    <script type="module" src="/student/config/firebase.js"></script>
     <!-- Load centralized sidebar BEFORE page script so theme & sidebar are initialized -->
-    <script type="module" src="../scripts/sidebar.js"></script>
+    <!-- ✅ FIXED: Changed from relative path to absolute path -->
+    <script type="module" src="/student/scripts/sidebar.js"></script>
     <!-- Bootstrap JS, etc -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <!-- Your profile logic -->
-    <script type="module" src="../scripts/profile.js"></script>
+    <!-- ✅ FIXED: Changed from relative path to absolute path -->
+    <script type="module" src="/student/scripts/profile.js"></script>
   </body>
 </html>
