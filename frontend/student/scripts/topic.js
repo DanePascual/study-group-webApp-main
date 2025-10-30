@@ -2,6 +2,7 @@
 // Topic detail page — server-first (uses topicsClient), with localStorage fallback.
 // Expects topicsClient to export: getTopic, getTopicPosts, postReply, incrementView, editPost, deletePostApi.
 // If the server is unreachable the code falls back to the previous localStorage simulation.
+// ✅ FIXED: Uses URL paths (/profile/uid) instead of query strings (?uid=...)
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -305,8 +306,13 @@ function initializeTopicPage() {
   // Render topic header
   async function renderTopicHeader(topic) {
     document.getElementById("topicTitle").textContent = topic.title;
-    document.getElementById("topicAuthor").textContent =
-      topic.author || "Anonymous";
+    document.getElementById("topicAuthor").innerHTML = `
+      <a href="/profile/${encodeURIComponent(
+        topic.authorId || topic.userId
+      )}" style="color: inherit; text-decoration: none; cursor: pointer;">
+        ${escapeHtml(topic.author || "Anonymous")}
+      </a>
+    `;
     document.getElementById("topicDate").textContent = formatRelativeTime(
       topic.created
     );
@@ -323,7 +329,7 @@ function initializeTopicPage() {
     const tagsContainer = document.getElementById("topicTags");
     if (topic.tags && topic.tags.length) {
       tagsContainer.innerHTML = topic.tags
-        .map((tag) => `<span class="topic-tag">${tag}</span>`)
+        .map((tag) => `<span class="topic-tag">${escapeHtml(tag)}</span>`)
         .join("");
     } else {
       tagsContainer.innerHTML = "";
@@ -370,7 +376,11 @@ function initializeTopicPage() {
                     <div class="post-title">${escapeHtml(post.title)}</div>
                     <div class="post-author">
                       ${avatarHtml}
-                      <span>${escapeHtml(post.author || "Anonymous")}</span>
+                      <span><a href="/profile/${encodeURIComponent(
+                        post.authorId || post.userId
+                      )}" style="color: inherit; text-decoration: none; cursor: pointer;">${escapeHtml(
+              post.author || "Anonymous"
+            )}</a></span>
                     </div>
                   </div>
                   ${

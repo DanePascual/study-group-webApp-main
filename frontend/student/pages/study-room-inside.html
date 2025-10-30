@@ -268,44 +268,141 @@
         </div>
 
         <div class="video-grid" id="videoGrid" style="display: none">
-          <!-- Video participants will appear here -->
+          <!-- ZegoCloud UI will render here -->
         </div>
       </div>
+    </div>
 
-      <div class="video-controls">
-        <button class="video-control active" id="micBtn" title="Mute (Alt+M)">
-          <i class="bi bi-mic-fill"></i>
-        </button>
-        <button
-          class="video-control active"
-          id="cameraBtn"
-          title="Camera (Alt+V)"
-        >
-          <i class="bi bi-camera-video-fill"></i>
-        </button>
-        <button
-          class="video-control"
-          id="screenShareBtn"
-          title="Share Screen (Alt+S)"
-        >
-          <i class="bi bi-display"></i>
-        </button>
-        <button
-          class="video-control danger"
-          id="leaveCallBtn"
-          title="End Call (Alt+L)"
-        >
-          <i class="bi bi-telephone-x-fill"></i>
-        </button>
+    <!-- Settings Modal -->
+    <div
+      class="modal fade"
+      id="settingsModal"
+      tabindex="-1"
+      aria-labelledby="settingsModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="settingsModalLabel">Room Settings</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="roomNameInput" class="form-label">Room Name</label>
+              <input type="text" class="form-control" id="roomNameInput" />
+            </div>
+            <div class="mb-3">
+              <label for="roomDescInput" class="form-label">Description</label>
+              <textarea
+                class="form-control"
+                id="roomDescInput"
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="mb-3">
+              <h6>Participants</h6>
+              <div
+                id="participantsList2"
+                style="max-height: 200px; overflow-y: auto"
+              ></div>
+            </div>
+            <div class="mb-3">
+              <h6>Shared Files</h6>
+              <div
+                id="filesList"
+                style="max-height: 200px; overflow-y: auto"
+              ></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              id="deleteRoomBtn"
+              style="display: none"
+            >
+              <i class="bi bi-trash"></i> Delete Room
+            </button>
+            <button type="button" class="btn btn-primary" id="saveSettingsBtn">
+              Save Changes
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Modals -->
-    <div class="modal fade" id="settingsModal" tabindex="-1">
-      <!-- ... modal content ... -->
+    <!-- Invite Modal -->
+    <div
+      class="modal fade"
+      id="inviteModal"
+      tabindex="-1"
+      aria-labelledby="inviteModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="inviteModalLabel">Invite Members</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <label for="inviteLink" class="form-label">Invite Link</label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                id="inviteLink"
+                readonly
+              />
+              <button
+                class="btn btn-outline-primary"
+                type="button"
+                id="copyLinkBtn"
+              >
+                <i class="bi bi-clipboard"></i> Copy
+              </button>
+            </div>
+            <small class="text-muted d-block mt-2"
+              >Share this link with others to invite them to the room.</small
+            >
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="modal fade" id="inviteModal" tabindex="-1" aria-hidden="true">
-      <!-- ... modal content ... -->
+
+    <!-- Page Loading Overlay -->
+    <div id="pageLoadingOverlay" class="loading-overlay" style="display: none">
+      <div class="loading-content">
+        <div class="spinner-grow text-success"></div>
+        <p>Loading study room...</p>
+      </div>
     </div>
 
     <!-- Toast Container -->
@@ -335,8 +432,10 @@
       window.firebaseAppInstance = firebase;
     </script>
 
-    <!-- Module Scripts - Config is managed in modules (config.js and appConfig.js) -->
-    <script type="module" src="../scripts/sidebar.js"></script>
+    <!-- ✅ FIXED: Load study-room-inside FIRST (before sidebar.js) -->
     <script type="module" src="../scripts/study-group-inside/index.js"></script>
+
+    <!-- Load sidebar.js AFTER study-room-inside initializes -->
+    <script type="module" src="../scripts/sidebar.js"></script>
   </body>
 </html>

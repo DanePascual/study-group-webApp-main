@@ -1,4 +1,5 @@
 // UserAuth class (ES module) with in-memory + localStorage TTL caching and dev read counter
+// ✅ FIXED: Improved display name priority order
 // URL (example permalink): https://github.com/DanePascual/study-group-webApp/blob/main/frontend/student/scripts/study-group-inside/user-auth.js
 
 import { db, auth } from "./firebase-init.js";
@@ -32,7 +33,7 @@ export class UserAuth {
 
   async init() {
     return new Promise((resolve, reject) => {
-      console.log("Initializing auth...");
+      console.log("[UserAuth] Initializing auth...");
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           try {
@@ -40,7 +41,7 @@ export class UserAuth {
             this.isLoading = false;
             resolve(this.currentUser);
           } catch (err) {
-            console.error("Error setting current user", err);
+            console.error("[UserAuth] Error setting current user", err);
             this.isLoading = false;
             reject(err);
           }
@@ -82,7 +83,7 @@ export class UserAuth {
         };
       }
     } catch (err) {
-      console.warn("Could not fetch extra user data:", err);
+      console.warn("[UserAuth] Could not fetch extra user data:", err);
     }
 
     const displayInfo = {
@@ -173,7 +174,7 @@ export class UserAuth {
     return null;
   }
 
-  // Get single user display info (consult cache first)
+  // ✅ FIXED: Get single user display info with improved priority
   async getUserDisplayInfo(uid) {
     if (!uid)
       return {
@@ -185,7 +186,12 @@ export class UserAuth {
 
     // cache hit
     const cached = this._getFromCache(uid);
-    if (cached) return cached;
+    if (cached) {
+      console.log(`[UserAuth] Cache HIT for ${uid}:`, cached.displayName);
+      return cached;
+    }
+
+    console.log(`[UserAuth] Cache MISS for ${uid}, fetching...`);
 
     // If it's the current user, return currentUser info and cache it
     if (this.currentUser && uid === this.currentUser.uid) {
@@ -210,20 +216,32 @@ export class UserAuth {
       const doc = await db.collection("users").doc(uid).get();
       if (doc.exists) {
         const data = doc.data();
+
+        // ✅ FIXED: Priority order for display name
+        // 1. data.name (full name from profile)
+        // 2. data.displayName (Firebase Auth display name)
+        // 3. data.email split by @ (email prefix)
+        // 4. uid.substring(0, 8) (last resort - UID prefix)
+        const displayName =
+          data.name ||
+          data.displayName ||
+          (data.email ? data.email.split("@")[0] : uid.substring(0, 8));
+
         const info = {
-          displayName:
-            data.name || data.email?.split("@")[0] || uid.substring(0, 8),
+          displayName: displayName,
           avatar:
             data.avatar ||
-            (data.name ? data.name.substring(0, 1).toUpperCase() : "U"),
+            (displayName ? displayName.substring(0, 1).toUpperCase() : "U"),
           email: data.email,
           photo: data.photo || null,
         };
+
+        console.log(`[UserAuth] Fetched ${uid} from Firestore:`, displayName);
         this._cacheUser(uid, info);
         return info;
       }
     } catch (err) {
-      console.error("Error fetching user doc:", err);
+      console.error(`[UserAuth] Error fetching user doc for ${uid}:`, err);
     }
 
     // fallback
@@ -233,11 +251,15 @@ export class UserAuth {
       email: null,
       photo: null,
     };
+    console.log(
+      `[UserAuth] No Firestore doc for ${uid}, using fallback:`,
+      fallback.displayName
+    );
     this._cacheUser(uid, fallback);
     return fallback;
   }
 
-  // Batch fetch many user display infos:
+  // ✅ FIXED: Batch fetch many user display infos with improved priority
   // Input: array of uids (may contain duplicates)
   // Output: object mapping uid => displayInfo
   async getUserDisplayInfos(uids = []) {
@@ -246,16 +268,26 @@ export class UserAuth {
 
     // dedupe
     const unique = Array.from(new Set(uids.filter(Boolean)));
+    console.log(`[UserAuth] Batch fetching ${unique.length} unique users`);
 
     // check cache first
     const missing = [];
     for (const uid of unique) {
       const c = this._getFromCache(uid);
-      if (c) result[uid] = c;
-      else missing.push(uid);
+      if (c) {
+        result[uid] = c;
+        console.log(`[UserAuth] Batch cache HIT: ${uid} = ${c.displayName}`);
+      } else {
+        missing.push(uid);
+      }
     }
 
-    if (missing.length === 0) return result;
+    if (missing.length === 0) {
+      console.log("[UserAuth] All users found in cache");
+      return result;
+    }
+
+    console.log(`[UserAuth] ${missing.length} users missing from cache`);
 
     // For current user, ensure cached first
     const stillMissing = [];
@@ -271,6 +303,9 @@ export class UserAuth {
         };
         result[uid] = info;
         this._cacheUser(uid, info);
+        console.log(
+          `[UserAuth] Added current user to result: ${uid} = ${info.displayName}`
+        );
       } else {
         stillMissing.push(uid);
       }
@@ -278,6 +313,9 @@ export class UserAuth {
 
     // Batch fetch remaining missing uids in parallel (Promise.all)
     if (stillMissing.length > 0) {
+      console.log(
+        `[UserAuth] Batch fetching ${stillMissing.length} users from Firestore`
+      );
       try {
         // increment dev counter by number of docs we'll read (approx)
         if (typeof window !== "undefined") {
@@ -292,21 +330,36 @@ export class UserAuth {
             .then((doc) => ({ uid, doc }))
         );
         const docs = await Promise.all(promises);
+
         for (const { uid, doc } of docs) {
           if (doc && doc.exists) {
             const data = doc.data();
+
+            // ✅ FIXED: Same priority order
+            // 1. data.name
+            // 2. data.displayName
+            // 3. email prefix
+            // 4. UID prefix
+            const displayName =
+              data.name ||
+              data.displayName ||
+              (data.email ? data.email.split("@")[0] : uid.substring(0, 8));
+
             const info = {
-              displayName:
-                data.name || data.email?.split("@")[0] || uid.substring(0, 8),
+              displayName: displayName,
               avatar:
                 data.avatar ||
-                (data.name ? data.name.substring(0, 1).toUpperCase() : "U"),
+                (displayName ? displayName.substring(0, 1).toUpperCase() : "U"),
               email: data.email,
               photo: data.photo || null,
             };
             result[uid] = info;
             this._cacheUser(uid, info);
+            console.log(
+              `[UserAuth] Batch fetched from Firestore: ${uid} = ${displayName}`
+            );
           } else {
+            // ✅ NO FIRESTORE DOC - fallback to UID prefix
             const fallback = {
               displayName: uid.substring(0, 8),
               avatar: "U",
@@ -315,10 +368,13 @@ export class UserAuth {
             };
             result[uid] = fallback;
             this._cacheUser(uid, fallback);
+            console.log(
+              `[UserAuth] No Firestore doc, using fallback: ${uid} = ${fallback.displayName}`
+            );
           }
         }
       } catch (err) {
-        console.error("Error batch fetching user docs:", err);
+        console.error("[UserAuth] Error batch fetching user docs:", err);
         // fill missing with fallbacks to avoid breaking callers
         for (const uid of stillMissing) {
           if (!result[uid]) {
@@ -330,10 +386,20 @@ export class UserAuth {
             };
             result[uid] = fallback;
             this._cacheUser(uid, fallback);
+            console.log(
+              `[UserAuth] Error fallback: ${uid} = ${fallback.displayName}`
+            );
           }
         }
       }
     }
+
+    console.log(
+      `[UserAuth] Batch complete. Results:`,
+      Object.entries(result).map(
+        (e) => `${e[0].substring(0, 8)}=${e[1].displayName}`
+      )
+    );
 
     return result;
   }
@@ -370,6 +436,9 @@ export class UserAuth {
           // ignore
         }
       }
+      console.log(
+        `[UserAuth] Loaded ${this.userCache.size} users from localStorage cache`
+      );
     } catch (err) {
       // ignore parse errors
     }
@@ -384,6 +453,7 @@ export class UserAuth {
     if (typeof window !== "undefined" && window.__userDisplayCache) {
       window.__userDisplayCache = {};
     }
+    console.log("[UserAuth] Local cache cleared");
   }
 
   async logout() {
@@ -395,7 +465,7 @@ export class UserAuth {
         pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
       window.location.href = window.location.origin + loginPath;
     } catch (err) {
-      console.error("Logout failed:", err);
+      console.error("[UserAuth] Logout failed:", err);
       if (typeof window !== "undefined") {
         const showToast = window.showToast || (() => {});
         showToast("Error signing out. Please try again.", "error");
@@ -458,7 +528,10 @@ export class UserAuth {
         }
       }
     } catch (err) {
-      console.warn("updateSidebarUserInfo failed:", err && err.message);
+      console.warn(
+        "[UserAuth] updateSidebarUserInfo failed:",
+        err && err.message
+      );
     }
   }
 }

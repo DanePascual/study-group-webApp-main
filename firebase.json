@@ -8,111 +8,14 @@
       "backend/**",
       "*.md"
     ],
-    "cleanUrls": false,
     "rewrites": [
       {
-        "source": "/student/pages/profile.html",
+        "source": "/profile/**",
         "destination": "/student/pages/profile.html"
       },
       {
-        "source": "/student/pages/profile.html**",
-        "destination": "/student/pages/profile.html"
-      },
-      {
-        "source": "/student/pages/dashboard.html",
-        "destination": "/student/pages/dashboard.html"
-      },
-      {
-        "source": "/student/pages/dashboard.html**",
-        "destination": "/student/pages/dashboard.html"
-      },
-      {
-        "source": "/student/pages/discussion.html",
-        "destination": "/student/pages/discussion.html"
-      },
-      {
-        "source": "/student/pages/discussion.html**",
-        "destination": "/student/pages/discussion.html"
-      },
-      {
-        "source": "/student/pages/landing-page.html",
-        "destination": "/student/pages/landing-page.html"
-      },
-      {
-        "source": "/student/pages/landing-page.html**",
-        "destination": "/student/pages/landing-page.html"
-      },
-      {
-        "source": "/student/pages/login.html",
+        "source": "/student/pages/**",
         "destination": "/student/pages/login.html"
-      },
-      {
-        "source": "/student/pages/login.html**",
-        "destination": "/student/pages/login.html"
-      },
-      {
-        "source": "/student/pages/not-found.html",
-        "destination": "/student/pages/not-found.html"
-      },
-      {
-        "source": "/student/pages/not-found.html**",
-        "destination": "/student/pages/not-found.html"
-      },
-      {
-        "source": "/student/pages/report.html",
-        "destination": "/student/pages/report.html"
-      },
-      {
-        "source": "/student/pages/report.html**",
-        "destination": "/student/pages/report.html"
-      },
-      {
-        "source": "/student/pages/reset-password.html",
-        "destination": "/student/pages/reset-password.html"
-      },
-      {
-        "source": "/student/pages/reset-password.html**",
-        "destination": "/student/pages/reset-password.html"
-      },
-      {
-        "source": "/student/pages/resources.html",
-        "destination": "/student/pages/resources.html"
-      },
-      {
-        "source": "/student/pages/resources.html**",
-        "destination": "/student/pages/resources.html"
-      },
-      {
-        "source": "/student/pages/sign-up.html",
-        "destination": "/student/pages/sign-up.html"
-      },
-      {
-        "source": "/student/pages/sign-up.html**",
-        "destination": "/student/pages/sign-up.html"
-      },
-      {
-        "source": "/student/pages/study-room-inside.html",
-        "destination": "/student/pages/study-room-inside.html"
-      },
-      {
-        "source": "/student/pages/study-room-inside.html**",
-        "destination": "/student/pages/study-room-inside.html"
-      },
-      {
-        "source": "/student/pages/study-rooms.html",
-        "destination": "/student/pages/study-rooms.html"
-      },
-      {
-        "source": "/student/pages/study-rooms.html**",
-        "destination": "/student/pages/study-rooms.html"
-      },
-      {
-        "source": "/student/pages/topic.html",
-        "destination": "/student/pages/topic.html"
-      },
-      {
-        "source": "/student/pages/topic.html**",
-        "destination": "/student/pages/topic.html"
       }
     ]
   }

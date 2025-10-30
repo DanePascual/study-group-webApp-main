@@ -108,6 +108,27 @@ body.dark-mode .forum-desc {
   color: var(--medium-text);
 }
 
+/* ✅ NEW: Dark mode for tabs */
+body.dark-mode .topic-tabs {
+  background: #2a2a2a;
+  border-color: #333;
+}
+
+body.dark-mode .tab-btn {
+  color: var(--medium-text);
+}
+
+body.dark-mode .tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+body.dark-mode .tab-badge {
+  background: var(--primary-color);
+  color: white;
+}
+
 body.dark-mode .filter-dropdown {
   background: #333;
   color: var(--dark-text);
@@ -159,16 +180,6 @@ body.dark-mode .topic-dropdown-item {
 
 body.dark-mode .topic-dropdown-item:hover {
   background-color: #333;
-}
-
-body.dark-mode .pagination-btn {
-  background: #2a2a2a;
-  border-color: #444;
-  color: var(--dark-text);
-}
-
-body.dark-mode .pagination-btn.active {
-  background: var(--primary-color);
 }
 
 body.dark-mode .modal-custom {
@@ -259,13 +270,16 @@ body.dark-mode .theme-toggle:hover {
   z-index: 1000;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
 }
+
 .sidebar.open {
   left: 0;
 }
+
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .sidebar-brand {
   color: white;
   font-size: 18px;
@@ -274,9 +288,11 @@ body.dark-mode .theme-toggle:hover {
   align-items: center;
   gap: 10px;
 }
+
 .sidebar-menu {
   padding: 20px 0;
 }
+
 .sidebar-item {
   display: block;
   color: white;
@@ -285,22 +301,26 @@ body.dark-mode .theme-toggle:hover {
   transition: all 0.3s ease;
   border-left: 3px solid transparent;
 }
+
 .sidebar-item:hover,
 .sidebar-item.active {
   background: rgba(255, 255, 255, 0.1);
   border-left-color: white;
   color: white;
 }
+
 .sidebar-item i {
   width: 20px;
   margin-right: 10px;
 }
+
 .sidebar-footer {
   position: absolute;
   bottom: 20px;
   width: 100%;
   padding: 0 20px;
 }
+
 .user-info {
   display: flex;
   align-items: center;
@@ -312,10 +332,12 @@ body.dark-mode .theme-toggle:hover {
   cursor: pointer;
   transition: all 0.3s ease;
 }
+
 .user-info:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
+
 .user-avatar {
   width: 40px;
   height: 40px;
@@ -328,6 +350,7 @@ body.dark-mode .theme-toggle:hover {
   font-weight: bold;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
+
 .user-avatar img {
   width: 40px;
   height: 40px;
@@ -335,15 +358,18 @@ body.dark-mode .theme-toggle:hover {
   border-radius: 50%;
   display: block;
 }
+
 .main-content {
   margin-left: 0;
   transition: margin-left 0.3s ease;
   min-height: 100vh;
   background: var(--background-light);
 }
+
 .main-content.shifted {
   margin-left: 280px;
 }
+
 .top-nav {
   background: white;
   padding: 15px 30px;
@@ -355,11 +381,13 @@ body.dark-mode .theme-toggle:hover {
   top: 0;
   z-index: 100;
 }
+
 .nav-left {
   display: flex;
   align-items: center;
   gap: 20px;
 }
+
 .menu-toggle {
   background: none;
   border: none;
@@ -370,19 +398,23 @@ body.dark-mode .theme-toggle:hover {
   border-radius: 5px;
   transition: all 0.3s ease;
 }
+
 .menu-toggle:hover {
   background: #f0f0f0;
 }
+
 .page-title {
   font-size: 24px;
   font-weight: bold;
   color: #333;
 }
+
 .search-bar {
   position: relative;
   display: flex;
   align-items: center;
 }
+
 .search-input {
   width: 300px;
   padding: 10px 40px 10px 15px;
@@ -391,12 +423,14 @@ body.dark-mode .theme-toggle:hover {
   font-size: 14px;
   transition: all 0.3s ease;
 }
+
 .search-input:focus {
   outline: none;
   border-color: #4caf50;
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
   width: 350px;
 }
+
 .search-icon {
   position: absolute;
   right: 15px;
@@ -404,9 +438,11 @@ body.dark-mode .theme-toggle:hover {
   transform: translateY(-50%);
   color: #999;
 }
+
 .forum-content {
   padding: 30px;
 }
+
 .forum-header {
   font-size: 26px;
   font-weight: bold;
@@ -414,18 +450,94 @@ body.dark-mode .theme-toggle:hover {
   background: transparent;
   border-radius: 10px;
 }
+
 .forum-desc {
   font-size: 15px;
   color: #555;
   margin-top: 4px;
   margin-bottom: 20px;
 }
+
+/* ✅ NEW: TAB STYLES */
+.topic-tabs {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #f0f0f0;
+  background: white;
+  padding-bottom: 0;
+}
+
+.tab-btn {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  color: var(--medium-text);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.tab-badge {
+  background: var(--primary-color);
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ✅ NEW: MY TOPICS HEADER */
+.my-topics-header {
+  margin-bottom: 24px;
+}
+
+.my-topics-header h3 {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--dark-text);
+  margin-bottom: 4px;
+}
+
+.my-topics-subtitle {
+  font-size: 14px;
+  color: var(--medium-text);
+}
+
 .forum-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
+
 .create-topic-btn {
   background: #4caf50;
   color: white;
@@ -440,18 +552,22 @@ body.dark-mode .theme-toggle:hover {
   align-items: center;
   gap: 8px;
 }
+
 .create-topic-btn:hover {
   background: #388e3c;
   transform: translateY(-1px);
 }
+
 .create-topic-btn:active {
   transform: translateY(0);
 }
+
 .filter-controls {
   display: flex;
   gap: 10px;
   align-items: center;
 }
+
 .filter-dropdown {
   padding: 8px 15px;
   border: 1px solid #ddd;
@@ -461,16 +577,19 @@ body.dark-mode .theme-toggle:hover {
   color: #333;
   cursor: pointer;
 }
+
 .filter-dropdown:focus {
   outline: none;
   border-color: #4caf50;
 }
+
 .topic-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
+
 .topic-card {
   background: white;
   border-radius: 15px;
@@ -479,13 +598,16 @@ body.dark-mode .theme-toggle:hover {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   position: relative;
 }
+
 .topic-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 15px rgba(76, 175, 80, 0.15);
 }
+
 .topic-card-content {
   padding: 20px;
 }
+
 .topic-card.pinned::before {
   content: "";
   position: absolute;
@@ -495,6 +617,7 @@ body.dark-mode .theme-toggle:hover {
   height: 4px;
   background: #4caf50;
 }
+
 .topic-title {
   font-size: 18px;
   font-weight: bold;
@@ -506,6 +629,7 @@ body.dark-mode .theme-toggle:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .topic-meta {
   font-size: 13px;
   color: #888;
@@ -514,11 +638,13 @@ body.dark-mode .theme-toggle:hover {
   align-items: center;
   gap: 12px;
 }
+
 .topic-meta > div {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .topic-latest {
   font-size: 14px;
   color: #555;
@@ -531,11 +657,13 @@ body.dark-mode .theme-toggle:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .topic-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .topic-activity {
   display: flex;
   gap: 8px;
@@ -543,19 +671,23 @@ body.dark-mode .theme-toggle:hover {
   font-size: 13px;
   color: #888;
 }
+
 .activity-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #ddd;
 }
+
 .activity-indicator.recent {
   background: #4caf50;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
+
 .activity-text {
   white-space: nowrap;
 }
+
 .view-btn {
   background: #388e3c;
   color: white;
@@ -569,10 +701,12 @@ body.dark-mode .theme-toggle:hover {
   text-decoration: none;
   display: inline-block;
 }
+
 .view-btn:hover {
   background: #256029;
   color: white;
 }
+
 .topic-tag {
   display: inline-block;
   padding: 2px 8px;
@@ -583,12 +717,14 @@ body.dark-mode .theme-toggle:hover {
   margin-right: 4px;
   margin-bottom: 8px;
 }
+
 .topic-options {
   position: absolute;
   top: 15px;
   right: 15px;
   z-index: 10;
 }
+
 .topic-options-btn {
   background: none;
   border: none;
@@ -603,9 +739,11 @@ body.dark-mode .theme-toggle:hover {
   border-radius: 50%;
   transition: background-color 0.2s;
 }
+
 .topic-options-btn:hover {
   background-color: #f5f5f5;
 }
+
 .topic-dropdown-menu {
   position: absolute;
   top: 40px;
@@ -617,9 +755,11 @@ body.dark-mode .theme-toggle:hover {
   display: none;
   z-index: 20;
 }
+
 .topic-dropdown-menu.show {
   display: block;
 }
+
 .topic-dropdown-item {
   padding: 10px 15px;
   font-size: 14px;
@@ -630,12 +770,15 @@ body.dark-mode .theme-toggle:hover {
   cursor: pointer;
   transition: background-color 0.2s;
 }
+
 .topic-dropdown-item:hover {
   background-color: #f5f5f5;
 }
+
 .topic-dropdown-item.delete {
   color: #d32f2f;
 }
+
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -643,49 +786,52 @@ body.dark-mode .theme-toggle:hover {
   border-radius: 15px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
+
 .empty-state-icon {
   font-size: 50px;
   color: #ccc;
   margin-bottom: 15px;
 }
+
 .empty-state-text {
   font-size: 16px;
   color: #888;
   margin-bottom: 20px;
 }
-.pagination-controls {
+
+/* ✅ NEW: INFINITE SCROLL LOADER */
+.infinite-scroll-loader {
+  text-align: center;
+  padding: 30px 20px;
   display: flex;
-  justify-content: center;
-  gap: 5px;
-  margin-top: 30px;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
 }
-.pagination-btn {
+
+.loader-spinner {
   width: 40px;
   height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top: 4px solid #4caf50;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 1px solid #ddd;
-  color: #333;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
+  animation: spin 1s linear infinite;
 }
-.pagination-btn:hover {
-  border-color: #4caf50;
-  color: #388e3c;
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
-.pagination-btn.active {
-  background: #4caf50;
-  color: white;
-  border-color: #4caf50;
+
+.infinite-scroll-loader p {
+  color: var(--medium-text);
+  font-size: 14px;
 }
-.pagination-btn.disabled {
-  color: #ccc;
-  cursor: not-allowed;
-}
+
 .modal-backdrop-custom {
   position: fixed;
   top: 0;
@@ -698,9 +844,11 @@ body.dark-mode .theme-toggle:hover {
   align-items: center;
   justify-content: center;
 }
+
 .modal-backdrop-custom.active {
   display: flex;
 }
+
 .modal-custom {
   background: #fff;
   border-radius: 15px;
@@ -711,6 +859,7 @@ body.dark-mode .theme-toggle:hover {
   position: relative;
   animation: fadeInTop 0.18s ease;
 }
+
 @keyframes fadeInTop {
   from {
     transform: translateY(-30px);
@@ -721,6 +870,7 @@ body.dark-mode .theme-toggle:hover {
     opacity: 1;
   }
 }
+
 .modal-custom .close-modal {
   position: absolute;
   right: 15px;
@@ -731,12 +881,14 @@ body.dark-mode .theme-toggle:hover {
   color: #555;
   cursor: pointer;
 }
+
 .modal-custom .modal-title {
   font-size: 20px;
   font-weight: bold;
   color: #388e3c;
   margin-bottom: 15px;
 }
+
 .modal-custom input,
 .modal-custom select,
 .modal-custom textarea {
@@ -748,6 +900,7 @@ body.dark-mode .theme-toggle:hover {
   margin-bottom: 16px;
   transition: border 0.2s;
 }
+
 .modal-custom input:focus,
 .modal-custom select:focus,
 .modal-custom textarea:focus {
@@ -755,21 +908,25 @@ body.dark-mode .theme-toggle:hover {
   outline: none;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
+
 .modal-custom textarea {
   min-height: 100px;
   resize: vertical;
 }
+
 .modal-custom .modal-label {
   display: block;
   font-size: 14px;
   color: #555;
   margin-bottom: 5px;
 }
+
 .modal-custom .modal-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
 }
+
 .modal-custom .modal-btn {
   padding: 8px 22px;
   border-radius: 8px;
@@ -779,23 +936,28 @@ body.dark-mode .theme-toggle:hover {
   transition: background 0.2s;
   cursor: pointer;
 }
+
 .modal-btn-cancel {
   background: #f5f5f5;
   color: #666;
 }
+
 .modal-btn-save {
   background: #4caf50;
   color: white;
 }
+
 .modal-btn-save:hover {
   background: #388e3c;
 }
+
 .tag-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
+
 .tag-option {
   padding: 5px 12px;
   background: #f5f5f5;
@@ -805,10 +967,12 @@ body.dark-mode .theme-toggle:hover {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .tag-option.selected {
   background: #e8f5e9;
   color: #388e3c;
 }
+
 .confirmation-dialog {
   position: fixed;
   top: 50%;
@@ -823,16 +987,19 @@ body.dark-mode .theme-toggle:hover {
   width: 90%;
   display: none;
 }
+
 .confirmation-dialog p {
   margin-bottom: 20px;
   font-size: 15px;
   color: #333;
 }
+
 .confirmation-dialog-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
 }
+
 .confirmation-dialog-btn {
   padding: 8px 16px;
   border-radius: 6px;
@@ -842,17 +1009,21 @@ body.dark-mode .theme-toggle:hover {
   transition: background 0.2s;
   cursor: pointer;
 }
+
 .confirmation-dialog-btn-cancel {
   background: #f5f5f5;
   color: #666;
 }
+
 .confirmation-dialog-btn-confirm {
   background: #d32f2f;
   color: white;
 }
+
 .confirmation-dialog-btn-confirm:hover {
   background: #b71c1c;
 }
+
 .confirmation-backdrop {
   position: fixed;
   top: 0;
@@ -863,6 +1034,7 @@ body.dark-mode .theme-toggle:hover {
   z-index: 2090;
   display: none;
 }
+
 .notification {
   position: fixed;
   bottom: 20px;
@@ -878,9 +1050,11 @@ body.dark-mode .theme-toggle:hover {
   gap: 10px;
   animation: slideIn 0.3s ease-out;
 }
+
 .notification.error {
   background: #f44336;
 }
+
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -902,6 +1076,7 @@ body.dark-mode .theme-toggle:hover {
   transition: all 0.3s ease;
   margin-right: 15px;
 }
+
 .theme-toggle:hover {
   background: var(--background-light);
   transform: scale(1.1);
@@ -926,6 +1101,7 @@ body.dark-mode .theme-toggle:hover {
     padding: 22px 20px;
   }
 }
+
 @media (max-width: 768px) {
   .main-content.shifted {
     margin-left: 0;
@@ -946,7 +1122,12 @@ body.dark-mode .theme-toggle:hover {
   .topic-grid {
     grid-template-columns: 1fr;
   }
+  .topic-tabs {
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
 }
+
 @media (max-width: 500px) {
   .forum-header {
     font-size: 20px;
@@ -960,6 +1141,10 @@ body.dark-mode .theme-toggle:hover {
   }
   .top-nav {
     padding: 12px 15px;
+  }
+  .tab-btn {
+    font-size: 14px;
+    padding: 10px 12px;
   }
 }
 
@@ -1048,6 +1233,15 @@ body.dark-mode .logout-message-content {
   }
   to {
     transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
     opacity: 1;
   }
 }

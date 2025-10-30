@@ -136,8 +136,25 @@
         max-width: 520px;
         margin: 20px auto;
       }
+
+      /* ✅ NEW: Read-only profile styles */
+      .read-only-profile .edit-profile-btn {
+        display: none !important;
+      }
+      .read-only-profile #editProfileBtn {
+        display: none !important;
+      }
+      .read-only-badge {
+        display: inline-block;
+        background: #2196f3;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-left: 10px;
+      }
     </style>
-    <title>Profile - Study Group</title>
+    <title id="pageTitle">Profile - Study Group</title>
   </head>
   <body>
     <!-- Loading Overlay -->
@@ -145,7 +162,7 @@
       <div class="spinner">
         <i class="bi bi-arrow-repeat spinning"></i>
       </div>
-      <p>Loading your profile...</p>
+      <p>Loading profile...</p>
     </div>
 
     <!-- Sidebar -->
@@ -242,18 +259,21 @@
             </button>
           </div>
           <div class="profile-info">
-            <h1 class="profile-name" id="displayName">DanePascual</h1>
+            <h1 class="profile-name" id="displayName">
+              Loading...
+              <span
+                id="readOnlyBadge"
+                class="read-only-badge"
+                style="display: none"
+              >
+                Viewing Profile
+              </span>
+            </h1>
             <p class="profile-email" id="displayEmail">
               <i class="bi bi-envelope"></i>
-              <span class="email-text"
-                >danepascual@paterostechnologicalcollege.edu.ph</span
-              >
+              <span class="email-text">Loading...</span>
             </p>
-            <p class="profile-bio" id="displayBio">
-              Information Technology student passionate about web development,
-              cybersecurity, and collaborative learning. Always eager to explore
-              new technologies and connect with fellow IT enthusiasts.
-            </p>
+            <p class="profile-bio" id="displayBio">Loading...</p>
             <div id="lastUpdated">Last updated: 2025-10-10 08:17:59 UTC</div>
           </div>
         </div>
@@ -273,37 +293,30 @@
               <div class="info-grid">
                 <div class="info-item">
                   <div class="info-label">Full Name</div>
-                  <div class="info-value" id="infoName">DanePascual</div>
+                  <div class="info-value" id="infoName">Loading...</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Student Number</div>
                   <div class="info-value" id="infoStudentNumber">
-                    2025-00001
+                    Loading...
                   </div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Program</div>
-                  <div class="info-value" id="infoProgram">BSIT</div>
+                  <div class="info-value" id="infoProgram">Loading...</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Year Level</div>
-                  <div class="info-value" id="infoYearLevel">3rd Year</div>
+                  <div class="info-value" id="infoYearLevel">Loading...</div>
                 </div>
                 <div class="info-item full-width">
                   <div class="info-label">Email Address</div>
-                  <div class="info-value email" id="infoEmail">
-                    danepascual@paterostechnologicalcollege.edu.ph
-                  </div>
+                  <div class="info-value email" id="infoEmail">Loading...</div>
                 </div>
               </div>
               <div style="margin-top: 25px">
                 <div class="info-label">About Me</div>
-                <div class="bio-section" id="infoBio">
-                  Information Technology student passionate about web
-                  development, cybersecurity, and collaborative learning. Always
-                  eager to explore new technologies and connect with fellow IT
-                  enthusiasts.
-                </div>
+                <div class="bio-section" id="infoBio">Loading...</div>
               </div>
             </div>
           </div>

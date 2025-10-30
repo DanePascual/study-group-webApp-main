@@ -5,6 +5,7 @@
 // - Input validation & sanitization
 // - Safe DOM updates
 // - Security logging for suspicious activities
+// ✅ FIXED: Reads UID from URL path (/profile/uid) instead of query string (?uid=...)
 
 import { auth } from "../../config/firebase.js";
 import { apiUrl } from "../../config/appConfig.js";
@@ -25,6 +26,7 @@ let CURRENT_SESSION = null;
 let currentPhotoURL = null;
 let currentPhotoFilename = null;
 let isLoading = false;
+let VIEWING_UID = null; // ✅ NEW: Track if viewing other user
 
 // ===== SECURITY: Constants =====
 const MAX_NAME_LENGTH = 255;
@@ -50,6 +52,18 @@ function logSecurityEvent(eventType, details) {
     `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
     details
   );
+}
+
+// ✅ NEW: Get UID from URL path
+function getUidFromUrl() {
+  const pathname = window.location.pathname;
+  const pathParts = pathname.split("/");
+  // Expected format: /profile/uid
+  if (pathParts.length >= 3 && pathParts[1] === "profile") {
+    const uid = pathParts[2];
+    return uid || null;
+  }
+  return null;
 }
 
 // -------------------- Notification --------------------
@@ -253,12 +267,12 @@ function broadcastProfileUpdated(profile) {
 
 // -------------------- Auth state and initial profile fetch --------------------
 onAuthStateChanged(auth, async (user) => {
+  // ✅ NEW: Get UID from URL
+  VIEWING_UID = getUidFromUrl();
+
   if (!user) {
-    const currentPath = window.location.pathname;
-    const pathParts = currentPath.split("/");
-    const loginPath =
-      pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
-    window.location.href = window.location.origin + loginPath;
+    // ✅ FIXED: Redirect to login.html in same directory
+    window.location.href = "login.html";
     return;
   }
 
@@ -272,25 +286,45 @@ onAuthStateChanged(auth, async (user) => {
     userAvatar: userNameFromAuth ? userNameFromAuth[0] : "U",
     userProgram: "",
     email: user.email,
+    uid: user.uid,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
   };
   updateSidebarUserInfo();
 
   try {
-    const profile = await fetchJsonWithAuth("/api/users/profile");
+    // ✅ NEW: If viewing other user, fetch their profile; otherwise fetch own
+    let profileEndpoint = "/api/users/profile";
+    if (VIEWING_UID && VIEWING_UID !== user.uid) {
+      profileEndpoint = `/api/users/${encodeURIComponent(VIEWING_UID)}`;
+    }
+
+    const profile = await fetchJsonWithAuth(profileEndpoint);
     CURRENT_SESSION.userProgram = profile.program || "";
     updateSidebarUserInfo();
     currentPhotoURL = profile.photo || null;
     currentPhotoFilename = profile.photoFilename || null;
     updateProfileUI(profile);
 
-    broadcastProfileUpdated(profile);
+    // ✅ NEW: Only broadcast if viewing own profile
+    if (!VIEWING_UID || VIEWING_UID === user.uid) {
+      broadcastProfileUpdated(profile);
+    }
+
+    // ✅ NEW: Hide edit controls if viewing other user
+    if (VIEWING_UID && VIEWING_UID !== user.uid) {
+      const editBtn = document.getElementById("editProfileBtn");
+      const changePasswordBtn = document.getElementById(
+        "openChangePasswordBtn"
+      );
+      if (editBtn) editBtn.style.display = "none";
+      if (changePasswordBtn) changePasswordBtn.style.display = "none";
+    }
 
     if (overlay) overlay.classList.remove("visible");
   } catch (err) {
     console.error("Error fetching profile from backend:", err);
     showNotification(
-      "Could not load your profile. Please try again later.",
+      "Could not load profile. Please try again later.",
       "error"
     );
     if (overlay) overlay.classList.remove("visible");

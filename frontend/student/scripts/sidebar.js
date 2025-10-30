@@ -5,6 +5,7 @@
 // - fast-path cached profile render + profile:updated listener
 // - auth listener using authFetch for authoritative profile
 // - idempotent init guard so module can be included on every page safely
+// ✅ FIXED: Ignores profile:updated when viewing other users (/profile/uid)
 
 import { onAuthStateChanged } from "../../config/firebase.js";
 import { authFetch } from "./apiClient.js";
@@ -124,6 +125,18 @@ function updateSidebar(profile = {}) {
         img.style.objectFit = "cover";
         img.style.display = "block";
         img.style.borderRadius = "50%";
+        img.onerror = () => {
+          // ✅ Fallback if image fails to load
+          img.style.display = "none";
+          avatarNode.textContent = profile.name
+            ? profile.name
+                .split(" ")
+                .map((n) => (n ? n[0] : ""))
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()
+            : "U";
+        };
         avatarNode.appendChild(img);
       } else if (profile.name) {
         const initials = profile.name
@@ -182,9 +195,29 @@ async function fetchAndUpdateSidebarProfile(user) {
   }
 }
 
+// ✅ NEW: Check if viewing other user profile
+function isViewingOtherUserProfile() {
+  const pathname = window.location.pathname;
+  const pathParts = pathname.split("/");
+  // Expected format: /profile/uid (viewing other user)
+  // OR /student/pages/profile.html (viewing own profile)
+  if (pathParts.length >= 3 && pathParts[1] === "profile") {
+    return true; // Viewing /profile/uid
+  }
+  return false; // Viewing own profile or other page
+}
+
 function setupProfileUpdatedListener() {
   window.addEventListener("profile:updated", (e) => {
     try {
+      // ✅ FIXED: Don't update sidebar with other user's profile data when viewing /profile/uid
+      if (isViewingOtherUserProfile()) {
+        console.log(
+          "[sidebar] Ignoring profile:updated while viewing other user profile"
+        );
+        return; // Don't update sidebar with other user's data
+      }
+
       const profile = e && e.detail ? e.detail : null;
       if (profile) {
         updateSidebar(profile);

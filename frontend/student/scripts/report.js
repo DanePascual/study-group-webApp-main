@@ -1,12 +1,13 @@
 // frontend/student/scripts/report.js
 // SECURITY HARDENED VERSION:
-// - Fetches real users for suggestions (from backend)
+// - Fetches real users for suggestions (from backend /api/users/list)
 // - Confirmation dialog before submitting report
 // - Stronger self-report prevention (case-insensitive, normalized)
 // - XSS prevention on all user inputs
 // - Input sanitization for descriptions
 // - Rate limit feedback to user
 // - Security logging
+// ✅ FIXED: Anonymous option removed
 
 import { auth } from "../../config/firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
@@ -141,18 +142,30 @@ async function fetchBackendProfile() {
   return fetchJsonWithAuth("/api/users/profile", { method: "GET" });
 }
 
-// ===== Fetch all users for suggestions =====
+// ===== Fetch all users for suggestions (from /api/users/list) =====
 async function fetchAllUsers() {
   try {
-    const data = await fetchJsonWithAuth("/api/users/all", { method: "GET" });
+    console.log("[report] Fetching users list from /api/users/list");
+    const data = await fetchJsonWithAuth("/api/users/list", { method: "GET" });
+
     if (Array.isArray(data)) {
       ALL_USERS = data.map((u) => ({
         email: normalizeEmail(u.email || ""),
         name: sanitizeString(u.name || "", 100),
       }));
+      console.log(
+        `[report] ✅ Loaded ${ALL_USERS.length} users for suggestions`
+      );
+    } else {
+      console.warn("[report] Users list response is not an array:", data);
+      ALL_USERS = [];
     }
   } catch (err) {
-    console.warn("Could not fetch users list:", err && err.message);
+    console.warn("[report] Could not fetch users list:", err && err.message);
+    showNotification(
+      "Could not load user suggestions. You can still submit a report.",
+      "info"
+    );
     ALL_USERS = [];
   }
 }
@@ -361,6 +374,7 @@ function initializeReportPage() {
     }
 
     // ===== Submit handler with confirmation =====
+    // ✅ FIXED: Removed anonymous checkbox handling
     reportForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -370,7 +384,6 @@ function initializeReportPage() {
       const locationEl = document.getElementById("location");
       const descriptionEl = document.getElementById("description");
       const incidentTimeEl = document.getElementById("incidentTime");
-      const anonymousEl = document.getElementById("anonymous");
 
       if (
         !reportTypeEl ||
@@ -391,7 +404,6 @@ function initializeReportPage() {
       const incidentTimeValue = incidentTimeEl
         ? incidentTimeEl.value || null
         : null;
-      const anonymousChecked = anonymousEl ? anonymousEl.checked : false;
 
       if (
         !reportType ||
@@ -451,7 +463,6 @@ function initializeReportPage() {
         if (incidentTimeValue)
           formData.append("incidentTime", incidentTimeValue);
         formData.append("description", descriptionValue);
-        formData.append("anonymous", anonymousChecked ? "true" : "false");
 
         for (const f of uploadedFilesList) formData.append("files", f);
 

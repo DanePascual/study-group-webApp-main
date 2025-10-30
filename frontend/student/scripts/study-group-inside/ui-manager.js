@@ -1,4 +1,4 @@
-// UiManager (ES module)
+// UiManager (ES module) - FIXED: Let sidebar.js handle theme
 import { showToast, closeToast } from "./utils.js";
 
 export class UiManager {
@@ -9,7 +9,7 @@ export class UiManager {
   }
 
   init() {
-    this.initializeTheme();
+    // ✅ REMOVED: initializeTheme() - sidebar.js handles this globally
     this.initializeSettingsModal();
     this.initializeInviteSystem();
     this.initializeSidebar();
@@ -25,24 +25,7 @@ export class UiManager {
     window.closeToast = closeToast;
   }
 
-  initializeTheme() {
-    const themeToggle = document.getElementById("themeToggle");
-    const body = document.body;
-    const savedTheme = localStorage.getItem("theme") || "light";
-    if (savedTheme === "dark") {
-      body.classList.add("dark-mode");
-      if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
-    }
-    themeToggle?.addEventListener("click", () => {
-      body.classList.toggle("dark-mode");
-      const isDark = body.classList.contains("dark-mode");
-      themeToggle.innerHTML = isDark
-        ? '<i class="bi bi-sun"></i>'
-        : '<i class="bi bi-moon"></i>';
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-      showToast(`Theme switched to ${isDark ? "dark" : "light"} mode`, "info");
-    });
-  }
+  // ✅ DELETED: initializeTheme() method entirely
 
   initializeSettingsModal() {
     const settingsBtn = document.getElementById("settingsBtn");
@@ -51,7 +34,6 @@ export class UiManager {
       settingsBtn.addEventListener("click", () => this.openSettingsModal());
     }
 
-    // Safe, guarded save button binding to avoid TypeError if roomManager isn't set
     const saveSettingsBtn = document.getElementById("saveSettingsBtn");
     if (saveSettingsBtn) {
       saveSettingsBtn.addEventListener("click", async (e) => {
@@ -103,27 +85,32 @@ export class UiManager {
         this.roomManager.currentRoomData.name || "";
       document.getElementById("roomDescInput").value =
         this.roomManager.currentRoomData.description || "";
+
       const participantsList2 = document.getElementById("participantsList2");
       if (participantsList2) {
+        // ✅ FIXED: Only show kick button if user is OWNER
         participantsList2.innerHTML = this.roomManager.participants
           .map((participant) => {
+            const isCurrent = participant.id === this.userAuth.currentUser.uid;
+            const canKick = this.roomManager.isOwner && !isCurrent; // ✅ FIXED!
+
             return `<div class="d-flex justify-content-between align-items-center p-2 border rounded mb-2"><div class="d-flex align-items-center gap-2"><div class="participant-avatar" style="width:24px;height:24px;font-size:12px;">${
               participant.avatar
             }</div><span>${participant.name}${
-              participant.id === this.userAuth.currentUser.uid ? " (You)" : ""
+              isCurrent ? " (You)" : ""
             }</span>${
               participant.isHost
                 ? '<span class="badge bg-primary">Host</span>'
                 : ""
             }</div>${
-              participant.id !== this.userAuth.currentUser.uid
+              canKick // ✅ Only show button if canKick is true
                 ? `<button class="btn btn-outline-danger btn-sm" onclick="window.kickParticipant('${participant.id}')"><i class="bi bi-x-lg"></i> Kick</button>`
                 : ""
             }</div>`;
           })
           .join("");
       }
-      // files
+
       if (window.chatModule) window.chatModule.updateFilesListInSettings();
       const deleteBtn = document.getElementById("deleteRoomBtn");
       if (deleteBtn)
@@ -238,28 +225,22 @@ export class UiManager {
 
     if (!sidebar || !mainContent || !menuToggle) return;
 
-    // Initialize sidebar state based on window width
     if (window.innerWidth > 768) this.setSidebar(true);
 
-    // Fix the toggle click handler with proper event stopPropagation
     menuToggle.addEventListener("click", (e) => {
-      e.stopPropagation(); // Prevent document click handler from being triggered
-      e.preventDefault(); // Prevent default behavior
+      e.stopPropagation();
+      e.preventDefault();
 
-      // Get current state
       const isCurrentlyOpen = sidebar.classList.contains("open");
 
-      // Debug current state
       console.log(
         "Toggle clicked in UI manager, current state:",
         isCurrentlyOpen
       );
 
-      // Toggle state
       this.setSidebar(!isCurrentlyOpen);
     });
 
-    // Handle outside clicks for mobile
     document.addEventListener("click", (e) => {
       if (
         window.innerWidth <= 768 &&
@@ -271,13 +252,10 @@ export class UiManager {
       }
     });
 
-    // Responsive behavior
     window.addEventListener("resize", () => {
       if (window.innerWidth > 768) {
-        // Always show sidebar on desktop
         if (!sidebar.classList.contains("open")) this.setSidebar(true);
       } else {
-        // Always hide sidebar on mobile
         if (sidebar.classList.contains("open")) this.setSidebar(false);
       }
     });
@@ -289,22 +267,16 @@ export class UiManager {
 
     if (!sidebar || !mainContent) return;
 
-    // Log action for debugging
     console.log(`UI-Manager setSidebar: ${open ? "OPENING" : "CLOSING"}`);
 
-    // Ensure any inline transform styles are cleared
     sidebar.style.transform = "";
-
-    // Clear any transition added by other scripts
     sidebar.style.transition = "";
     mainContent.style.transition = "";
 
-    // Let CSS handle the animation via classes
     if (open) {
       sidebar.classList.add("open");
       mainContent.classList.add("shifted");
 
-      // Store preference
       try {
         localStorage.setItem("sidebarOpen", "true");
       } catch (e) {}
@@ -312,13 +284,11 @@ export class UiManager {
       sidebar.classList.remove("open");
       mainContent.classList.remove("shifted");
 
-      // Store preference
       try {
         localStorage.setItem("sidebarOpen", "false");
       } catch (e) {}
     }
 
-    // Log the final state for debugging
     console.log("Final sidebar class:", sidebar.className);
     console.log("Final mainContent class:", mainContent.className);
     console.log("sidebar style.transform:", sidebar.style.transform);

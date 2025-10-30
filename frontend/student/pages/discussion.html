@@ -98,32 +98,75 @@
           advice by subject.
         </div>
 
-        <div class="forum-actions">
-          <button class="create-topic-btn" id="createTopicBtn">
-            <i class="bi bi-plus-circle"></i> Create New Topic
+        <!-- ✅ NEW: TAB SYSTEM -->
+        <div class="topic-tabs">
+          <button class="tab-btn active" data-tab="all-topics">
+            <i class="bi bi-chat-left-dots"></i>
+            All Topics
           </button>
-          <div class="filter-controls">
-            <select class="filter-dropdown" id="sortFilter">
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="activity">Most Active</option>
-            </select>
-            <select class="filter-dropdown" id="categoryFilter">
-              <option value="all">All Categories</option>
-              <option value="question">Questions</option>
-              <option value="discussion">Discussions</option>
-              <option value="resource">Resources</option>
-              <option value="announcement">Announcements</option>
-            </select>
+          <button class="tab-btn" data-tab="my-topics">
+            <i class="bi bi-pin-fill"></i>
+            My Topics <span class="tab-badge" id="myTopicsCount">0</span>
+          </button>
+        </div>
+
+        <!-- ✅ TAB CONTENT: All Topics -->
+        <div class="tab-content active" id="all-topics-content">
+          <div class="forum-actions">
+            <button class="create-topic-btn" id="createTopicBtn">
+              <i class="bi bi-plus-circle"></i> Create New Topic
+            </button>
+            <div class="filter-controls">
+              <select class="filter-dropdown" id="sortFilter">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="activity">Most Active</option>
+              </select>
+              <select class="filter-dropdown" id="categoryFilter">
+                <option value="all">All Categories</option>
+                <option value="question">Questions</option>
+                <option value="discussion">Discussions</option>
+                <option value="resource">Resources</option>
+                <option value="announcement">Announcements</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="topic-grid" id="topicGrid">
+            <!-- Topics will be rendered here -->
+          </div>
+
+          <!-- ✅ INFINITE SCROLL LOADER -->
+          <div
+            class="infinite-scroll-loader"
+            id="scrollLoader"
+            style="display: none"
+          >
+            <div class="loader-spinner"></div>
+            <p>Loading more topics...</p>
           </div>
         </div>
 
-        <div class="topic-grid" id="topicGrid">
-          <!-- Topics will be rendered here -->
-        </div>
+        <!-- ✅ TAB CONTENT: My Topics -->
+        <div class="tab-content" id="my-topics-content">
+          <div class="my-topics-header">
+            <h3>Topics I Created</h3>
+            <p class="my-topics-subtitle">Manage your topics conveniently</p>
+          </div>
 
-        <div class="pagination-controls" id="paginationControls">
-          <!-- Pagination will be rendered here -->
+          <div class="topic-grid" id="myTopicsGrid">
+            <!-- My Topics will be rendered here -->
+          </div>
+
+          <div class="empty-state" id="myTopicsEmpty" style="display: none">
+            <div class="empty-state-icon"><i class="bi bi-inbox"></i></div>
+            <div class="empty-state-text">
+              You haven't created any topics yet.
+            </div>
+            <button class="create-topic-btn" id="createTopicBtn2">
+              <i class="bi bi-plus-circle"></i> Create Your First Topic
+            </button>
+          </div>
         </div>
       </div>
     </div>

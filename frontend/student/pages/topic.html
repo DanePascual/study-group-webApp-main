@@ -43,7 +43,6 @@
           ><i class="bi bi-graph-up"></i>Report</a
         >
       </nav>
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -65,6 +64,7 @@
         </button>
       </div>
     </div>
+
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
       <!-- Top Navigation -->
@@ -85,65 +85,136 @@
       <div class="topic-container">
         <!-- Topic Header -->
         <div class="topic-header" id="topicHeader">
-          <button class="back-link" onclick="goBackToForum()">
-            <i class="bi bi-arrow-left"></i> Back to Topics
+          <!-- Back Navigation -->
+          <a class="back-link" onclick="goBackToForum()">
+            <i class="bi bi-arrow-left"></i>
+            <span>Back to Topics</span>
+          </a>
+
+          <!-- Header Content Container -->
+          <div class="topic-header-content">
+            <!-- Title Section -->
+            <div class="topic-title-section">
+              <h1 class="topic-title" id="topicTitle">Topic Title</h1>
+            </div>
+
+            <!-- Meta Information Grid -->
+            <div class="topic-meta" id="topicMeta">
+              <div class="topic-meta-item">
+                <i class="bi bi-person-circle"></i>
+                <span id="topicAuthor">Author</span>
+              </div>
+              <div class="topic-meta-item">
+                <i class="bi bi-calendar3"></i>
+                <span id="topicDate">Date</span>
+              </div>
+              <div class="topic-meta-item">
+                <i class="bi bi-chat-dots"></i>
+                <span id="topicPostCount">0 posts</span>
+              </div>
+              <div class="topic-meta-item">
+                <i class="bi bi-eye"></i>
+                <span id="topicViews">0 views</span>
+              </div>
+              <div class="topic-meta-item">
+                <i class="bi bi-tag"></i>
+                <span id="topicCategory">Category</span>
+              </div>
+            </div>
+
+            <!-- Description Section -->
+            <div class="topic-description-section">
+              <p class="topic-description" id="topicDescription">
+                Loading topic description...
+              </p>
+            </div>
+
+            <!-- Tags Section -->
+            <div class="topic-tags-section" id="topicTags">
+              <!-- Tags will be rendered here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ NEW: TAB SYSTEM -->
+        <div class="post-tabs">
+          <button class="tab-btn active" data-tab="all-posts">
+            <i class="bi bi-chat-left-dots"></i>
+            All Posts
           </button>
-          <div class="topic-title" id="topicTitle">Topic Title</div>
-          <div class="topic-meta" id="topicMeta">
-            <div class="topic-meta-item">
-              <i class="bi bi-person"></i> <span id="topicAuthor">Author</span>
-            </div>
-            <div class="topic-meta-item">
-              <i class="bi bi-calendar3"></i> <span id="topicDate">Date</span>
-            </div>
-            <div class="topic-meta-item">
-              <i class="bi bi-chat"></i>
-              <span id="topicPostCount">0 posts</span>
-            </div>
-            <div class="topic-meta-item">
-              <i class="bi bi-eye"></i> <span id="topicViews">0 views</span>
-            </div>
-            <div class="topic-meta-item">
-              <i class="bi bi-tag"></i> <span id="topicCategory">Category</span>
-            </div>
-          </div>
-          <div class="topic-description" id="topicDescription">
-            Loading topic description...
-          </div>
-          <div id="topicTags">
-            <!-- Tags will be rendered here -->
-          </div>
-        </div>
-
-        <!-- Topic Actions -->
-        <div class="topic-actions">
-          <button class="create-post-btn" id="createPostBtn">
-            <i class="bi bi-plus-circle"></i> Create New Post
+          <button class="tab-btn" data-tab="my-posts">
+            <i class="bi bi-pin-fill"></i>
+            My Posts <span class="tab-badge" id="myPostsCount">0</span>
           </button>
-          <div class="filter-controls">
-            <select class="filter-dropdown" id="sortFilter">
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="title">Title A-Z</option>
-            </select>
+        </div>
+
+        <!-- ✅ TAB CONTENT: All Posts -->
+        <div class="tab-content active" id="all-posts-content">
+          <!-- Topic Actions -->
+          <div class="topic-actions">
+            <button class="create-post-btn" id="createPostBtn">
+              <i class="bi bi-plus-circle"></i> Create New Post
+            </button>
+            <div class="filter-controls">
+              <!-- Search Bar -->
+              <input
+                type="text"
+                class="search-input-topic"
+                id="searchPostsInput"
+                placeholder="Search posts..."
+              />
+              <!-- Sort Filter -->
+              <select class="filter-dropdown" id="sortFilter">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Posts Section -->
+          <div class="post-grid" id="postGrid">
+            <!-- Posts will be rendered here -->
+            <div class="text-center p-5">
+              <i class="bi bi-hourglass-split"></i> Loading posts...
+            </div>
           </div>
         </div>
 
-        <!-- Posts Section -->
-        <div class="post-grid" id="postGrid">
-          <!-- Posts will be rendered here -->
-          <div class="text-center p-5">
-            <i class="bi bi-hourglass-split"></i> Loading posts...
+        <!-- ✅ TAB CONTENT: My Posts -->
+        <div class="tab-content" id="my-posts-content">
+          <div class="my-posts-header">
+            <h3>Posts I Created</h3>
+            <p class="my-posts-subtitle">Manage your posts conveniently</p>
+          </div>
+
+          <div class="post-grid" id="myPostsGrid">
+            <!-- My Posts will be rendered here -->
+          </div>
+
+          <div class="empty-state" id="myPostsEmpty" style="display: none">
+            <div class="empty-state-icon"><i class="bi bi-inbox"></i></div>
+            <div class="empty-state-text">
+              You haven't created any posts yet.
+            </div>
+            <button class="create-post-btn" id="createPostBtn2">
+              <i class="bi bi-plus-circle"></i> Create Your First Post
+            </button>
           </div>
         </div>
 
-        <div class="pagination-controls" id="paginationControls">
-          <!-- Pagination will be rendered here -->
-        </div>
+        <!-- Back to Top Button -->
+        <button
+          class="back-to-top-btn"
+          id="backToTopBtn"
+          onclick="scrollToTop()"
+        >
+          <i class="bi bi-arrow-up"></i>
+        </button>
       </div>
     </div>
 
     <!-- Create/Edit Post Modal -->
+    <!-- ✅ FIXED: Removed Post Title field + Image Upload -->
     <div class="modal-backdrop-custom" id="modalBackdrop">
       <div class="modal-custom">
         <button class="close-modal" id="closeModalBtn" aria-label="Close">
@@ -151,14 +222,8 @@
         </button>
         <div class="modal-title" id="modalTitle">Create New Post</div>
         <form id="postForm" autocomplete="off">
-          <label class="modal-label">Post Title</label>
-          <input
-            type="text"
-            id="postTitle"
-            placeholder="Enter a descriptive title"
-            maxlength="100"
-            required
-          />
+          <!-- ✅ REMOVED: Post Title field -->
+          <!-- ✅ REMOVED: Image Upload section -->
 
           <label class="modal-label">Post Content</label>
           <textarea
@@ -191,6 +256,117 @@
       </div>
     </div>
 
+    <!-- ✅ COMMENT MODAL (Facebook-Style) -->
+    <div class="comment-modal-backdrop" id="commentModalBackdrop">
+      <div class="comment-modal" id="commentModal">
+        <button class="comment-modal-close" id="closeCommentModal">
+          <i class="bi bi-x-lg"></i>
+        </button>
+
+        <!-- Post Content Section -->
+        <div class="comment-modal-post-header">
+          <div class="comment-modal-post-meta">
+            <div class="comment-modal-post-author">
+              <div
+                class="comment-modal-author-avatar"
+                id="commentModalAuthorAvatar"
+              >
+                A
+              </div>
+              <div>
+                <span id="commentModalAuthorName" style="font-weight: bold"
+                  >Author</span
+                >
+                <div
+                  style="font-size: 12px; color: #888"
+                  id="commentModalPostDate"
+                >
+                  Just now
+                </div>
+              </div>
+            </div>
+            <!-- ✅ FIXED: 3-dot menu container with proper positioning -->
+            <div class="post-options-container">
+              <button
+                class="post-options-btn-modal"
+                id="commentModalOptionsBtn"
+                onclick="window.toggleCommentModalOptions(event)"
+              >
+                <i class="bi bi-three-dots-vertical"></i>
+              </button>
+              <div class="post-dropdown-menu" id="commentModalOptionsMenu">
+                <div
+                  class="post-dropdown-item"
+                  onclick="window.showEditPostModal(window.currentCommentingPostId)"
+                >
+                  <i class="bi bi-pencil"></i> Edit
+                </div>
+                <div
+                  class="post-dropdown-item delete"
+                  onclick="window.showDeleteConfirmation(window.currentCommentingPostId)"
+                >
+                  <i class="bi bi-trash"></i> Delete
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="comment-modal-post-content" id="commentModalPostContent">
+            Post content here...
+          </div>
+          <img
+            id="commentModalPostImage"
+            class="comment-modal-post-image"
+            style="display: none"
+          />
+        </div>
+
+        <!-- Divider -->
+        <div class="comment-modal-divider"></div>
+
+        <!-- ✅ FIXED: Post Actions - Comment Count Only (Like removed) -->
+        <div class="comment-modal-post-actions">
+          <span class="comment-count">
+            <i class="bi bi-chat-dots"></i>
+            <span id="commentModalCommentCount">0</span> Comments
+          </span>
+        </div>
+
+        <!-- Divider -->
+        <div class="comment-modal-divider"></div>
+
+        <!-- Comments Section -->
+        <div class="comment-modal-comments-header">
+          <h4>Comments</h4>
+        </div>
+
+        <div class="comment-modal-comments-list" id="commentModalCommentsList">
+          <!-- Comments will be rendered here -->
+          <div class="loader">
+            <div class="loader-spinner"></div>
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Add Comment Section with proper layout -->
+        <div class="comment-modal-add-comment">
+          <div
+            class="comment-modal-user-avatar"
+            id="commentModalCurrentUserAvatar"
+          >
+            U
+          </div>
+          <textarea
+            class="comment-modal-comment-input"
+            id="commentModalCommentInput"
+            placeholder="Write a comment..."
+            rows="2"
+          ></textarea>
+          <button class="comment-modal-comment-btn" id="commentModalCommentBtn">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Confirmation Dialog -->
     <div class="confirmation-backdrop" id="confirmationBackdrop"></div>
     <div class="confirmation-dialog" id="deleteConfirmation">
@@ -216,10 +392,10 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-    <!-- load centralized sidebar module first so it initializes user/logout etc. -->
+    <!-- Load sidebar first -->
     <script type="module" src="../scripts/sidebar.js"></script>
 
-    <!-- page logic -->
+    <!-- Page logic -->
     <script type="module" src="../scripts/topic.js"></script>
   </body>
 </html>
