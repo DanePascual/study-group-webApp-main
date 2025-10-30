@@ -55,48 +55,6 @@ router.get("/list", async (req, res) => {
   }
 });
 
-// ✅ NEW ENDPOINT: GET /public/:uid - Read-only public profile (NO AUTH REQUIRED)
-// Returns only public-safe fields (no email, no sensitive data)
-router.get("/public/:uid", async (req, res) => {
-  const { uid } = req.params;
-
-  if (!uid || typeof uid !== "string" || uid.length === 0) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
-
-  try {
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const data = userDoc.data();
-
-    // ✅ SECURITY: Only return PUBLIC fields (safe to show anyone)
-    // NO email, NO sensitive data, NO last updated times
-    const publicProfile = {
-      uid: uid,
-      name: data.name || "",
-      program: data.program || "",
-      yearLevel: data.yearLevel || "",
-      bio: data.bio || "",
-      photo: data.photo || "",
-      institution: data.institution || "Pateros Technological College",
-      specialization: data.specialization || "",
-      graduation: data.graduation || "",
-      // ✅ SECURITY: NEVER return these:
-      // email, studentNumber, photoFilename, createdAt, lastUpdated
-    };
-
-    console.log(`[users] GET /public/${uid} accessed`);
-    return res.json(publicProfile);
-  } catch (err) {
-    console.error("[users] GET /public/:uid error:", err);
-    return res.status(500).json({ error: "Could not fetch user profile" });
-  }
-});
-
 // ===== GET current user's profile (protected) =====
 router.get("/profile", firebaseAuthMiddleware, async (req, res) => {
   const uid = req.user.uid;
