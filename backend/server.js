@@ -26,14 +26,15 @@ app.use((req, res, next) => {
 
 // ===== CORS Configuration =====
 const rawOrigins = (
-  process.env.FRONTEND_ORIGIN || "http://127.0.0.1:5500,http://localhost:5500"
+  process.env.FRONTEND_ORIGIN ||
+  "http://127.0.0.1:5500,http://localhost:5500,https://studygroup.app,https://www.studygroup.app"
 )
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
 
 const extraProd = [];
-const frontDomain = (process.env.FRONTEND_DOMAIN || "").trim();
+const frontDomain = (process.env.FRONTEND_DOMAIN || "studygroup.app").trim();
 if (frontDomain) {
   const proto = (process.env.FRONTEND_PROTOCOL || "https").trim();
   extraProd.push(`${proto}://${frontDomain}`);
@@ -41,6 +42,9 @@ if (frontDomain) {
 }
 
 const explicitWhitelist = new Set([...rawOrigins, ...extraProd]);
+
+// ===== DEBUG: Log CORS whitelist =====
+console.log(`[CORS] Whitelist:`, Array.from(explicitWhitelist));
 
 function isLocalHost(origin) {
   if (process.env.NODE_ENV === "production") {
@@ -59,17 +63,31 @@ function isLocalHost(origin) {
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (explicitWhitelist.has(origin) || isLocalHost(origin)) {
+      console.log(`[CORS] Checking origin: ${origin}`);
+
+      if (!origin) {
+        console.log(`[CORS] No origin provided, allowing`);
         return cb(null, true);
       }
-      console.warn(`CORS blocked for origin: ${origin}`);
+
+      if (explicitWhitelist.has(origin)) {
+        console.log(`[CORS] ✅ Origin allowed: ${origin}`);
+        return cb(null, true);
+      }
+
+      if (isLocalHost(origin)) {
+        console.log(`[CORS] ✅ Localhost allowed: ${origin}`);
+        return cb(null, true);
+      }
+
+      console.warn(`[CORS] ❌ Origin blocked: ${origin}`);
       return cb(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     optionsSuccessStatus: 200,
+    maxAge: 86400,
   })
 );
 
