@@ -1,22 +1,6 @@
 // backend/routes/resources.js
 // Resources routes using Firestore for metadata and Supabase for file storage.
-// SECURITY HARDENED VERSION with:
-// - File type whitelist validation
-// - Metadata sanitization and length validation
-// - Signed URL expiry bounds validation
-// - Rate limiting support (via middleware layer)
-// - Security event logging
-// - Input validation on all fields
-//
-// ROUTE ORDER FIXED: Specific routes (with /download, /mine) are defined BEFORE generic /:id routes
-// This ensures POST /:id/download matches before GET /:id
-//
-// Protected routes require firebaseAuthMiddleware and enforce ownership:
-//     POST /           -> create resource (owner set server-side)
-//     PUT  /:id        -> edit metadata (owner or admin)
-//     DELETE /:id      -> delete metadata + supabase objects (owner or admin)
-//     GET  /mine       -> list resources owned by current user
-//     POST /:id/download -> create signed URL for resource, record download event, increment counter
+// SECURITY HARDENED VERSION - CommonJS (require/module.exports)
 
 const express = require("express");
 const router = express.Router();
@@ -37,7 +21,6 @@ const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 
 // ===== SECURITY: File type whitelist =====
 const ALLOWED_FILE_TYPES = new Set(["pdf", "doc", "docx", "ppt", "pptx"]);
-
 const ALLOWED_COVER_TYPES = new Set(["jpg", "jpeg", "png", "gif"]);
 
 // ===== SECURITY: Input validation constants =====
@@ -46,20 +29,18 @@ const MAX_DESC_LENGTH = 2000;
 const MAX_CATEGORY_LENGTH = 50;
 const MAX_TAG_LENGTH = 50;
 const MAX_TAGS_COUNT = 10;
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
-const MAX_COVER_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-const MIN_SIGNED_URL_EXPIRY = 60; // seconds
-const MAX_SIGNED_URL_EXPIRY = 3600; // seconds (1 hour)
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_COVER_SIZE_BYTES = 10 * 1024 * 1024;
+const MIN_SIGNED_URL_EXPIRY = 60;
+const MAX_SIGNED_URL_EXPIRY = 3600;
 
-// multer setup (memory)
+// multer setup
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: MAX_FILE_SIZE_BYTES },
   fileFilter: (req, file, cb) => {
-    // Validate file types at multer level
     const ext = path.extname(file.originalname).replace(".", "").toLowerCase();
-
     if (file.fieldname === "file") {
       if (!ALLOWED_FILE_TYPES.has(ext)) {
         return cb(
@@ -117,12 +98,6 @@ function validateTitle(title) {
   if (!sanitized || sanitized.length === 0) {
     return { valid: false, error: "Title is required and must not be empty" };
   }
-  if (sanitized.length > MAX_TITLE_LENGTH) {
-    return {
-      valid: false,
-      error: `Title must not exceed ${MAX_TITLE_LENGTH} characters`,
-    };
-  }
   return { valid: true, value: sanitized };
 }
 
@@ -131,12 +106,6 @@ function validateDescription(desc) {
     return { valid: true, value: "" };
   }
   const sanitized = sanitizeString(desc, MAX_DESC_LENGTH);
-  if (sanitized.length > MAX_DESC_LENGTH) {
-    return {
-      valid: false,
-      error: `Description must not exceed ${MAX_DESC_LENGTH} characters`,
-    };
-  }
   return { valid: true, value: sanitized };
 }
 
@@ -192,7 +161,6 @@ function validateFileType(filename, iscover = false) {
   return { valid: true, value: ext };
 }
 
-// Helper: load service account (file or env)
 function loadServiceAccount() {
   try {
     const localPath = path.join(
@@ -224,7 +192,6 @@ function loadServiceAccount() {
   return null;
 }
 
-// Helper: decode Firestore REST field value to plain JS
 function decodeValue(fv) {
   if (fv === null || fv === undefined) return null;
   if (fv.stringValue !== undefined) return fv.stringValue;
@@ -245,7 +212,6 @@ function decodeValue(fv) {
   return fv;
 }
 
-// REST fallback: mint token and call Firestore REST (read)
 async function fetchResourcesViaRest(limit = 100) {
   const sa = loadServiceAccount();
   if (!sa || !sa.client_email || !sa.private_key) {
@@ -301,10 +267,7 @@ async function fetchResourcesViaRest(limit = 100) {
   });
 }
 
-/**
- * Public GET /api/resources
- * - Returns public metadata list (does NOT include long-lived file URLs).
- */
+// Public GET /api/resources
 router.get("/", async (req, res) => {
   try {
     console.log(
@@ -356,15 +319,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-/**
- * ===== SPECIFIC ROUTES MUST COME BEFORE GENERIC /:id ROUTES =====
- * This ensures POST /download matches before GET /:id
- */
-
-/**
- * Protected GET /api/resources/mine
- * - Returns resources owned by the authenticated user.
- */
+// Protected GET /api/resources/mine
 router.get("/mine", firebaseAuthMiddleware, async (req, res) => {
   try {
     const uid = req.user && req.user.uid;
@@ -391,16 +346,7 @@ router.get("/mine", firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-/**
- * POST /api/resources/:id/download
- * Protected: requires auth
- * - Creates short-lived signed URL via Supabase
- * - Records download event in Firestore
- * - Increments download counter
- * - SECURITY: Validates signed URL expiry bounds
- *
- * IMPORTANT: This MUST come before GET /:id so POST /download matches first
- */
+// POST /api/resources/:id/download
 router.post("/:id/download", firebaseAuthMiddleware, async (req, res) => {
   try {
     const uid = req.user && req.user.uid;
@@ -422,19 +368,12 @@ router.post("/:id/download", firebaseAuthMiddleware, async (req, res) => {
         .status(400)
         .json({ error: "No file available for this resource" });
 
-    // ===== SECURITY: Validate signed URL expiry =====
     let expires = Number(process.env.SIGNED_URL_EXPIRES_SECONDS || 300);
     if (expires < MIN_SIGNED_URL_EXPIRY) {
       expires = MIN_SIGNED_URL_EXPIRY;
-      console.warn(
-        `[resources] Signed URL expiry too low (${process.env.SIGNED_URL_EXPIRES_SECONDS}), using minimum ${MIN_SIGNED_URL_EXPIRY}s`
-      );
     }
     if (expires > MAX_SIGNED_URL_EXPIRY) {
       expires = MAX_SIGNED_URL_EXPIRY;
-      console.warn(
-        `[resources] Signed URL expiry too high (${process.env.SIGNED_URL_EXPIRES_SECONDS}), capping to maximum ${MAX_SIGNED_URL_EXPIRY}s`
-      );
     }
 
     const { data: signedData, error: signedErr } = await supabase.storage
@@ -449,7 +388,6 @@ router.post("/:id/download", firebaseAuthMiddleware, async (req, res) => {
       return res.status(500).json({ error: "Failed to create download link" });
     }
 
-    // Record download and increment downloads counter atomically
     const downloadDoc = {
       resourceId: req.params.id,
       userId: uid,
@@ -476,14 +414,7 @@ router.post("/:id/download", firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-/**
- * ===== GENERIC ROUTES COME AFTER SPECIFIC ROUTES =====
- */
-
-/**
- * GET /api/resources/:id
- * - Public metadata read for a single resource.
- */
+// GET /api/resources/:id
 router.get("/:id", async (req, res) => {
   try {
     console.log(`[resources] GET /:id - id=${req.params.id}`);
@@ -556,13 +487,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-/**
- * POST /api/resources
- * Protected: create a resource with SECURITY validation
- * - File type whitelist enforced
- * - Metadata sanitized and validated
- * - File size limits enforced
- */
+// POST /api/resources
 router.post(
   "/",
   firebaseAuthMiddleware,
@@ -585,7 +510,6 @@ router.post(
       const file = req.files?.file?.[0];
       const coverImage = req.files?.coverImage?.[0];
 
-      // ===== SECURITY: Validate required fields =====
       if (!title || !file) {
         logSecurityEvent("UPLOAD_VALIDATION_FAILED", uid, {
           reason: "Missing title or file",
@@ -593,7 +517,6 @@ router.post(
         return res.status(400).json({ error: "Title and file are required." });
       }
 
-      // ===== SECURITY: Validate title =====
       const titleValidation = validateTitle(title);
       if (!titleValidation.valid) {
         logSecurityEvent("UPLOAD_TITLE_INVALID", uid, {
@@ -602,7 +525,6 @@ router.post(
         return res.status(400).json({ error: titleValidation.error });
       }
 
-      // ===== SECURITY: Validate description =====
       const descValidation = validateDescription(desc);
       if (!descValidation.valid) {
         logSecurityEvent("UPLOAD_DESC_INVALID", uid, {
@@ -611,7 +533,6 @@ router.post(
         return res.status(400).json({ error: descValidation.error });
       }
 
-      // ===== SECURITY: Validate category =====
       const categoryValidation = validateCategory(category);
       if (!categoryValidation.valid) {
         logSecurityEvent("UPLOAD_CATEGORY_INVALID", uid, {
@@ -620,7 +541,6 @@ router.post(
         return res.status(400).json({ error: categoryValidation.error });
       }
 
-      // ===== SECURITY: Validate tags =====
       const tagsValidation = validateTags(tags);
       if (!tagsValidation.valid) {
         logSecurityEvent("UPLOAD_TAGS_INVALID", uid, {
@@ -629,7 +549,6 @@ router.post(
         return res.status(400).json({ error: tagsValidation.error });
       }
 
-      // ===== SECURITY: Validate file type =====
       const fileTypeValidation = validateFileType(file.originalname);
       if (!fileTypeValidation.valid) {
         logSecurityEvent("UPLOAD_FILE_TYPE_REJECTED", uid, {
@@ -639,7 +558,6 @@ router.post(
         return res.status(400).json({ error: fileTypeValidation.error });
       }
 
-      // ===== SECURITY: Validate file size =====
       if (file.size > MAX_FILE_SIZE_BYTES) {
         logSecurityEvent("UPLOAD_FILE_TOO_LARGE", uid, {
           filename: file.originalname,
@@ -659,7 +577,6 @@ router.post(
       const size = file.size;
       const filename = `resources/${uuidv4()}.${type}`;
 
-      // Upload to Supabase private bucket 'resources'
       const { error: uploadError } = await supabase.storage
         .from("resources")
         .upload(filename, file.buffer, {
@@ -677,10 +594,8 @@ router.post(
           .json({ error: "Failed to upload file to Supabase Storage" });
       }
 
-      // Optional: cover image upload with validation
       let coverFileKey = null;
       if (coverImage) {
-        // ===== SECURITY: Validate cover image type =====
         const coverTypeValidation = validateFileType(
           coverImage.originalname,
           true
@@ -693,7 +608,6 @@ router.post(
           return res.status(400).json({ error: coverTypeValidation.error });
         }
 
-        // ===== SECURITY: Validate cover image size =====
         if (coverImage.size > MAX_COVER_SIZE_BYTES) {
           logSecurityEvent("UPLOAD_COVER_TOO_LARGE", uid, {
             filename: coverImage.originalname,
@@ -753,7 +667,7 @@ router.post(
       const { supabaseFile, coverFile, ...publicData } = docData;
 
       console.log(
-        `[resources] Resource created: id=${docRef.id} by user=${uid}`
+        `[resources] ✅ Resource created: id=${docRef.id} by user=${uid} ownerId=${uid}`
       );
       return res.status(201).json({ id: docRef.id, ...publicData });
     } catch (err) {
@@ -765,12 +679,7 @@ router.post(
   }
 );
 
-/**
- * PUT /api/resources/:id
- * Protected: only owner or admin can update metadata
- * - Metadata sanitized and validated
- * - Cover image type validated
- */
+// PUT /api/resources/:id
 router.put(
   "/:id",
   firebaseAuthMiddleware,
@@ -790,7 +699,6 @@ router.put(
         return res.status(404).json({ error: "Resource not found" });
       const data = doc.data() || {};
 
-      // Authorization: only owner or admin
       const isOwner = String(data.ownerId) === String(uid);
       const isAdmin = req.user && req.user.admin === true;
       if (!isOwner && !isAdmin) {
@@ -803,7 +711,6 @@ router.put(
 
       const update = {};
 
-      // ===== SECURITY: Validate and sanitize update fields =====
       if (req.body.title !== undefined) {
         const titleValidation = validateTitle(req.body.title);
         if (!titleValidation.valid) {
@@ -850,7 +757,6 @@ router.put(
 
       update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
-      // Handle cover image update with validation
       const coverImage = req.files?.coverImage?.[0];
       if (coverImage) {
         const coverTypeValidation = validateFileType(
@@ -900,7 +806,6 @@ router.put(
             .json({ error: "Failed to upload new cover image" });
         }
         update.coverFile = coverKey;
-        // remove old cover if present
         if (data.coverFile) {
           try {
             await supabase.storage.from("resources").remove([data.coverFile]);
@@ -931,10 +836,7 @@ router.put(
   }
 );
 
-/**
- * DELETE /api/resources/:id
- * Protected: only owner or admin can delete
- */
+// DELETE /api/resources/:id
 router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
   try {
     const uid = req.user && req.user.uid;
@@ -950,7 +852,6 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Resource not found" });
     const resource = doc.data() || {};
 
-    // Authorization
     const isOwner = String(resource.ownerId) === String(uid);
     const isAdmin = req.user && req.user.admin === true;
     if (!isOwner && !isAdmin) {
@@ -961,7 +862,6 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    // Delete main file
     if (resource.supabaseFile) {
       try {
         await supabase.storage
@@ -974,7 +874,6 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
         );
       }
     }
-    // Delete cover file
     if (resource.coverFile) {
       try {
         await supabase.storage.from("resources").remove([resource.coverFile]);
