@@ -3,6 +3,7 @@ const router = express.Router();
 const admin = require("../config/firebase-admin");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 const rateLimit = require("express-rate-limit");
+const bcrypt = require("bcryptjs");
 
 // ===== SECURITY: Rate limiters =====
 const createRoomLimiter = rateLimit({
@@ -44,19 +45,9 @@ const joinRoomLimiter = rateLimit({
 // ===== SECURITY: Constants =====
 const MAX_ROOM_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_SUBJECT_LENGTH = 50;
-const MAX_TAG_LENGTH = 30;
-const MAX_TAGS = 3;
 const MAX_PARTICIPANTS = 100;
-const VALID_SUBJECTS = [
-  "programming",
-  "web",
-  "database",
-  "networking",
-  "security",
-  "ai",
-  "other",
-];
+const MAX_PASSWORD_LENGTH = 100;
+const MIN_PASSWORD_LENGTH = 8;
 const VALID_PRIVACY = ["public", "private"];
 
 // ===== SECURITY: Sanitization helpers =====
@@ -112,37 +103,6 @@ function validateRoomInput(data) {
     }
   }
 
-  // Validate subject (optional for updates)
-  if (data.subject !== undefined && data.subject !== null) {
-    if (!VALID_SUBJECTS.includes(data.subject)) {
-      errors.push(`Subject must be one of: ${VALID_SUBJECTS.join(", ")}`);
-    }
-  }
-
-  // Validate tags (optional but if provided, validate)
-  if (data.tags !== undefined && data.tags !== null) {
-    if (!Array.isArray(data.tags)) {
-      errors.push("Tags must be an array");
-    } else if (data.tags.length > MAX_TAGS) {
-      errors.push(`Maximum ${MAX_TAGS} tags allowed`);
-    } else {
-      for (const tag of data.tags) {
-        if (typeof tag !== "string") {
-          errors.push("Each tag must be a string");
-          break;
-        }
-        if (tag.trim().length === 0) {
-          errors.push("Tags cannot be empty");
-          break;
-        }
-        if (tag.length > MAX_TAG_LENGTH) {
-          errors.push(`Each tag must be ${MAX_TAG_LENGTH} characters or less`);
-          break;
-        }
-      }
-    }
-  }
-
   // Validate privacy (optional but if provided, validate)
   if (
     data.privacy !== undefined &&
@@ -152,30 +112,44 @@ function validateRoomInput(data) {
     errors.push(`Privacy must be one of: ${VALID_PRIVACY.join(", ")}`);
   }
 
-  // Validate sessionDate (optional but if provided, validate format)
-  if (data.sessionDate !== undefined && data.sessionDate !== null) {
-    if (typeof data.sessionDate !== "string") {
-      errors.push("Session date must be a string (YYYY-MM-DD format)");
-    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(data.sessionDate)) {
-      errors.push("Session date must be in YYYY-MM-DD format");
-    } else {
-      const dateObj = new Date(data.sessionDate);
-      if (isNaN(dateObj.getTime())) {
-        errors.push("Session date is invalid");
-      }
-    }
-  }
-
-  // Validate sessionTime (optional but if provided, validate format)
-  if (data.sessionTime !== undefined && data.sessionTime !== null) {
-    if (typeof data.sessionTime !== "string") {
-      errors.push("Session time must be a string (HH:MM format)");
-    } else if (!/^\d{2}:\d{2}$/.test(data.sessionTime)) {
-      errors.push("Session time must be in HH:MM format");
-    }
-  }
-
   return errors;
+}
+
+// ===== HELPER: Format room response =====
+function formatRoomResponse(data) {
+  // Handle createdAt - could be FieldValue.serverTimestamp() or actual Timestamp
+  let createdAtStr = "";
+  if (data.createdAt) {
+    if (typeof data.createdAt.toDate === "function") {
+      // It's a Firestore Timestamp
+      try {
+        createdAtStr = data.createdAt.toDate().toISOString();
+      } catch (err) {
+        console.error("Error converting Firestore Timestamp:", err);
+        createdAtStr = new Date().toISOString();
+      }
+    } else if (typeof data.createdAt === "string") {
+      // It's already an ISO string
+      createdAtStr = data.createdAt;
+    } else if (data.createdAt instanceof Date) {
+      // It's a JavaScript Date
+      createdAtStr = data.createdAt.toISOString();
+    }
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    privacy: data.privacy || "public",
+    creator: data.creator,
+    creatorEmail: data.creatorEmail,
+    participants: data.participants || [],
+    participantCount: (data.participants || []).length,
+    createdAt: createdAtStr,
+    isActive: data.isActive || true,
+    hasPassword: !!data.passwordHash, // Frontend needs to know if room is password-protected
+  };
 }
 
 // ===== POST /api/study-groups - Create room =====
@@ -206,14 +180,34 @@ router.post(
         req.body.description || "",
         MAX_DESCRIPTION_LENGTH
       );
-      const subject = sanitizeString(req.body.subject, MAX_SUBJECT_LENGTH);
-      const tags = (req.body.tags || [])
-        .map((tag) => sanitizeString(tag, MAX_TAG_LENGTH))
-        .filter((tag) => tag.length > 0)
-        .slice(0, MAX_TAGS);
       const privacy = req.body.privacy || "public";
-      const sessionDate = req.body.sessionDate || null;
-      const sessionTime = req.body.sessionTime || null;
+
+      // ===== SECURITY: Handle password for private rooms =====
+      let passwordHash = null;
+      if (privacy === "private" && req.body.password) {
+        const password = sanitizeString(req.body.password, MAX_PASSWORD_LENGTH);
+
+        if (password.length < MIN_PASSWORD_LENGTH) {
+          return res.status(400).json({
+            error: `Password for private room must be at least ${MIN_PASSWORD_LENGTH} characters`,
+          });
+        }
+
+        if (password.length > MAX_PASSWORD_LENGTH) {
+          return res.status(400).json({
+            error: `Password must be ${MAX_PASSWORD_LENGTH} characters or less`,
+          });
+        }
+
+        try {
+          const rounds = parseInt(process.env.BCRYPT_ROUNDS || "10", 10);
+          passwordHash = await bcrypt.hash(password, rounds);
+        } catch (err) {
+          console.error("Error hashing password:", err);
+          logSecurityEvent("PASSWORD_HASH_ERROR", uid, { error: err.message });
+          return res.status(500).json({ error: "Failed to process password" });
+        }
+      }
 
       // ===== Build room object =====
       const roomId = `room_${Date.now()}_${Math.random()
@@ -224,18 +218,18 @@ router.post(
         id: roomId,
         name,
         description,
-        subject,
-        tags,
         privacy,
         creator: uid,
         creatorEmail: email,
         participants: [uid],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        sessionDate,
-        sessionTime,
         isActive: true,
       };
+
+      if (passwordHash) {
+        roomData.passwordHash = passwordHash;
+      }
 
       // ===== Save to Firestore =====
       const db = admin.firestore();
@@ -246,24 +240,16 @@ router.post(
         roomId,
         name,
         privacy,
+        hasPassword: !!passwordHash,
       });
 
-      // Return sanitized response
-      res.status(201).json({
-        id: roomId,
-        name,
-        description,
-        subject,
-        tags,
-        privacy,
-        creator: uid,
-        creatorEmail: email,
-        participants: [uid],
+      // Convert for response (use current time since serverTimestamp is not yet resolved)
+      const responseData = {
+        ...roomData,
         createdAt: new Date().toISOString(),
-        sessionDate,
-        sessionTime,
-        isActive: true,
-      });
+      };
+
+      res.status(201).json(formatRoomResponse(responseData));
     } catch (error) {
       console.error("[study-groups] Error creating room:", error);
       logSecurityEvent("ROOM_CREATION_ERROR", req.user?.uid, {
@@ -284,31 +270,39 @@ router.get("/", async (req, res) => {
       .orderBy("createdAt", "desc")
       .get();
 
-    const rooms = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        subject: data.subject,
-        tags: data.tags || [],
-        creator: data.creator,
-        creatorEmail: data.creatorEmail,
-        privacy: data.privacy || "public",
-        participants: data.participants || [],
-        participantCount: (data.participants || []).length,
-        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
-        sessionDate: data.sessionDate || null,
-        sessionTime: data.sessionTime || null,
-        isActive: data.isActive || true,
-      };
-    });
+    const rooms = snapshot.docs.map((doc) => formatRoomResponse(doc.data()));
 
     console.log(`[study-groups] Fetched ${rooms.length} rooms`);
     res.json(rooms);
   } catch (error) {
     console.error("[study-groups] Error listing rooms:", error);
     res.status(500).json({ error: "Failed to fetch rooms" });
+  }
+});
+
+// ===== GET /api/study-groups/mine - Rooms joined by current user =====
+router.get("/mine", firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const db = admin.firestore();
+
+    // Query rooms where participants array contains the user
+    const snapshot = await db
+      .collection("study-groups")
+      .where("participants", "array-contains", uid)
+      .where("isActive", "==", true)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const rooms = snapshot.docs.map((doc) => formatRoomResponse(doc.data()));
+
+    console.log(
+      `[study-groups] Fetched ${rooms.length} joined rooms for ${uid}`
+    );
+    res.json(rooms);
+  } catch (error) {
+    console.error("[study-groups] Error fetching joined rooms:", error);
+    res.status(500).json({ error: "Failed to fetch joined rooms" });
   }
 });
 
@@ -323,23 +317,7 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Room not found" });
     }
 
-    const data = doc.data();
-    res.json({
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      subject: data.subject,
-      tags: data.tags || [],
-      creator: data.creator,
-      creatorEmail: data.creatorEmail,
-      privacy: data.privacy || "public",
-      participants: data.participants || [],
-      participantCount: (data.participants || []).length,
-      createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : "",
-      sessionDate: data.sessionDate || null,
-      sessionTime: data.sessionTime || null,
-      isActive: data.isActive || true,
-    });
+    res.json(formatRoomResponse(doc.data()));
   } catch (error) {
     console.error("[study-groups] Error fetching room:", error);
     res.status(500).json({ error: "Failed to fetch room" });
@@ -400,23 +378,37 @@ router.put(
           MAX_DESCRIPTION_LENGTH
         );
       }
-      if (req.body.subject) {
-        updates.subject = sanitizeString(req.body.subject, MAX_SUBJECT_LENGTH);
-      }
-      if (req.body.tags) {
-        updates.tags = req.body.tags
-          .map((tag) => sanitizeString(tag, MAX_TAG_LENGTH))
-          .filter((tag) => tag.length > 0)
-          .slice(0, MAX_TAGS);
-      }
       if (req.body.privacy) {
         updates.privacy = req.body.privacy;
       }
-      if (req.body.sessionDate !== undefined) {
-        updates.sessionDate = req.body.sessionDate;
-      }
-      if (req.body.sessionTime !== undefined) {
-        updates.sessionTime = req.body.sessionTime;
+
+      // ===== SECURITY: Allow owner to set/change password =====
+      if (req.body.password !== undefined) {
+        if (req.body.password && req.body.password.length > 0) {
+          const password = sanitizeString(
+            req.body.password,
+            MAX_PASSWORD_LENGTH
+          );
+
+          if (password.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({
+              error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+            });
+          }
+
+          try {
+            const rounds = parseInt(process.env.BCRYPT_ROUNDS || "10", 10);
+            updates.passwordHash = await bcrypt.hash(password, rounds);
+          } catch (err) {
+            console.error("Error hashing password:", err);
+            return res
+              .status(500)
+              .json({ error: "Failed to process password" });
+          }
+        } else {
+          // Owner wants to remove password
+          updates.passwordHash = admin.firestore.FieldValue.delete();
+        }
       }
 
       updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
@@ -428,26 +420,8 @@ router.put(
 
       // Fetch and return updated room
       const updatedDoc = await db.collection("study-groups").doc(id).get();
-      const updatedData = updatedDoc.data();
 
-      res.json({
-        id: updatedData.id,
-        name: updatedData.name,
-        description: updatedData.description,
-        subject: updatedData.subject,
-        tags: updatedData.tags || [],
-        creator: updatedData.creator,
-        creatorEmail: updatedData.creatorEmail,
-        privacy: updatedData.privacy || "public",
-        participants: updatedData.participants || [],
-        participantCount: (updatedData.participants || []).length,
-        createdAt: updatedData.createdAt
-          ? updatedData.createdAt.toDate().toISOString()
-          : "",
-        sessionDate: updatedData.sessionDate || null,
-        sessionTime: updatedData.sessionTime || null,
-        isActive: updatedData.isActive || true,
-      });
+      res.json(formatRoomResponse(updatedDoc.data()));
     } catch (error) {
       console.error("[study-groups] Error updating room:", error);
       logSecurityEvent("ROOM_UPDATE_ERROR", req.user?.uid, {
@@ -509,64 +483,148 @@ router.post(
       const { id } = req.params;
       const uid = req.user.uid;
       const db = admin.firestore();
-      const doc = await db.collection("study-groups").doc(id).get();
+      const roomRef = db.collection("study-groups").doc(id);
 
-      if (!doc.exists) {
-        logSecurityEvent("JOIN_ROOM_NOT_FOUND", uid, { roomId: id });
-        return res.status(404).json({ error: "Room not found" });
+      // Use transaction to avoid race conditions when adding participants
+      const result = await db.runTransaction(async (tx) => {
+        const roomDoc = await tx.get(roomRef);
+        if (!roomDoc.exists) {
+          logSecurityEvent("JOIN_ROOM_NOT_FOUND", uid, { roomId: id });
+          return { status: 404, body: { error: "Room not found" } };
+        }
+
+        const roomData = roomDoc.data();
+        const participants = roomData.participants || [];
+
+        // ===== Check if already member =====
+        if (participants.includes(uid)) {
+          // User is already a member - return success (no error) so frontend can proceed
+          console.log(
+            `[study-groups] User ${uid} is already member of room ${id}`
+          );
+          return {
+            status: 200,
+            body: {
+              success: true,
+              message: "You are already a member of this room",
+              participantCount: participants.length,
+              alreadyMember: true,
+            },
+          };
+        }
+
+        // ===== Check max participants limit =====
+        if (participants.length >= MAX_PARTICIPANTS) {
+          logSecurityEvent("JOIN_ROOM_FULL", uid, {
+            roomId: id,
+            participantCount: participants.length,
+          });
+          return {
+            status: 403,
+            body: {
+              error: "This room has reached its maximum participant limit",
+            },
+          };
+        }
+
+        // ===== SECURITY: Check privacy and password =====
+        if (roomData.privacy === "private") {
+          // If no passwordHash set on private room, deny join
+          if (!roomData.passwordHash) {
+            logSecurityEvent("JOIN_PRIVATE_ROOM_NO_PASSWORD", uid, {
+              roomId: id,
+            });
+            return {
+              status: 403,
+              body: {
+                error:
+                  "This private room currently requires an owner-set password to join. Contact the room owner.",
+              },
+            };
+          }
+
+          const providedPassword = req.body && req.body.password;
+          if (!providedPassword || typeof providedPassword !== "string") {
+            return {
+              status: 400,
+              body: { error: "Password is required to join this private room" },
+            };
+          }
+
+          if (providedPassword.length < MIN_PASSWORD_LENGTH) {
+            return {
+              status: 400,
+              body: {
+                error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+              },
+            };
+          }
+
+          // Compare with bcrypt hash
+          try {
+            const match = await bcrypt.compare(
+              providedPassword,
+              roomData.passwordHash
+            );
+            if (!match) {
+              logSecurityEvent("JOIN_PRIVATE_ROOM_WRONG_PASSWORD", uid, {
+                roomId: id,
+              });
+              return {
+                status: 403,
+                body: { error: "Incorrect password" },
+              };
+            }
+          } catch (bcryptErr) {
+            console.error("Error comparing password:", bcryptErr);
+            logSecurityEvent("PASSWORD_COMPARE_ERROR", uid, {
+              roomId: id,
+              error: bcryptErr.message,
+            });
+            return {
+              status: 500,
+              body: { error: "Password verification failed" },
+            };
+          }
+        }
+
+        // Passed privacy/password checks -> add participant
+        const newParticipants = Array.from(
+          new Set([...participants, uid])
+        ).slice(0, MAX_PARTICIPANTS);
+
+        tx.update(roomRef, {
+          participants: newParticipants,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {
+          status: 200,
+          body: {
+            success: true,
+            message: "Joined room successfully",
+            participantCount: newParticipants.length,
+          },
+        };
+      }); // end transaction
+
+      // Transaction returned a response object
+      if (result.status && result.body) {
+        // Log join success if 200 and not already member
+        if (result.status === 200 && !result.body.alreadyMember) {
+          console.log(
+            `[study-groups] User ${req.user.uid} joined room ${id} successfully`
+          );
+          logSecurityEvent("ROOM_JOINED", req.user.uid, {
+            roomId: id,
+            participantCount: result.body.participantCount,
+          });
+        }
+        return res.status(result.status).json(result.body);
       }
 
-      const roomData = doc.data();
-      const participants = roomData.participants || [];
-
-      // ===== SECURITY: Check privacy =====
-      if (roomData.privacy === "private" && roomData.creator !== uid) {
-        logSecurityEvent("JOIN_PRIVATE_ROOM_DENIED", uid, {
-          roomId: id,
-        });
-        return res.status(403).json({
-          error: "This is a private room. Invitation required.",
-        });
-      }
-
-      // ===== Check if already member =====
-      if (participants.includes(uid)) {
-        return res.status(400).json({
-          error: "You are already a member of this room",
-        });
-      }
-
-      // ===== Check max participants limit =====
-      if (participants.length >= MAX_PARTICIPANTS) {
-        logSecurityEvent("JOIN_ROOM_FULL", uid, {
-          roomId: id,
-          participantCount: participants.length,
-        });
-        return res.status(403).json({
-          error: "This room has reached its maximum participant limit",
-        });
-      }
-
-      // Add to participants
-      participants.push(uid);
-      await db.collection("study-groups").doc(id).update({
-        participants,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      console.log(
-        `[study-groups] User ${uid} joined room ${id} (${participants.length} participants)`
-      );
-      logSecurityEvent("ROOM_JOINED", uid, {
-        roomId: id,
-        participantCount: participants.length,
-      });
-
-      res.json({
-        success: true,
-        message: "Joined room successfully",
-        participantCount: participants.length,
-      });
+      // Fallback error
+      return res.status(500).json({ error: "Failed to join room" });
     } catch (error) {
       console.error("[study-groups] Error joining room:", error);
       logSecurityEvent("ROOM_JOIN_ERROR", req.user?.uid, {
@@ -577,7 +635,7 @@ router.post(
   }
 );
 
-// ✅ NEW: DELETE /api/study-groups/:id/participants/:userId - Remove participant
+// ===== DELETE /api/study-groups/:id/participants/:userId - Remove participant =====
 router.delete(
   "/:id/participants/:userId",
   firebaseAuthMiddleware,
