@@ -754,7 +754,8 @@ router.post(
   }
 );
 
-// ===== DELETE /api/study-groups/:id/participants/:userId - Remove participant =====
+// ✅ FIXED: DELETE /api/study-groups/:id/participants/:userId - Remove participant =====
+// Allow users to remove themselves OR room creator can remove others
 router.delete(
   "/:id/participants/:userId",
   firebaseAuthMiddleware,
@@ -778,15 +779,19 @@ router.delete(
 
       const roomData = doc.data();
 
-      // ===== SECURITY: Only room creator can remove participants =====
-      if (roomData.creator !== uid && req.user.admin !== true) {
+      // ✅ FIXED: Allow users to remove themselves OR room creator can remove others
+      const isOwner = roomData.creator === uid;
+      const isRemovingSelf = decodedUserId === uid;
+
+      if (!isOwner && !isRemovingSelf) {
         logSecurityEvent("UNAUTHORIZED_REMOVE_PARTICIPANT", uid, {
           roomId: id,
           targetUserId: decodedUserId,
           creator: roomData.creator,
         });
         return res.status(403).json({
-          error: "Forbidden: Only room creator can remove participants",
+          error:
+            "Forbidden: You can only remove yourself or the room creator can remove others",
         });
       }
 
@@ -819,6 +824,8 @@ router.delete(
       logSecurityEvent("PARTICIPANT_REMOVED", uid, {
         roomId: id,
         removedUserId: decodedUserId,
+        isOwner: isOwner,
+        isRemovingSelf: isRemovingSelf,
       });
 
       res.json({
