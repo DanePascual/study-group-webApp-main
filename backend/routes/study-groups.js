@@ -149,6 +149,7 @@ function formatRoomResponse(data) {
     createdAt: createdAtStr,
     isActive: data.isActive || true,
     hasPassword: !!data.passwordHash, // Frontend needs to know if room is password-protected
+    isPrivate: (data.privacy || "public") === "private", // ✅ NEW: Send isPrivate flag to frontend
   };
 }
 
@@ -323,6 +324,124 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch room" });
   }
 });
+
+// ✅ NEW: PUT /api/study-groups/:id/password - Reset room password (owner only, private rooms only)
+router.put(
+  "/:id/password",
+  firebaseAuthMiddleware,
+  updateRoomLimiter,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const uid = req.user.uid;
+      const { password } = req.body;
+
+      console.log(`[study-groups] Password reset request for room: ${id}`);
+      console.log(`[study-groups] User: ${uid}`);
+      console.log(`[study-groups] Password provided: ${!!password}`);
+
+      const db = admin.firestore();
+      const doc = await db.collection("study-groups").doc(id).get();
+
+      if (!doc.exists) {
+        console.log(`[study-groups] ❌ Room not found: ${id}`);
+        logSecurityEvent("PASSWORD_RESET_ROOM_NOT_FOUND", uid, { roomId: id });
+        return res.status(404).json({ error: "Room not found" });
+      }
+
+      const roomData = doc.data();
+      console.log(
+        `[study-groups] Room creator: ${roomData.creator}, Auth user: ${uid}`
+      );
+
+      // ===== SECURITY: Only room creator can reset password =====
+      if (roomData.creator !== uid) {
+        console.log(
+          `[study-groups] ❌ Unauthorized - user is not room creator`
+        );
+        logSecurityEvent("UNAUTHORIZED_PASSWORD_RESET", uid, { roomId: id });
+        return res.status(403).json({
+          error: "Forbidden: Only room creator can reset password",
+        });
+      }
+
+      // ===== SECURITY: Only private rooms can have password reset =====
+      const privacy = String(roomData.privacy || "public").toLowerCase();
+      if (privacy !== "private") {
+        console.log(
+          `[study-groups] ❌ Not a private room - privacy: ${privacy}`
+        );
+        logSecurityEvent("PASSWORD_RESET_NOT_PRIVATE", uid, { roomId: id });
+        return res.status(400).json({
+          error: "Password reset is only available for private rooms",
+        });
+      }
+
+      // ===== SECURITY: Validate password =====
+      if (!password || typeof password !== "string") {
+        console.log(`[study-groups] ❌ No password provided or invalid type`);
+        return res.status(400).json({ error: "New password is required" });
+      }
+
+      const sanitizedPassword = sanitizeString(password, MAX_PASSWORD_LENGTH);
+
+      if (sanitizedPassword.length < MIN_PASSWORD_LENGTH) {
+        console.log(`[study-groups] ❌ Password too short`);
+        return res.status(400).json({
+          error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        });
+      }
+
+      if (sanitizedPassword.length > MAX_PASSWORD_LENGTH) {
+        console.log(`[study-groups] ❌ Password too long`);
+        return res.status(400).json({
+          error: `Password must be ${MAX_PASSWORD_LENGTH} characters or less`,
+        });
+      }
+
+      // ===== SECURITY: Hash new password =====
+      let newPasswordHash;
+      try {
+        const rounds = parseInt(process.env.BCRYPT_ROUNDS || "10", 10);
+        newPasswordHash = await bcrypt.hash(sanitizedPassword, rounds);
+        console.log(`[study-groups] ✅ Password hashed successfully`);
+      } catch (err) {
+        console.error("[study-groups] Hash error:", err);
+        logSecurityEvent("PASSWORD_HASH_ERROR", uid, {
+          roomId: id,
+          error: err.message,
+        });
+        return res.status(500).json({ error: "Failed to process password" });
+      }
+
+      // ===== Update Firestore with new password hash =====
+      await db.collection("study-groups").doc(id).update({
+        passwordHash: newPasswordHash,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(
+        `[study-groups] ✅ Password reset successfully for room: ${id}`
+      );
+      logSecurityEvent("ROOM_PASSWORD_RESET", uid, { roomId: id });
+
+      // Fetch and return updated room
+      const updatedDoc = await db.collection("study-groups").doc(id).get();
+
+      res.json({
+        success: true,
+        message: "Room password has been reset successfully",
+        room: formatRoomResponse(updatedDoc.data()),
+      });
+    } catch (error) {
+      console.error("[study-groups] Error resetting password:", error);
+      logSecurityEvent("PASSWORD_RESET_ERROR", req.user?.uid, {
+        error: error.message,
+      });
+      res.status(500).json({ error: "Failed to reset room password" });
+    }
+  }
+);
 
 // ===== PUT /api/study-groups/:id - Update room (owner only) =====
 router.put(
