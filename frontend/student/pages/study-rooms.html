@@ -15,7 +15,6 @@
     <title>Study Rooms - Study Group</title>
   </head>
   <body>
-    <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-brand">
@@ -24,34 +23,43 @@
         </div>
       </div>
 
-      <nav class="sidebar-menu">
+      <nav class="sidebar-menu" role="navigation">
         <a href="dashboard.html" class="sidebar-item">
           <i class="bi bi-house"></i>
-          Dashboard
+          <span>Dashboard</span>
         </a>
         <a href="profile.html" class="sidebar-item">
           <i class="bi bi-person"></i>
-          Profile
+          <span>Profile</span>
         </a>
         <a href="study-rooms.html" class="sidebar-item active">
           <i class="bi bi-door-open"></i>
-          Study Rooms
+          <span>Study Rooms</span>
         </a>
         <a href="resources.html" class="sidebar-item">
           <i class="bi bi-folder"></i>
-          Resources
+          <span>Resources</span>
         </a>
         <a href="discussion.html" class="sidebar-item">
           <i class="bi bi-chat-dots"></i>
-          Discussion Forum
+          <span>Discussion Forum</span>
         </a>
         <a href="report.html" class="sidebar-item">
           <i class="bi bi-flag"></i>
-          Report
+          <span>Report</span>
+        </a>
+        <!-- Admin Panel Link (only visible to admins) -->
+        <a
+          href="../../admin/index.html"
+          id="adminPanelLink"
+          class="sidebar-item admin-item"
+          style="display: none"
+        >
+          <i class="bi bi-shield-check"></i>
+          <span>Admin Panel</span>
         </a>
       </nav>
 
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -74,9 +82,7 @@
       </div>
     </div>
 
-    <!-- Main Content -->
     <div class="main-content" id="mainContent">
-      <!-- Top Navigation -->
       <div class="top-nav">
         <div class="nav-left">
           <button class="menu-toggle" id="menuToggle">
@@ -105,142 +111,79 @@
         </div>
       </div>
 
-      <!-- Study Rooms Content -->
       <div class="study-rooms-page-content">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-number" id="activeRoomsCount">0</div>
-            <div class="stat-label">Active Study Rooms</div>
-            <div class="stat-change">Create your first room!</div>
-            <div class="stat-timestamp" id="currentTime">
-              2025-08-29 16:10:26 Philippines
-            </div>
+        <div class="study-rooms-list">
+          <div class="section-title">
+            <i class="bi bi-door-open"></i>
+            Study Rooms
+            <button
+              class="btn btn-success ms-auto"
+              style="border-radius: 20px; padding: 6px 18px; font-size: 13px"
+              id="createRoomButton"
+            >
+              <i class="bi bi-plus-lg"></i> Create Study Room
+            </button>
           </div>
-          <div class="stat-card">
-            <div class="stat-number" id="yourRoomsCount">0</div>
-            <div class="stat-label">Your Study Groups</div>
-            <div class="stat-change">Join study groups to get started</div>
-            <div class="stat-timestamp">User: DanePascual</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">0</div>
-            <div class="stat-label">Shared Resources</div>
-            <div class="stat-change">Share your first study material</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">0h</div>
-            <div class="stat-label">Study Time</div>
-            <div class="stat-change">Track your productivity</div>
-          </div>
-        </div>
 
-        <div class="content-row">
-          <!-- Main section: Your Study Rooms -->
-          <div class="main-section">
-            <div class="study-rooms-list">
-              <div class="section-title">
+          <div class="room-tabs-container">
+            <div class="room-tabs">
+              <button
+                class="room-tab active"
+                data-tab="all-rooms"
+                aria-selected="true"
+              >
                 <i class="bi bi-door-open"></i>
-                Your Study Rooms
-                <button
-                  class="btn btn-success ms-auto"
-                  style="
-                    border-radius: 20px;
-                    padding: 6px 18px;
-                    font-size: 13px;
-                  "
-                  id="createRoomButton"
-                >
-                  <i class="bi bi-plus-lg"></i> Create Study Room
-                </button>
-              </div>
-
-              <!-- Room Filters -->
-              <div class="room-filters">
-                <button class="filter-btn active" data-filter="all">
-                  All Rooms
-                </button>
-                <button class="filter-btn" data-filter="active">
-                  Active Now
-                </button>
-                <button class="filter-btn" data-filter="programming">
-                  Programming
-                </button>
-                <button class="filter-btn" data-filter="web">
-                  Web Development
-                </button>
-              </div>
-
-              <!-- Room Grid Container -->
-              <div id="roomContainer">
-                <!-- Room grid and pagination will be rendered here -->
-                <div class="empty-state" id="emptyState">
-                  <div class="empty-state-icon">
-                    <i class="bi bi-door-closed"></i>
-                  </div>
-                  <h3>No Study Rooms Yet</h3>
-                  <p>
-                    Create your first study room to collaborate with other
-                    students on projects, assignments, or exam prep.
-                  </p>
-                  <div class="empty-state-action">
-                    <button class="btn btn-success" id="createFirstRoomButton">
-                      <i class="bi bi-plus-lg"></i> Create Your First Room
-                    </button>
-                  </div>
-                </div>
-              </div>
+                All Rooms
+              </button>
+              <button
+                class="room-tab"
+                data-tab="public-rooms"
+                aria-selected="false"
+              >
+                <i class="bi bi-globe"></i>
+                Public Rooms
+              </button>
+              <button
+                class="room-tab"
+                data-tab="private-rooms"
+                aria-selected="false"
+              >
+                <i class="bi bi-lock"></i>
+                Private Rooms
+              </button>
+              <button
+                class="room-tab"
+                data-tab="joined-rooms"
+                aria-selected="false"
+              >
+                <i class="bi bi-person-check"></i>
+                Your Joined Rooms
+              </button>
+              <button
+                class="room-tab"
+                data-tab="created-rooms"
+                aria-selected="false"
+              >
+                <i class="bi bi-pencil-square"></i>
+                Your Created Rooms
+              </button>
             </div>
-            <!-- Pagination controls will be rendered by JS -->
           </div>
 
-          <!-- Side section: Recommended For You -->
-          <div class="side-section">
-            <div class="recommended-list">
-              <div class="rec-header">
-                <div class="rec-title">Recommended For You</div>
-                <div class="rec-subtext">
-                  (Based on your profile and course)
-                </div>
+          <div id="roomContainer">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-state-icon">
+                <i class="bi bi-door-closed"></i>
               </div>
-              <div class="p-3">
-                <div class="text-center text-muted py-4">
-                  <i
-                    class="bi bi-lightbulb"
-                    style="
-                      font-size: 28px;
-                      opacity: 0.5;
-                      display: block;
-                      margin-bottom: 10px;
-                    "
-                  ></i>
-                  <p>
-                    Browse and join other study rooms to see recommendations
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Study Calendar -->
-            <div class="recommended-list mt-4">
-              <div class="rec-header">
-                <div class="rec-title">Upcoming Study Sessions</div>
-              </div>
-              <div class="p-3">
-                <div class="text-center text-muted py-4">
-                  <i
-                    class="bi bi-calendar"
-                    style="
-                      font-size: 28px;
-                      opacity: 0.5;
-                      display: block;
-                      margin-bottom: 10px;
-                    "
-                  ></i>
-                  <p>No upcoming sessions scheduled</p>
-                  <p class="small">
-                    Create a room to schedule your first session
-                  </p>
-                </div>
+              <h3>No Study Rooms Yet</h3>
+              <p>
+                Create your first study room to collaborate with other students
+                on projects, assignments, or exam prep.
+              </p>
+              <div class="empty-state-action">
+                <button class="btn btn-success" id="createFirstRoomButton">
+                  <i class="bi bi-plus-lg"></i> Create Your First Room
+                </button>
               </div>
             </div>
           </div>
@@ -248,7 +191,7 @@
       </div>
     </div>
 
-    <!-- Create Room Modal -->
+    <!-- Create Room Modal (SIMPLIFIED - No Tags, No Schedule, No Subject) -->
     <div
       class="modal fade"
       id="createRoomModal"
@@ -274,9 +217,11 @@
                   type="text"
                   class="form-control"
                   id="roomName"
+                  placeholder="e.g. Data Structures Study Group"
                   required
                 />
               </div>
+
               <div class="mb-3">
                 <label for="roomDescription" class="form-label"
                   >Description</label
@@ -285,39 +230,10 @@
                   class="form-control"
                   id="roomDescription"
                   rows="3"
+                  placeholder="Describe the purpose of this study room..."
                 ></textarea>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Subject Area</label>
-                <select class="form-select" id="subjectArea" required>
-                  <option value="">Select a subject</option>
-                  <option value="programming">Programming</option>
-                  <option value="web">Web Development</option>
-                  <option value="database">Database</option>
-                  <option value="networking">Networking</option>
-                  <option value="security">Security</option>
-                  <option value="ai">Artificial Intelligence</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Tags (select up to 3)</label>
-                <div class="tag-selector" id="tagSelector">
-                  <div class="tag-option" data-tag="programming">
-                    Programming
-                  </div>
-                  <div class="tag-option" data-tag="algorithms">Algorithms</div>
-                  <div class="tag-option" data-tag="web">Web Development</div>
-                  <div class="tag-option" data-tag="python">Python</div>
-                  <div class="tag-option" data-tag="java">Java</div>
-                  <div class="tag-option" data-tag="javascript">JavaScript</div>
-                  <div class="tag-option" data-tag="html">HTML</div>
-                  <div class="tag-option" data-tag="css">CSS</div>
-                  <div class="tag-option" data-tag="database">Database</div>
-                  <div class="tag-option" data-tag="sql">SQL</div>
-                </div>
-                <input type="hidden" id="selectedTags" name="selectedTags" />
-              </div>
+
               <div class="mb-3">
                 <label class="form-label">Privacy</label>
                 <div class="form-check">
@@ -330,7 +246,7 @@
                     checked
                   />
                   <label class="form-check-label" for="privacyPublic">
-                    Public (Anyone can join)
+                    <i class="bi bi-globe"></i> Public (Anyone can join)
                   </label>
                 </div>
                 <div class="form-check">
@@ -342,21 +258,64 @@
                     value="private"
                   />
                   <label class="form-check-label" for="privacyPrivate">
-                    Private (By invitation only)
+                    <i class="bi bi-lock-fill"></i> Private (Password required)
                   </label>
                 </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label"
-                  >Schedule Study Session (Optional)</label
-                >
-                <div class="row">
-                  <div class="col-md-6">
-                    <input type="date" class="form-control" id="sessionDate" />
+
+              <div
+                class="mb-3"
+                id="privateRoomPasswordField"
+                style="display: none"
+              >
+                <label for="roomPassword" class="form-label">
+                  <i class="bi bi-lock-fill"></i> Room Password
+                </label>
+                <div class="password-input-wrapper">
+                  <i class="bi bi-lock input-icon"></i>
+                  <input
+                    type="password"
+                    class="form-control"
+                    id="roomPassword"
+                    name="password"
+                    placeholder="Set a password for this private room"
+                    autocomplete="new-password"
+                    spellcheck="false"
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle-btn"
+                    id="passwordToggleBtn"
+                    aria-label="Toggle password visibility"
+                    title="Show/Hide password"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+
+                <!-- Password Requirements Checklist -->
+                <div class="password-requirements-container">
+                  <div class="requirements-title">
+                    <i class="bi bi-info-circle"></i> Password Requirements:
                   </div>
-                  <div class="col-md-6">
-                    <input type="time" class="form-control" id="sessionTime" />
-                  </div>
+                  <ul class="requirements-list">
+                    <li class="requirement-item" id="req-length">
+                      <i class="bi bi-circle"></i>
+                      <span>Minimum 8 characters</span>
+                    </li>
+                    <li class="requirement-item" id="req-uppercase">
+                      <i class="bi bi-circle"></i>
+                      <span>At least one uppercase letter (A-Z)</span>
+                    </li>
+                    <li class="requirement-item" id="req-lowercase">
+                      <i class="bi bi-circle"></i>
+                      <span>At least one lowercase letter (a-z)</span>
+                    </li>
+                    <li class="requirement-item" id="req-number">
+                      <i class="bi bi-circle"></i>
+                      <span>At least one number (0-9)</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </form>
@@ -370,7 +329,81 @@
               Cancel
             </button>
             <button type="button" class="btn btn-success" id="createRoomBtn">
-              Create Room
+              <i class="bi bi-plus-lg"></i> Create Room
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Private Room Password Modal -->
+    <div
+      class="modal fade"
+      id="privateRoomPasswordModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-lock-fill"></i> Private Room Access
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">
+              This is a private study room. Please enter the password to access
+              <strong id="privateRoomName">this room</strong>.
+            </p>
+            <div class="mb-3">
+              <label for="privateRoomPassword" class="form-label"
+                >Room Password</label
+              >
+              <div class="password-input-wrapper">
+                <i class="bi bi-lock input-icon"></i>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="privateRoomPassword"
+                  placeholder="Enter password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                />
+                <button
+                  type="button"
+                  class="password-toggle-btn"
+                  id="accessPasswordToggleBtn"
+                  aria-label="Toggle password visibility"
+                  title="Show/Hide password"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+            <small class="text-muted">
+              You must have the correct password to enter this private room.
+            </small>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              id="submitPrivateRoomPassword"
+            >
+              <i class="bi bi-check-lg"></i> Verify Password
             </button>
           </div>
         </div>
@@ -382,26 +415,58 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Load modular firebase and centralized sidebar BEFORE the page script -->
     <script type="module" src="../../config/firebase.js"></script>
     <script type="module" src="../scripts/sidebar.js"></script>
-
-    <!-- Page script -->
     <script type="module" src="../scripts/study-rooms.js"></script>
 
-    <!-- Small inline bridge: attach exported functions to window for existing onclick handlers -->
     <script type="module">
       import {
         showToast,
         closeToast,
         enterRoom,
         logout,
+        handleRoomJoin,
       } from "../scripts/study-rooms.js";
       window.showToast = showToast;
       window.closeToast = closeToast;
       window.enterRoom = enterRoom;
       window.logout = logout;
-      console.log("Study-rooms bridge attached to window");
+      window.handleRoomJoin = handleRoomJoin;
+    </script>
+
+    <!-- Privacy Radio Change Listener -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const privacyPublic = document.getElementById("privacyPublic");
+        const privacyPrivate = document.getElementById("privacyPrivate");
+        const passwordField = document.getElementById(
+          "privateRoomPasswordField"
+        );
+        const roomPassword = document.getElementById("roomPassword");
+
+        function updatePasswordFieldVisibility() {
+          if (privacyPrivate.checked) {
+            passwordField.style.display = "block";
+            if (roomPassword) {
+              roomPassword.setAttribute("required", "required");
+            }
+          } else {
+            passwordField.style.display = "none";
+            if (roomPassword) {
+              roomPassword.removeAttribute("required");
+              roomPassword.value = "";
+            }
+          }
+        }
+
+        privacyPublic.addEventListener("change", updatePasswordFieldVisibility);
+        privacyPrivate.addEventListener(
+          "change",
+          updatePasswordFieldVisibility
+        );
+
+        updatePasswordFieldVisibility();
+      });
     </script>
   </body>
 </html>

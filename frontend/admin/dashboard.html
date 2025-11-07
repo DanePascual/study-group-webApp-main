@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/dashboard.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="index.html" class="nav-item">Welcome</a>
+          <a href="dashboard.html" class="nav-item active">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Dashboard</h1>
+          <p>System overview and key metrics</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Stats Grid -->
+          <div class="dashboard-section">
+            <h2 class="section-title">System Metrics</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-number" id="totalUsers">-</div>
+                <div class="stat-description">Active users in system</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Banned Users</div>
+                <div class="stat-number" id="totalBanned">-</div>
+                <div class="stat-description">Currently banned</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Total Reports</div>
+                <div class="stat-number" id="totalReports">-</div>
+                <div class="stat-description">All reports received</div>
+              </div>
+
+              <div class="stat-card stat-card-warning">
+                <div class="stat-label">Pending Reports</div>
+                <div class="stat-number" id="pendingReports">-</div>
+                <div class="stat-description">Awaiting review</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Total Admins</div>
+                <div class="stat-number" id="totalAdmins">-</div>
+                <div class="stat-description">Admin accounts</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Active Users</div>
+                <div class="stat-number" id="activeUsers">-</div>
+                <div class="stat-description">Currently online</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Actions -->
+          <div class="dashboard-section">
+            <h2 class="section-title">Recent Admin Actions</h2>
+            <div class="recent-actions-container">
+              <table class="actions-table">
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>Admin</th>
+                    <th>Target</th>
+                    <th>Timestamp</th>
+                    <th>Time Ago</th>
+                  </tr>
+                </thead>
+                <tbody id="recentActionsList">
+                  <tr>
+                    <td colspan="5" class="loading">Loading actions...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script type="module" src="js/admin-dashboard.js"></script>
+  </body>
+</html>

@@ -1,10 +1,7 @@
 // frontend/student/scripts/resources.js
-// Resources page script — migrated to use postFormWithAuth / putFormWithAuth from apiClient.
-// - Uses fetchJsonWithAuth for JSON endpoints (including the download endpoint).
-// - Uses postFormWithAuth / putFormWithAuth for multipart uploads/updates.
-// - Otherwise logic unchanged (UI, rendering, DOMPurify sanitization, lazy load).
-//
-// Overwrite frontend/student/scripts/resources.js with this file and hard-reload the page.
+// ✅ UPDATED: Removed uploader avatars/initials from Recent Uploads table
+// ✅ UPDATED: Removed "View Details" button - only Download button remains
+// ✅ FIXED: Downloaded files excluded from "All Resources" tab
 
 import { auth, db } from "../../config/firebase.js";
 import { apiUrl } from "../../config/appConfig.js";
@@ -15,19 +12,20 @@ import fetchWithAuth, {
   putFormWithAuth,
 } from "./apiClient.js";
 
-// Dynamic session info
 let CURRENT_SESSION = null;
 
-// UI State
 const state = {
   currentView: "grid",
   currentType: "all",
   currentSort: "newest",
   currentSearch: "",
-  tableSort: "newest",
+  currentTab: "all",
   resources: [],
+  downloadedResourceIds: new Set(),
   editingMode: false,
   editResourceId: null,
+  recentUploadsPage: 0,
+  recentUploadsPerPage: 10,
 };
 
 const API_BASE = apiUrl("/api/resources");
@@ -58,16 +56,20 @@ auth.onAuthStateChanged(async (user) => {
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
     };
 
-    updateSidebarUserInfo();
+    console.log("[auth] ✅ User logged in:", {
+      uid: CURRENT_SESSION.uid,
+      email: CURRENT_SESSION.email,
+      user: CURRENT_SESSION.user,
+    });
 
-    // The sidebar handles theme toggle globally.
+    updateSidebarUserInfo();
+    loadDownloadHistory();
     scheduleResourceUIInit();
   } else {
     window.location.href = "login.html";
   }
 });
 
-// small helper to safely fetch user doc program (avoid direct firebase import everywhere)
 async function getDocSafe(uid) {
   try {
     if (!db) return null;
@@ -81,7 +83,6 @@ async function getDocSafe(uid) {
   }
 }
 
-// Update sidebar defensively
 function updateSidebarUserInfo() {
   try {
     const avatar = document.getElementById("sidebarAvatar");
@@ -125,7 +126,138 @@ function updateSidebarUserInfo() {
   }
 }
 
-// ---- Utilities: escaping & URL validation ----
+// ===== DEBUG: Log all resources with their ownership info =====
+function debugLogResources() {
+  console.log(
+    "%c[DEBUG] CURRENT SESSION",
+    "background: #ff6b6b; color: white; padding: 5px; border-radius: 3px;",
+    {
+      uid: CURRENT_SESSION?.uid,
+      email: CURRENT_SESSION?.email,
+      user: CURRENT_SESSION?.user,
+    }
+  );
+
+  console.log(
+    "%c[DEBUG] ALL RESOURCES",
+    "background: #4ecdc4; color: white; padding: 5px; border-radius: 3px;",
+    `Total: ${state.resources.length}`
+  );
+
+  state.resources.forEach((res, index) => {
+    const uidMatch =
+      res.ownerId && String(res.ownerId) === String(CURRENT_SESSION?.uid);
+    const color = uidMatch ? "#51cf66" : "#ffa94d";
+
+    console.log(
+      `%c[${index}] ${res.title || "Untitled"}`,
+      `background: ${color}; color: white; padding: 5px; border-radius: 3px;`,
+      {
+        id: res.id,
+        ownerId: res.ownerId,
+        ownerId_type: typeof res.ownerId,
+        currentUid: CURRENT_SESSION?.uid,
+        currentUid_type: typeof CURRENT_SESSION?.uid,
+        matches: uidMatch,
+        by: res.by,
+        userId: res.userId,
+        createdAt: res.createdAt,
+      }
+    );
+  });
+}
+
+// ===== Enhanced Ownership Check =====
+function isResourceOwner(resource) {
+  if (!CURRENT_SESSION || !resource) return false;
+
+  // ✅ PRIMARY: Check by ownerId (backend field)
+  if (
+    resource.ownerId &&
+    String(resource.ownerId) === String(CURRENT_SESSION.uid)
+  ) {
+    return true;
+  }
+
+  // Fallback: Check by userId
+  if (
+    resource.userId &&
+    String(resource.userId) === String(CURRENT_SESSION.uid)
+  ) {
+    return true;
+  }
+
+  // Fallback: Check by email
+  if (resource.by && resource.by === CURRENT_SESSION.email) {
+    return true;
+  }
+
+  // Fallback: Check by displayName
+  if (resource.by && resource.by === CURRENT_SESSION.user) {
+    return true;
+  }
+
+  return false;
+}
+
+// Download History Management
+function loadDownloadHistory() {
+  try {
+    const userId = CURRENT_SESSION?.uid;
+    if (!userId) return;
+    const key = `downloads_${userId}`;
+    const history = localStorage.getItem(key);
+    state.downloadedResourceIds = new Set(history ? JSON.parse(history) : []);
+    console.log(
+      "[resources] Downloaded resources loaded:",
+      state.downloadedResourceIds
+    );
+  } catch (err) {
+    console.error("Error loading download history:", err);
+  }
+}
+
+function addToDownloadHistory(resourceId) {
+  try {
+    const userId = CURRENT_SESSION?.uid;
+    if (!userId || !resourceId) return;
+    state.downloadedResourceIds.add(resourceId);
+    const key = `downloads_${userId}`;
+    localStorage.setItem(
+      key,
+      JSON.stringify(Array.from(state.downloadedResourceIds))
+    );
+    console.log("[resources] Added to download history:", resourceId);
+    applyFiltersAndSort();
+  } catch (err) {
+    console.error("Error saving download history:", err);
+  }
+}
+
+// Tab Switching
+function switchTab(tabName) {
+  state.currentTab = tabName;
+  state.recentUploadsPage = 0; // Reset pagination
+  localStorage.setItem("resources_current_tab", tabName);
+
+  document.querySelectorAll(".resources-tab").forEach((btn) => {
+    btn.classList.remove("active");
+    if (btn.getAttribute("data-tab") === tabName) {
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+    } else {
+      btn.setAttribute("aria-selected", "false");
+    }
+  });
+
+  console.log(
+    `%c[tabs] Switched to tab: ${tabName}`,
+    "background: #a8e6cf; color: black; padding: 5px; border-radius: 3px;"
+  );
+  applyFiltersAndSort();
+}
+
+// Utilities
 function escapeHtml(s) {
   if (s === null || s === undefined) return "";
   return String(s)
@@ -139,7 +271,6 @@ function escapeHtml(s) {
 function isSafeUrl(url) {
   if (!url) return false;
   try {
-    // allow relative URLs (starting with /) and https absolute URLs
     if (url.startsWith("/")) return true;
     const u = new URL(url);
     return u.protocol === "https:";
@@ -148,13 +279,28 @@ function isSafeUrl(url) {
   }
 }
 
-// ---- API Calls ----
+// Helper: Get category label
+function getCategoryLabel(category) {
+  const labels = {
+    lecture: "Lecture",
+    assignment: "Assignment",
+    tutorial: "Tutorial",
+    exam: "Exam",
+    reference: "Reference",
+    other: "Other",
+  };
+  return labels[category] || (category ? category : "Uncategorized");
+}
+
+// API Calls
 async function fetchResources() {
   try {
     const data = await fetchJsonWithAuth(API_BASE);
     state.resources = Array.isArray(data) ? data : [];
+    console.log("[resources] Fetched resources:", state.resources.length);
+
+    debugLogResources();
     applyFiltersAndSort();
-    renderFilesTable();
   } catch (err) {
     console.error("Error fetching resources:", err);
     showToast("Unable to load resources.", "error");
@@ -173,7 +319,6 @@ async function getResourceById(id) {
   }
 }
 
-// Use centralized postFormWithAuth helper for FormData uploads
 async function uploadResource(formData) {
   try {
     return await postFormWithAuth(API_BASE, formData);
@@ -231,7 +376,6 @@ async function deleteResource(id) {
   }
 }
 
-// New helper: request signed download URL from server (POST /api/resources/:id/download)
 async function requestSignedDownload(resourceId) {
   try {
     const resp = await fetchJsonWithAuth(
@@ -240,7 +384,10 @@ async function requestSignedDownload(resourceId) {
         method: "POST",
       }
     );
-    if (resp && resp.signedUrl) return resp.signedUrl;
+    if (resp && resp.signedUrl) {
+      addToDownloadHistory(resourceId);
+      return resp.signedUrl;
+    }
     throw new Error("Failed to obtain download link");
   } catch (err) {
     console.error("requestSignedDownload error:", err);
@@ -248,7 +395,7 @@ async function requestSignedDownload(resourceId) {
   }
 }
 
-// ====== UI Rendering ======
+// UI Rendering
 function getFileTypeInfo(filename) {
   const ext = filename.split(".").pop().toLowerCase();
   if (ext === "pdf") return { icon: "bi-file-earmark-pdf", color: "#f44336" };
@@ -259,11 +406,60 @@ function getFileTypeInfo(filename) {
   return { icon: "bi-file-earmark", color: "#607d8b" };
 }
 
+// ===== UPDATED: Filter logic with recent uploads table =====
 function applyFiltersAndSort() {
   let filtered = state.resources || [];
-  if (state.currentType !== "all") {
+
+  console.log(
+    `%c[filter] Starting filter - tab: ${state.currentTab}, total resources: ${filtered.length}`,
+    "background: #74b9ff; color: black; padding: 5px; border-radius: 3px;"
+  );
+
+  // Apply tab filter first
+  if (state.currentTab === "downloaded") {
+    const before = filtered.length;
+    filtered = filtered.filter((res) =>
+      state.downloadedResourceIds.has(res.id)
+    );
+    console.log(
+      `%c[filter] Downloaded tab: ${before} -> ${filtered.length} resources`,
+      "background: #a29bfe; color: white; padding: 5px; border-radius: 3px;"
+    );
+  } else if (state.currentTab === "uploaded") {
+    const before = filtered.length;
+    filtered = filtered.filter((res) => {
+      const isOwner =
+        res.ownerId && String(res.ownerId) === String(CURRENT_SESSION?.uid);
+      return isOwner;
+    });
+    console.log(
+      `%c[filter] Uploaded tab: ${before} -> ${filtered.length} resources`,
+      "background: #fdcb6e; color: black; padding: 5px; border-radius: 3px;"
+    );
+  } else if (state.currentTab === "recent") {
+    // Recent uploads - show all, sorted by newest
+    console.log(
+      `%c[filter] Recent tab: showing table with top 10 resources`,
+      "background: #ff7675; color: white; padding: 5px; border-radius: 3px;"
+    );
+  } else if (state.currentTab === "all") {
+    // All Resources - exclude downloaded
+    const before = filtered.length;
+    filtered = filtered.filter(
+      (res) => !state.downloadedResourceIds.has(res.id)
+    );
+    console.log(
+      `%c[filter] All tab: ${before} -> ${filtered.length} resources (excluded downloaded)`,
+      "background: #55efc4; color: black; padding: 5px; border-radius: 3px;"
+    );
+  }
+
+  // Apply type filter (skip for recent tab)
+  if (state.currentType !== "all" && state.currentTab !== "recent") {
     filtered = filtered.filter((res) => res.type === state.currentType);
   }
+
+  // Apply search filter
   if (state.currentSearch.length > 0) {
     filtered = filtered.filter(
       (res) =>
@@ -274,6 +470,8 @@ function applyFiltersAndSort() {
         )
     );
   }
+
+  // Apply sorting
   switch (state.currentSort) {
     case "newest":
       filtered = filtered.sort(
@@ -305,25 +503,145 @@ function applyFiltersAndSort() {
       );
       break;
   }
-  if (state.currentView === "grid") {
-    const gridEl = document.getElementById("resourcesGrid");
-    const listEl = document.getElementById("resourcesList");
-    if (gridEl) gridEl.style.display = "grid";
-    if (listEl) listEl.style.display = "none";
-    renderResourcesGrid(filtered);
+
+  // For recent tab, always sort by newest
+  if (state.currentTab === "recent") {
+    filtered = filtered.sort(
+      (a, b) =>
+        (toJsDate(b.createdAt)?.getTime() || 0) -
+        (toJsDate(a.createdAt)?.getTime() || 0)
+    );
+    renderRecentUploadsTable(filtered);
   } else {
-    const gridEl = document.getElementById("resourcesGrid");
-    const listEl = document.getElementById("resourcesList");
-    if (gridEl) gridEl.style.display = "none";
-    if (listEl) listEl.style.display = "block";
-    renderResourcesList(filtered);
+    // For other tabs, use grid/list view
+    if (state.currentView === "grid") {
+      const gridEl = document.getElementById("resourcesGrid");
+      const listEl = document.getElementById("resourcesList");
+      if (gridEl) gridEl.style.display = "grid";
+      if (listEl) listEl.style.display = "none";
+      renderResourcesGrid(filtered);
+    } else {
+      const gridEl = document.getElementById("resourcesGrid");
+      const listEl = document.getElementById("resourcesList");
+      if (gridEl) gridEl.style.display = "none";
+      if (listEl) listEl.style.display = "block";
+      renderResourcesList(filtered);
+    }
   }
+}
+
+// ===== NEW: Render Recent Uploads Table - MINIMAL (ONLY DOWNLOAD BUTTON) =====
+function renderRecentUploadsTable(allResources) {
+  const section = document.getElementById("recentUploadsSection");
+  const headerBar = document.getElementById("resourcesHeaderBar");
+  const tbody = document.getElementById("recentUploadsTable");
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
+  const loadMoreContainer = document.getElementById("loadMoreContainer");
+  const emptyState = document.getElementById("recentEmptyState");
+  const gridEl = document.getElementById("resourcesGrid");
+  const listEl = document.getElementById("resourcesList");
+
+  if (!section || !tbody) return;
+
+  // Hide other views
+  if (headerBar) headerBar.style.display = "none";
+  if (gridEl) gridEl.style.display = "none";
+  if (listEl) listEl.style.display = "none";
+  section.style.display = "block";
+
+  // Handle empty state
+  if (!allResources || allResources.length === 0) {
+    tbody.innerHTML = "";
+    if (emptyState) emptyState.style.display = "flex";
+    if (loadMoreContainer) loadMoreContainer.style.display = "none";
+    return;
+  }
+
+  if (emptyState) emptyState.style.display = "none";
+
+  // Pagination logic
+  const startIdx = state.recentUploadsPage * state.recentUploadsPerPage;
+  const endIdx = startIdx + state.recentUploadsPerPage;
+  const paginated = allResources.slice(0, endIdx);
+
+  tbody.innerHTML = paginated
+    .map((resource) => {
+      const categoryLabel = getCategoryLabel(resource.category);
+      const sizeText =
+        typeof resource.size === "number"
+          ? (resource.size / 1024 / 1024).toFixed(2) + " MB"
+          : "—";
+      const downloadsCount = resource.downloads || 0;
+
+      return `
+        <tr data-id="${escapeHtml(resource.id)}">
+          <td class="title-cell" title="${escapeHtml(
+            resource.title || "Untitled"
+          )}">
+            <strong>${escapeHtml(resource.title || "Untitled")}</strong>
+          </td>
+          <td class="uploader-cell">
+            ${escapeHtml(resource.by || "Anonymous")}
+          </td>
+          <td class="date-cell">${escapeHtml(
+            formatRelativeTime(resource.createdAt)
+          )}</td>
+          <td><span class="category-badge">${escapeHtml(
+            categoryLabel
+          )}</span></td>
+          <td class="downloads-cell">${downloadsCount}</td>
+          <td class="size-cell">${escapeHtml(sizeText)}</td>
+          <td class="actions-cell">
+            <button class="action-btn download-action" data-id="${escapeHtml(
+              resource.id
+            )}" title="Download">
+              <i class="bi bi-download"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  // Show/hide load more button
+  if (loadMoreContainer) {
+    loadMoreContainer.style.display =
+      endIdx < allResources.length ? "block" : "none";
+  }
+
+  // Attach event listeners for download buttons
+  tbody.querySelectorAll(".download-action").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const id = btn.getAttribute("data-id");
+      btn.disabled = true;
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="bi bi-hourglass-split"></i>`;
+      try {
+        const signedUrl = await requestSignedDownload(id);
+        if (signedUrl) {
+          window.open(signedUrl, "_blank");
+        } else {
+          showToast("Download link unavailable", "error");
+        }
+      } catch {
+        showToast("Failed to get download link", "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    });
+  });
 }
 
 function renderResourcesGrid(resources) {
   const grid = document.getElementById("resourcesGrid");
+  const recentSection = document.getElementById("recentUploadsSection");
   if (!grid) return;
+
+  if (recentSection) recentSection.style.display = "none";
   grid.innerHTML = "";
+
   if (!resources || resources.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
@@ -346,7 +664,6 @@ function renderResourcesGrid(resources) {
     card.className = "resource-card";
     card.dataset.id = res.id;
 
-    // header
     const header = document.createElement("div");
     header.className = "resource-card-header";
 
@@ -370,28 +687,40 @@ function renderResourcesGrid(resources) {
     )}`;
     header.appendChild(typeBadge);
 
-    const actions = document.createElement("div");
-    actions.className = "resource-actions";
-    const editBtn = document.createElement("button");
-    editBtn.className = "resource-action-btn";
-    editBtn.type = "button";
-    editBtn.title = "Edit resource";
-    editBtn.innerHTML = `<i class="bi bi-pencil"></i>`;
-    editBtn.addEventListener("click", () => editResourceUI(res.id));
-    actions.appendChild(editBtn);
+    if (state.downloadedResourceIds.has(res.id)) {
+      const downloadedBadge = document.createElement("div");
+      downloadedBadge.className = "resource-downloaded-badge";
+      downloadedBadge.innerHTML = `<i class="bi bi-check-circle-fill"></i> Downloaded`;
+      header.appendChild(downloadedBadge);
+    }
 
-    const delBtn = document.createElement("button");
-    delBtn.className = "resource-action-btn";
-    delBtn.type = "button";
-    delBtn.title = "Delete resource";
-    delBtn.innerHTML = `<i class="bi bi-trash"></i>`;
-    delBtn.addEventListener("click", () => confirmDeleteResource(res.id));
-    actions.appendChild(delBtn);
+    // Only show edit/delete if owner
+    const isOwner = isResourceOwner(res);
+    if (isOwner) {
+      const actions = document.createElement("div");
+      actions.className = "resource-actions";
 
-    header.appendChild(actions);
+      const editBtn = document.createElement("button");
+      editBtn.className = "resource-action-btn";
+      editBtn.type = "button";
+      editBtn.title = "Edit resource";
+      editBtn.innerHTML = `<i class="bi bi-pencil"></i>`;
+      editBtn.addEventListener("click", () => editResourceUI(res.id));
+      actions.appendChild(editBtn);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "resource-action-btn";
+      delBtn.type = "button";
+      delBtn.title = "Delete resource";
+      delBtn.innerHTML = `<i class="bi bi-trash"></i>`;
+      delBtn.addEventListener("click", () => confirmDeleteResource(res.id));
+      actions.appendChild(delBtn);
+
+      header.appendChild(actions);
+    }
+
     card.appendChild(header);
 
-    // body
     const body = document.createElement("div");
     body.className = "resource-card-body";
 
@@ -420,7 +749,6 @@ function renderResourcesGrid(resources) {
     }
     body.appendChild(descEl);
 
-    // download button: request signed URL from server on click
     const downloadBtn = document.createElement("button");
     downloadBtn.className = "resource-download-btn";
     downloadBtn.title = "Download";
@@ -447,7 +775,6 @@ function renderResourcesGrid(resources) {
     });
     body.appendChild(downloadBtn);
 
-    // footer
     const footer = document.createElement("div");
     footer.className = "resource-card-footer";
 
@@ -481,8 +808,12 @@ function renderResourcesGrid(resources) {
 
 function renderResourcesList(resources) {
   const list = document.getElementById("resourcesList");
+  const recentSection = document.getElementById("recentUploadsSection");
   if (!list) return;
+
+  if (recentSection) recentSection.style.display = "none";
   list.innerHTML = "";
+
   if (!resources || resources.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
@@ -569,19 +900,23 @@ function renderResourcesList(resources) {
     });
     actions.appendChild(aDownload);
 
-    const editBtn2 = document.createElement("button");
-    editBtn2.className = "resource-list-btn";
-    editBtn2.title = "Edit resource";
-    editBtn2.innerHTML = `<i class="bi bi-pencil"></i>`;
-    editBtn2.addEventListener("click", () => editResourceUI(res.id));
-    actions.appendChild(editBtn2);
+    // Only show edit/delete if owner
+    const isOwner = isResourceOwner(res);
+    if (isOwner) {
+      const editBtn2 = document.createElement("button");
+      editBtn2.className = "resource-list-btn";
+      editBtn2.title = "Edit resource";
+      editBtn2.innerHTML = `<i class="bi bi-pencil"></i>`;
+      editBtn2.addEventListener("click", () => editResourceUI(res.id));
+      actions.appendChild(editBtn2);
 
-    const delBtn2 = document.createElement("button");
-    delBtn2.className = "resource-list-btn";
-    delBtn2.title = "Delete resource";
-    delBtn2.innerHTML = `<i class="bi bi-trash"></i>`;
-    delBtn2.addEventListener("click", () => confirmDeleteResource(res.id));
-    actions.appendChild(delBtn2);
+      const delBtn2 = document.createElement("button");
+      delBtn2.className = "resource-list-btn";
+      delBtn2.title = "Delete resource";
+      delBtn2.innerHTML = `<i class="bi bi-trash"></i>`;
+      delBtn2.addEventListener("click", () => confirmDeleteResource(res.id));
+      actions.appendChild(delBtn2);
+    }
 
     item.appendChild(actions);
 
@@ -589,79 +924,6 @@ function renderResourcesList(resources) {
   });
 }
 
-function renderFilesTable() {
-  const tbody = document.getElementById("resourcesTable");
-  if (!tbody) return;
-  const sorted = [...state.resources].sort((a, b) => {
-    if (state.tableSort === "newest")
-      return (
-        (toJsDate(b.createdAt)?.getTime() || 0) -
-        (toJsDate(a.createdAt)?.getTime() || 0)
-      );
-    if (state.tableSort === "name-asc")
-      return (a.title || "").localeCompare(b.title || "");
-    if (state.tableSort === "size") return (b.size || 0) - (a.size || 0);
-    return 0;
-  });
-  if (sorted.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No files found</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = sorted
-    .map((file) => {
-      const sizeText =
-        typeof file.size === "number"
-          ? (file.size / 1024 / 1024).toFixed(2) + " MB"
-          : "";
-      const safeTitle = escapeHtml(file.title || "");
-      const safeBy = escapeHtml(file.by || "Anonymous");
-      const safeDate = escapeHtml(formatRelativeTime(file.createdAt));
-      const safeType = escapeHtml((file.type || "").toUpperCase());
-      // We will use a download button that calls the download endpoint (protected)
-      return `
-      <tr data-id="${escapeHtml(file.id)}">
-        <td>${safeTitle}</td>
-        <td>${safeBy}</td>
-        <td>${safeDate}</td>
-        <td>${safeType}</td>
-        <td>${escapeHtml(sizeText)}</td>
-        <td>
-          <button class="download-btn" data-id="${escapeHtml(
-            file.id
-          )}" title="Download">
-            <i class="bi bi-download"></i>
-          </button>
-          <button class="download-btn" onclick="confirmDeleteResource('${escapeHtml(
-            file.id
-          )}')" title="Delete file">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `;
-    })
-    .join("");
-
-  // Attach click listeners for the table download buttons (delegated)
-  tbody.querySelectorAll(".download-btn[data-id]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const id = btn.getAttribute("data-id");
-      btn.disabled = true;
-      try {
-        const signedUrl = await requestSignedDownload(id);
-        if (signedUrl) window.open(signedUrl, "_blank");
-        else showToast("Download link unavailable", "error");
-      } catch {
-        showToast("Failed to get download link", "error");
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
-}
-
-// Lazy loading
 function initLazyLoading() {
   const lazyImages = document.querySelectorAll(".lazy-image");
   if (!lazyImages) return;
@@ -695,7 +957,6 @@ function initLazyLoading() {
   }
 }
 
-// ---- UI Initialization (binds event listeners) ----
 function scheduleResourceUIInit() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initializeResourceUI);
@@ -705,6 +966,20 @@ function scheduleResourceUIInit() {
 }
 
 function initializeResourceUI() {
+  // Tab switching listeners
+  document.querySelectorAll(".resources-tab").forEach((tab) => {
+    tab.addEventListener("click", function () {
+      const tabName = this.getAttribute("data-tab");
+      switchTab(tabName);
+    });
+  });
+
+  // Load saved tab preference
+  const savedTab = localStorage.getItem("resources_current_tab");
+  if (savedTab && savedTab !== "all") {
+    switchTab(savedTab);
+  }
+
   const gridBtn = document.getElementById("gridViewBtn");
   const listBtn = document.getElementById("listViewBtn");
   if (gridBtn) gridBtn.addEventListener("click", () => setViewMode("grid"));
@@ -715,13 +990,6 @@ function initializeResourceUI() {
     sortDropdown.addEventListener("change", function () {
       state.currentSort = this.value;
       applyFiltersAndSort();
-    });
-
-  const tableSort = document.getElementById("tableSort");
-  if (tableSort)
-    tableSort.addEventListener("change", function () {
-      state.tableSort = this.value;
-      renderFilesTable();
     });
 
   const searchInput = document.getElementById("resourceSearch");
@@ -743,7 +1011,6 @@ function initializeResourceUI() {
     });
   });
 
-  // Tag selection
   document.querySelectorAll(".tag-option").forEach((tagOption) => {
     tagOption.addEventListener("click", function () {
       const selectedTags = document.querySelectorAll(".tag-option.selected");
@@ -762,7 +1029,6 @@ function initializeResourceUI() {
     });
   });
 
-  // File input/preview for upload modal
   const fileInput = document.getElementById("fileInput");
   if (fileInput) {
     fileInput.addEventListener("change", function (e) {
@@ -841,7 +1107,6 @@ function initializeResourceUI() {
         return;
       }
 
-      // --- New upload ---
       const fileEl = document.getElementById("fileInput");
       const file = fileEl ? fileEl.files[0] : null;
       if (!file) return showToast("Please select a file to upload", "error");
@@ -856,12 +1121,17 @@ function initializeResourceUI() {
         (CURRENT_SESSION && CURRENT_SESSION.user) || "Anonymous"
       );
       formData.append("userId", (CURRENT_SESSION && CURRENT_SESSION.uid) || "");
+      formData.append(
+        "userEmail",
+        (CURRENT_SESSION && CURRENT_SESSION.email) || ""
+      );
       formData.append("file", file);
       if (coverImageFile) formData.append("coverImage", coverImageFile);
 
       try {
         await uploadResource(formData);
         showToast("Resource uploaded successfully", "success");
+        console.log("[upload] ✅ Resource uploaded by:", CURRENT_SESSION.user);
         closeUploadModal();
         fetchResources();
       } catch (err) {
@@ -878,6 +1148,15 @@ function initializeResourceUI() {
     const dropArea = document.getElementById("fileDropArea");
     if (dropArea) dropArea.classList.remove("file-input-hidden");
   };
+
+  // Load More button for recent uploads
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      state.recentUploadsPage += 1;
+      applyFiltersAndSort();
+    });
+  }
 
   if (!localStorage.getItem("resource_page_visited")) {
     setTimeout(() => {
@@ -923,7 +1202,6 @@ function setViewMode(mode) {
   applyFiltersAndSort();
 }
 
-// Declare confirmDeleteResource as a local function so it can be exported
 function confirmDeleteResource(id) {
   if (confirm("Are you sure you want to delete this resource?")) {
     deleteResource(id)
@@ -1025,7 +1303,6 @@ function closeUploadModal() {
 }
 window.closeUploadModal = closeUploadModal;
 
-// ---- Toast notification (safe) ----
 function showToast(message, type = "success") {
   const toastContainer = document.getElementById("toastContainer");
   if (!toastContainer) return;
@@ -1080,7 +1357,6 @@ window.closeToast = function (id) {
   }, 300);
 };
 
-// Export bindings (including confirmDeleteResource & editResourceUI)
 export {
   openUploadModal,
   closeUploadModal,
@@ -1088,7 +1364,6 @@ export {
   confirmDeleteResource,
 };
 
-// ---- Date helpers reused from original file ----
 function toJsDate(val) {
   if (!val) return null;
   if (typeof val.toDate === "function") return val.toDate();
@@ -1098,6 +1373,7 @@ function toJsDate(val) {
   if (typeof val === "string" || typeof val === "number") return new Date(val);
   return val;
 }
+
 function formatDate(dateObj) {
   if (!dateObj) return "";
   const date = toJsDate(dateObj);
@@ -1105,6 +1381,7 @@ function formatDate(dateObj) {
   const options = { year: "numeric", month: "short", day: "numeric" };
   return date.toLocaleDateString(undefined, options);
 }
+
 function formatRelativeTime(dateObj) {
   if (!dateObj) return "";
   const date = toJsDate(dateObj);

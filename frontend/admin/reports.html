@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reports - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/reports.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="index.html" class="nav-item">Welcome</a>
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item active">Reports</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Reports Management</h1>
+          <p>Review and respond to user reports</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Filters Section -->
+          <div class="filters-section">
+            <div class="filters-bar">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by type, user, reason, or location..."
+                class="search-input"
+              />
+
+              <!-- STATUS FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="statusTrigger"
+                  onclick="toggleCustomSelect('status')"
+                >
+                  <span class="custom-select-value" id="statusValue"
+                    >All Status</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="statusDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', '', 'All Status')"
+                  >
+                    All Status
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'pending', 'Pending')"
+                  >
+                    Pending
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'reviewing', 'Reviewing')"
+                  >
+                    Reviewing
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'resolved', 'Resolved')"
+                  >
+                    Resolved
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'dismissed', 'Dismissed')"
+                  >
+                    Dismissed
+                  </div>
+                </div>
+              </div>
+
+              <!-- SEVERITY FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="severityTrigger"
+                  onclick="toggleCustomSelect('severity')"
+                >
+                  <span class="custom-select-value" id="severityValue"
+                    >All Severity</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="severityDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('severity', '', 'All Severity')"
+                  >
+                    All Severity
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('severity', 'low', 'Low')"
+                  >
+                    Low
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('severity', 'medium', 'Medium')"
+                  >
+                    Medium
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('severity', 'high', 'High')"
+                  >
+                    High
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('severity', 'critical', 'Critical')"
+                  >
+                    Critical
+                  </div>
+                </div>
+              </div>
+
+              <button
+                id="clearFiltersBtn"
+                class="clear-filters-btn"
+                onclick="clearAllFilters()"
+                title="Clear all filters"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Reports Table -->
+          <div class="table-wrapper">
+            <div class="table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th onclick="sortColumn('type')" class="sortable">
+                      Type <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortColumn('reportedUserId')" class="sortable">
+                      Reported User <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortColumn('severity')" class="sortable">
+                      Severity <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortColumn('status')" class="sortable">
+                      Status <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="sortColumn('createdAt')" class="sortable">
+                      Date <span class="sort-icon">⇅</span>
+                    </th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="reportsList">
+                  <tr>
+                    <td colspan="6" class="loading">
+                      <div class="spinner"></div>
+                      <span>Loading reports...</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none">
+              <div class="empty-state-content">
+                <div class="empty-icon">📋</div>
+                <h3>No Reports Found</h3>
+                <p>There are no reports matching your filters.</p>
+                <button onclick="clearAllFilters()" class="btn btn-primary">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-section">
+            <div class="pagination">
+              <button
+                id="prevBtn"
+                class="pagination-btn pagination-nav"
+                title="Previous page"
+              >
+                ←
+              </button>
+              <div class="page-info">
+                <span id="pageInfo">Page 1 of 1</span>
+                <span id="reportCount" class="report-count">(0 reports)</span>
+              </div>
+              <button
+                id="nextBtn"
+                class="pagination-btn pagination-nav"
+                title="Next page"
+              >
+                →
+              </button>
+            </div>
+
+            <!-- Page Size Selector -->
+            <div class="page-size-selector">
+              <label for="limitSelect">Show:</label>
+              <select
+                id="limitSelect"
+                class="limit-select"
+                onchange="changePageSize()"
+              >
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal: View Report Details -->
+    <div id="viewReportModal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2>Report Details</h2>
+          <button class="modal-close" onclick="closeModal('viewReportModal')">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="report-details">
+            <div class="details-row">
+              <div class="detail-section">
+                <h4>Report Information</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Report ID</label>
+                    <p id="detailReportId" class="monospace">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Type</label>
+                    <p id="detailType">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Severity</label>
+                    <p id="detailSeverity">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Status</label>
+                    <p id="detailStatus">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Date Submitted</label>
+                    <p id="detailCreatedAt">-</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h4>Reporter Information</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Reporter Name</label>
+                    <p id="detailReporterName">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Reporter Email</label>
+                    <p id="detailReporterEmail">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Location</label>
+                    <p id="detailLocation">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Incident Time</label>
+                    <p id="detailIncidentTime">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Reported User</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>User Email/ID</label>
+                  <p id="detailReportedUser">-</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Report Description</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>Reason</label>
+                  <p id="detailReason" class="detail-text-block">-</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="detail-section full-width"
+              id="filesSection"
+              style="display: none"
+            >
+              <h4>Evidence Files</h4>
+              <div class="detail-group">
+                <div id="filesList" class="files-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Update Report Status -->
+    <div id="updateReportModal" class="modal">
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Update Report Status</h2>
+          <button class="modal-close" onclick="closeModal('updateReportModal')">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Current Status</label>
+            <p id="currentStatusDisplay" class="current-value">-</p>
+          </div>
+
+          <!-- HIDDEN INPUT FOR FORM VALUE -->
+          <input type="hidden" id="newStatus" value="" />
+
+          <div class="form-group">
+            <label>New Status</label>
+            <!-- CUSTOM DROPDOWN FOR MODAL -->
+            <div class="custom-select-wrapper-modal">
+              <button
+                class="custom-select-trigger-modal"
+                id="modalStatusTrigger"
+                onclick="toggleModalCustomSelect('modalStatus')"
+              >
+                <span class="custom-select-value-modal" id="modalStatusValue"
+                  >-- Select Status --</span
+                >
+                <svg
+                  class="custom-select-arrow-modal"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M7 8l6 6 6-6"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                class="custom-select-dropdown-modal"
+                id="modalStatusDropdown"
+              >
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalStatus', '', '-- Select Status --')"
+                >
+                  -- Select Status --
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalStatus', 'reviewing', 'Reviewing')"
+                >
+                  Reviewing
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalStatus', 'resolved', 'Resolved')"
+                >
+                  Resolved
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalStatus', 'dismissed', 'Dismissed')"
+                >
+                  Dismissed
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="updateReason">Reason for Update (Optional)</label>
+            <textarea
+              id="updateReason"
+              class="form-textarea"
+              placeholder="Explain why you're changing the status..."
+              rows="4"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('updateReportModal')"
+          >
+            Cancel
+          </button>
+          <button class="btn btn-primary" onclick="confirmUpdateReportStatus()">
+            Update Status
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script type="module" src="js/admin-reports.js"></script>
+  </body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audit Logs - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/audit-logs.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="index.html" class="nav-item">Welcome</a>
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item active">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Audit Logs</h1>
+          <p>Track all admin actions and changes</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Filters Section -->
+          <div class="filters-section">
+            <div class="filters-bar">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search logs..."
+                class="search-input"
+              />
+
+              <!-- ACTION FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="actionTrigger"
+                  onclick="toggleCustomSelect('action')"
+                >
+                  <span class="custom-select-value" id="actionValue"
+                    >All Actions</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="actionDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', '', 'All Actions')"
+                  >
+                    All Actions
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', 'ban_user', 'Ban User')"
+                  >
+                    Ban User
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', 'unban_user', 'Unban User')"
+                  >
+                    Unban User
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', 'promote_admin', 'Promote Admin')"
+                  >
+                    Promote Admin
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', 'remove_admin', 'Remove Admin')"
+                  >
+                    Remove Admin
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('action', 'update_report_status', 'Update Report')"
+                  >
+                    Update Report
+                  </div>
+                </div>
+              </div>
+
+              <!-- DAYS FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="daysTrigger"
+                  onclick="toggleCustomSelect('days')"
+                >
+                  <span class="custom-select-value" id="daysValue"
+                    >Last 30 Days</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="daysDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('days', '30', 'Last 30 Days')"
+                  >
+                    Last 30 Days
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('days', '7', 'Last 7 Days')"
+                  >
+                    Last 7 Days
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('days', '1', 'Today')"
+                  >
+                    Today
+                  </div>
+                </div>
+              </div>
+
+              <button
+                id="clearFiltersBtn"
+                class="clear-filters-btn"
+                onclick="clearAllFilters()"
+                title="Clear all filters"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Audit Logs Table -->
+          <div class="table-wrapper">
+            <div class="table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Admin</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Reason</th>
+                    <th>Timestamp</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="logsList">
+                  <tr>
+                    <td colspan="6" class="loading">
+                      <div class="spinner"></div>
+                      <span>Loading audit logs...</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none">
+              <div class="empty-state-content">
+                <div class="empty-icon">📋</div>
+                <h3>No Audit Logs Found</h3>
+                <p>There are no audit logs matching your filters.</p>
+                <button onclick="clearAllFilters()" class="btn btn-primary">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-section">
+            <div class="pagination">
+              <button
+                id="prevBtn"
+                class="pagination-btn pagination-nav"
+                title="Previous page"
+              >
+                ←
+              </button>
+              <div class="page-info">
+                <span id="pageInfo">Page 1 of 1</span>
+                <span id="logCount" class="log-count">(0 logs)</span>
+              </div>
+              <button
+                id="nextBtn"
+                class="pagination-btn pagination-nav"
+                title="Next page"
+              >
+                →
+              </button>
+            </div>
+
+            <!-- Page Size Selector -->
+            <div class="page-size-selector">
+              <label for="limitSelect">Show:</label>
+              <select
+                id="limitSelect"
+                class="limit-select"
+                onchange="changePageSize()"
+              >
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal: View Log Details -->
+    <div id="viewLogDetailsModal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2>Audit Log Details</h2>
+          <button
+            class="modal-close"
+            onclick="closeModal('viewLogDetailsModal')"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="log-details">
+            <div class="details-row">
+              <div class="detail-section">
+                <h4>Action Overview</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Action</label>
+                    <p id="detailAction">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Status</label>
+                    <p id="detailStatus">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Timestamp</label>
+                    <p id="detailTimestamp">-</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h4>People Involved</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Performed By</label>
+                    <p id="detailAdminName">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Affected User</label>
+                    <p id="detailAffectedUserName">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Target</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>Target ID/Reference</label>
+                  <p id="detailTarget">-</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Reason</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>Reason</label>
+                  <p id="detailReason" class="detail-text-block">-</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>What Changed</h4>
+              <div class="detail-group">
+                <div id="detailChanges" class="changes-list">
+                  <p class="no-changes">No changes recorded</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('viewLogDetailsModal')"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script type="module" src="js/admin-audit-logs.js"></script>
+  </body>
+</html>

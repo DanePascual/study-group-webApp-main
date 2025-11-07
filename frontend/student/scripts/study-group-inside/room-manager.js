@@ -1,7 +1,10 @@
 // RoomManager class (ES module) — FIXED: Auto-join + proper participant loading + RACE CONDITION FIX
 // ✅ CRITICAL: Synchronous map instead of Promise.all to prevent re-render conflicts
-// ✅ FIXED: Make participant names and avatars clickable to view profile
-
+// ✅ UPDATED: Changed "Online" to "Member" status
+// ✅ UPDATED: Added leaveRoom functionality
+// ✅ UPDATED: Added resetRoomPassword functionality for Option A
+// ✅ UPDATED: Fixed privacy check to use fallback logic for isPrivate
+// ✅ UPDATED: Bulletproof URL construction for password reset
 import { db } from "./firebase-init.js";
 import { fetchJsonWithAuth, postJsonWithAuth } from "../apiClient.js";
 
@@ -40,9 +43,28 @@ export class RoomManager {
       }
 
       console.log(`[room-manager] Room loaded successfully:`, data);
+
+      // ✅ DEBUG: Log the exact properties we're getting
+      console.log("[room-manager] Backend response includes:", {
+        hasPrivacy: !!data.privacy,
+        privacy: data.privacy,
+        hasIsPrivate: !!data.isPrivate,
+        isPrivate: data.isPrivate,
+        hasPasswordHash: !!data.passwordHash,
+        hasPassword: !!data.hasPassword,
+        creator: data.creator,
+        currentUser: this.userAuth.currentUser?.uid,
+      });
+
       this.currentRoomData = data;
       this.isOwner =
         this.currentRoomData.creator === this.userAuth.currentUser.uid;
+
+      console.log("[room-manager] After assignment - currentRoomData:", {
+        privacy: this.currentRoomData.privacy,
+        isPrivate: this.currentRoomData.isPrivate,
+        isOwner: this.isOwner,
+      });
 
       // ✅ AUTO-JOIN: Add user to participants if not already
       await this.autoJoinRoom();
@@ -144,7 +166,7 @@ export class RoomManager {
               this.userAuth.currentUser.photoURL ||
               this.userAuth.currentUser.photo ||
               null,
-            status: "online",
+            status: "member",
             isHost: this.isOwner,
             inCall: false,
           },
@@ -197,7 +219,7 @@ export class RoomManager {
             name: info.displayName || uid.substring(0, 8),
             avatar: info.avatar || "U",
             photo: photo,
-            status: "online",
+            status: "member",
             isHost: this.currentRoomData.creator === uid,
             inCall: false,
           };
@@ -216,7 +238,7 @@ export class RoomManager {
             name: uid.substring(0, 8),
             avatar: "U",
             photo: null,
-            status: "online",
+            status: "member",
             isHost: this.currentRoomData.creator === uid,
             inCall: false,
           };
@@ -252,33 +274,16 @@ export class RoomManager {
         const isCurrent = p.id === this.userAuth.currentUser.uid;
         const canKick = this.isOwner && !isCurrent;
 
-        // ✅ NEW: Make avatar clickable
         const avatarHtml = p.photo
-          ? `<div class="participant-avatar" style="background-image: url('${
-              p.photo
-            }'); background-size: cover; background-position: center; cursor: pointer;" onclick="window.viewUserProfile('${
-              p.id
-            }')" title="View ${
-              p.name
-            }'s profile"><div class="status-indicator ${
-              p.inCall ? "status-in-call" : "status-online"
-            }"></div></div>`
-          : `<div class="participant-avatar" style="cursor: pointer;" onclick="window.viewUserProfile('${
-              p.id
-            }')" title="View ${p.name}'s profile">${
-              p.avatar
-            }<div class="status-indicator ${
-              p.inCall ? "status-in-call" : "status-online"
-            }"></div></div>`;
+          ? `<div class="participant-avatar" style="background-image: url('${p.photo}'); background-size: cover; background-position: center;"></div>`
+          : `<div class="participant-avatar">${p.avatar}</div>`;
 
         return `<div class="participant-item" data-user-id="${
           p.id
-        }">${avatarHtml}<div class="participant-info"><div class="participant-name" style="cursor: pointer; color: var(--primary-color);" onclick="window.viewUserProfile('${
-          p.id
-        }')" title="View profile">${p.name}${
-          isCurrent ? " (You)" : ""
-        }</div><div class="participant-status">${
-          p.isHost ? "Host" : p.inCall ? "In Call" : "Online"
+        }">${avatarHtml}<div class="participant-info"><div class="participant-name">${
+          p.name
+        }${isCurrent ? " (You)" : ""}</div><div class="participant-status">${
+          p.isHost ? "Host" : p.inCall ? "In Call" : "Member"
         }</div></div>${
           canKick
             ? `<div class="participant-actions"><button class="kick-btn" onclick="window.kickParticipant('${p.id}')" title="Kick user"><i class="bi bi-x-lg"></i></button></div>`
@@ -502,6 +507,149 @@ export class RoomManager {
         "Could not remove participant: " + (err.message || "unknown error"),
         "error"
       );
+    }
+  }
+
+  // ✅ LEAVE: Leave room functionality
+  async leaveRoom() {
+    if (!this.currentRoomData) {
+      window.showToast?.("Room data not loaded", "error");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Are you sure you want to leave this study room? You can rejoin later using the invite link."
+      )
+    )
+      return;
+
+    try {
+      const roomId = this.currentRoomData._id || this.currentRoomData.id;
+      const currentUid = this.userAuth.currentUser.uid;
+
+      console.log(
+        `[room-manager] Removing user ${currentUid} from room ${roomId}`
+      );
+
+      await fetchJsonWithAuth(
+        `${
+          window.__CONFIG__.apiBase
+        }/${roomId}/participants/${encodeURIComponent(currentUid)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      window.showToast?.("You have left the study room", "success");
+
+      setTimeout(() => {
+        window.location.href = "study-rooms.html";
+      }, 1000);
+    } catch (err) {
+      console.error("Error leaving room:", err);
+      const msg =
+        (err && err.body && (err.body.error || err.body.message)) ||
+        err.message ||
+        "unknown error";
+      window.showToast?.(
+        "Could not leave room: " + msg + ". Please try again.",
+        "error"
+      );
+    }
+  }
+
+  // ✅ NEW: Reset room password - OPTION A (Private rooms only)
+  async resetRoomPassword(newPassword) {
+    // Validation
+    if (!this.isOwner) {
+      throw new Error("Only the room owner can reset the password");
+    }
+
+    // ✅ FIXED: Check privacy property as fallback since isPrivate might be undefined
+    const roomPrivacy = String(
+      this.currentRoomData?.privacy || "public"
+    ).toLowerCase();
+    const isPrivateRoom =
+      this.currentRoomData?.isPrivate || roomPrivacy === "private";
+
+    console.log("[room-manager] Password reset validation:", {
+      roomPrivacy,
+      isPrivateRoom,
+      isOwner: this.isOwner,
+    });
+
+    if (!isPrivateRoom) {
+      throw new Error("Password reset is only available for private rooms");
+    }
+
+    if (!newPassword || typeof newPassword !== "string") {
+      throw new Error("Password is required");
+    }
+
+    const sanitizedPassword = newPassword.trim();
+
+    if (sanitizedPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters long");
+    }
+
+    if (sanitizedPassword.length > 100) {
+      throw new Error("Password must be less than 100 characters");
+    }
+
+    if (!/[A-Z]/.test(sanitizedPassword)) {
+      throw new Error("Password must contain at least one uppercase letter");
+    }
+
+    if (!/[a-z]/.test(sanitizedPassword)) {
+      throw new Error("Password must contain at least one lowercase letter");
+    }
+
+    if (!/[0-9]/.test(sanitizedPassword)) {
+      throw new Error("Password must contain at least one number");
+    }
+
+    try {
+      const roomId = this.currentRoomData._id || this.currentRoomData.id;
+
+      console.log("[room-manager] Resetting password for room:", roomId);
+      console.log("[room-manager] Room privacy:", roomPrivacy);
+      console.log("[room-manager] Is private room:", isPrivateRoom);
+
+      // ✅ BULLETPROOF: Build URL step by step
+      const apiBase = window.__CONFIG__.apiBase;
+      console.log("[room-manager] API Base URL:", apiBase);
+      console.log("[room-manager] Room ID:", roomId);
+
+      // Construct URL without template literals
+      let resetUrl = apiBase;
+      if (!resetUrl.endsWith("/")) {
+        resetUrl = resetUrl + "/";
+      }
+      resetUrl = resetUrl + roomId + "/password";
+
+      console.log("[room-manager] ✅ Final API URL:", resetUrl);
+      console.log("[room-manager] Full Request:", {
+        method: "PUT",
+        url: resetUrl,
+        body: { password: "***" },
+      });
+
+      const response = await fetchJsonWithAuth(resetUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: sanitizedPassword }),
+      });
+
+      console.log("[room-manager] ✅ Password reset successfully");
+      console.log("[room-manager] Response:", response);
+
+      return response;
+    } catch (err) {
+      console.error("[room-manager] Error resetting password:", err);
+      console.error("[room-manager] Error details:", err.status, err.body);
+      console.error("[room-manager] Error message:", err.message);
+      throw new Error(err.message || "Failed to reset room password");
     }
   }
 }

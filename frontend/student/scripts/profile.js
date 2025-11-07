@@ -1,12 +1,7 @@
 // frontend/student/scripts/profile.js
-// SECURITY HARDENED VERSION:
-// - Fixed XSS vulnerability (use .textContent instead of .innerHTML)
-// - Email field is READ-ONLY (cannot be edited)
-// - Input validation & sanitization
-// - Safe DOM updates
-// - Security logging for suspicious activities
-// ✅ FIXED: Reads UID from URL path (/profile/uid) instead of query string (?uid=...)
-// ✅ FIXED: Uses apiUrl() helper to get full backend URL for public profiles
+// ENHANCED VERSION: Tab-Based Layout, Profile Completion Tracker (CORRECTED),
+// Improved Change Password Modal with Strength Indicator
+// UPDATED: Email removed from header, Icon removed, Font weight reduced, Program moved to Academic, Bio removed from header
 
 import { auth } from "../../config/firebase.js";
 import { apiUrl } from "../../config/appConfig.js";
@@ -21,13 +16,14 @@ import {
 import fetchWithAuth, {
   fetchJsonWithAuth,
   postFormWithAuth,
+  putJsonWithAuth,
 } from "./apiClient.js";
 
 let CURRENT_SESSION = null;
 let currentPhotoURL = null;
 let currentPhotoFilename = null;
 let isLoading = false;
-let VIEWING_UID = null; // ✅ NEW: Track if viewing other user
+let currentProfile = null;
 
 // ===== SECURITY: Constants =====
 const MAX_NAME_LENGTH = 255;
@@ -38,7 +34,7 @@ const MAX_INSTITUTION_LENGTH = 255;
 const MAX_YEAR_LEVEL_LENGTH = 50;
 const MAX_SPECIALIZATION_LENGTH = 100;
 const MAX_GRADUATION_LENGTH = 50;
-const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/gif"]);
 
 // ===== SECURITY: Sanitization helpers =====
@@ -53,38 +49,6 @@ function logSecurityEvent(eventType, details) {
     `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
     details
   );
-}
-
-// ✅ NEW: Get UID from URL path
-function getUidFromUrl() {
-  const pathname = window.location.pathname;
-  const pathParts = pathname.split("/");
-  // Expected format: /profile/uid
-  if (pathParts.length >= 3 && pathParts[1] === "profile") {
-    const uid = pathParts[2];
-    return uid || null;
-  }
-  return null;
-}
-
-// ✅ FIXED: Fetch public profile with apiUrl() helper to get full backend URL
-async function fetchPublicProfile(uid) {
-  try {
-    // ✅ Use apiUrl() to get full backend URL
-    const fullUrl = apiUrl(`/api/users/public/${encodeURIComponent(uid)}`);
-    console.log("[profile] Fetching public profile from:", fullUrl);
-
-    const response = await fetch(fullUrl);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (err) {
-    console.error("Error fetching public profile:", err);
-    throw err;
-  }
 }
 
 // -------------------- Notification --------------------
@@ -123,13 +87,9 @@ function setLoading(loading) {
   if (loading) {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="bi bi-arrow-repeat spinning"></i> Saving...';
-    const editModal = document.getElementById("editModal");
-    if (editModal) editModal.classList.add("loading");
   } else {
     saveBtn.disabled = false;
     saveBtn.innerHTML = "Save Changes";
-    const editModal = document.getElementById("editModal");
-    if (editModal) editModal.classList.remove("loading");
   }
 }
 
@@ -144,38 +104,137 @@ function updateSidebarUserInfo() {
   if (course) course.textContent = CURRENT_SESSION.userProgram || "";
 }
 
+// ===== PROFILE COMPLETION TRACKER (CORRECTED) =====
+function calculateProfileCompletion(profile) {
+  // Define which fields are required and which are optional
+  const fields = [
+    { key: "name", required: true, label: "Name" },
+    { key: "studentNumber", required: true, label: "Student Number" },
+    { key: "program", required: true, label: "Program" },
+    { key: "institution", required: false, label: "Institution" },
+    { key: "yearLevel", required: false, label: "Year Level" },
+    { key: "bio", required: false, label: "Bio" },
+    { key: "specialization", required: false, label: "Specialization" },
+    { key: "graduation", required: false, label: "Graduation" },
+    { key: "photo", required: false, label: "Photo" },
+  ];
+
+  let completedRequired = 0;
+  let totalRequired = 0;
+  let completedOptional = 0;
+  let totalOptional = 0;
+  const completionItems = [];
+
+  fields.forEach((field) => {
+    // Check if field has actual value (not empty/null/undefined)
+    const hasValue =
+      profile[field.key] &&
+      String(profile[field.key]).trim() !== "" &&
+      String(profile[field.key]).trim().toLowerCase() !== "loading...";
+
+    const item = {
+      label: field.label,
+      done: hasValue,
+      required: field.required,
+    };
+
+    completionItems.push(item);
+
+    if (field.required) {
+      totalRequired++;
+      if (hasValue) completedRequired++;
+    } else {
+      totalOptional++;
+      if (hasValue) completedOptional++;
+    }
+  });
+
+  // Calculate percentage: Only required fields must be completed to show progress
+  // Optional fields add bonus points
+  let percentage = 0;
+
+  if (totalRequired > 0) {
+    // Base percentage from required fields (0-80%)
+    const requiredPercentage = (completedRequired / totalRequired) * 80;
+    // Bonus from optional fields (0-20%)
+    const optionalPercentage =
+      totalOptional > 0 ? (completedOptional / totalOptional) * 20 : 0;
+    percentage = Math.round(requiredPercentage + optionalPercentage);
+  }
+
+  return {
+    percentage,
+    items: completionItems,
+    completed: completedRequired,
+    total: totalRequired,
+  };
+}
+
+function updateProfileCompletion(profile) {
+  const { percentage, items } = calculateProfileCompletion(profile);
+
+  const percentageEl = document.getElementById("completionPercentage");
+  if (percentageEl) {
+    percentageEl.textContent = `${percentage}%`;
+  }
+
+  const fillEl = document.getElementById("completionFill");
+  if (fillEl) {
+    fillEl.style.width = `${percentage}%`;
+  }
+
+  const itemsContainer = document.getElementById("completionItems");
+  if (itemsContainer) {
+    itemsContainer.innerHTML = items
+      .map(
+        (item) => `
+      <div class="completion-item ${item.done ? "done" : ""}">
+        <i class="bi bi-${item.done ? "check-circle-fill" : "circle"}"></i>
+        <span>${item.label}</span>
+      </div>
+    `
+      )
+      .join("");
+  }
+}
+
 function updateProfileUI(profile) {
   const el = (id) => document.getElementById(id) || null;
 
-  // ===== SECURITY: Use .textContent to prevent XSS =====
-  if (el("displayName")) el("displayName").textContent = profile.name || "";
-
-  // ===== SECURITY: Email display (safe - no HTML) =====
-  const emailEl = el("displayEmail");
-  if (emailEl) {
-    emailEl.innerHTML = ""; // Clear existing
-    const icon = document.createElement("i");
-    icon.className = "bi bi-envelope";
-    const span = document.createElement("span");
-    span.className = "email-text";
-    span.textContent = profile.email || ""; // ← Safe: .textContent
-    emailEl.appendChild(icon);
-    emailEl.appendChild(span);
+  // Update display name (WITHOUT icon, WITHOUT bio below it)
+  if (el("displayName")) {
+    const displayNameText = el("displayNameText");
+    if (displayNameText) {
+      displayNameText.textContent = profile.name || "User Profile";
+    }
   }
 
-  if (el("displayBio")) el("displayBio").textContent = profile.bio || "";
+  // Email NOT displayed in header (removed)
+  const emailEl = el("displayEmail");
+  if (emailEl) {
+    emailEl.style.display = "none";
+  }
 
-  // ===== SECURITY: Use .textContent for all user data =====
+  // Bio NOT displayed in header (removed)
+  const bioEl = el("displayBio");
+  if (bioEl) {
+    bioEl.style.display = "none";
+  }
+
+  // Info display mapping - REORGANIZED (Program moved to Academic, Bio only in Personal tab)
   const mapping = {
+    // Personal Tab
     infoName: profile.name,
     infoEmail: profile.email,
     infoStudentNumber: profile.studentNumber,
+    infoBio: profile.bio,
+
+    // Academic Tab (Program moved here)
     infoProgram: profile.program,
     infoInstitution: profile.institution,
     infoYearLevel: profile.yearLevel,
     infoSpecialization: profile.specialization,
     infoGraduation: profile.graduation,
-    infoBio: profile.bio,
   };
 
   Object.entries(mapping).forEach(([id, value]) => {
@@ -183,18 +242,18 @@ function updateProfileUI(profile) {
     if (node) node.textContent = value || "";
   });
 
+  // Update form inputs
   const setVal = (id, value) => {
     const node = el(id);
     if (node) node.value = value || "";
   };
 
   setVal("editName", profile.name);
-  // ===== SECURITY: Email field is DISABLED (read-only) =====
   setVal("editEmail", profile.email);
   const emailInput = el("editEmail");
   if (emailInput) {
-    emailInput.disabled = true; // ← Cannot edit email
-    emailInput.title = "Email cannot be changed"; // Tooltip
+    emailInput.disabled = true;
+    emailInput.title = "Email cannot be changed";
   }
 
   setVal("editStudentNumber", profile.studentNumber);
@@ -205,19 +264,19 @@ function updateProfileUI(profile) {
   setVal("editGraduation", profile.graduation);
   setVal("editBio", profile.bio);
 
-  // ===== SECURITY: Safe image handling =====
+  // Avatar display
   if (profile.photo) {
     const profileAvatar = el("profileAvatar");
     const modalAvatar = el("modalAvatar");
     if (profileAvatar) {
-      profileAvatar.innerHTML = ""; // Clear
+      profileAvatar.innerHTML = "";
       const img = document.createElement("img");
       img.src = profile.photo;
       img.alt = "Profile Photo";
       profileAvatar.appendChild(img);
     }
     if (modalAvatar) {
-      modalAvatar.innerHTML = ""; // Clear
+      modalAvatar.innerHTML = "";
       const img = document.createElement("img");
       img.src = profile.photo;
       img.alt = "Profile Photo";
@@ -229,13 +288,18 @@ function updateProfileUI(profile) {
   if (profile.photoFilename) {
     currentPhotoFilename = profile.photoFilename;
   }
+
+  // Update completion tracker
+  updateProfileCompletion(profile);
+
+  // Store for later use
+  currentProfile = profile;
 }
 
 // -------------------- Upload to backend --------------------
 async function uploadProfilePhoto(file) {
   if (!file) throw new Error("No file provided");
 
-  // ===== SECURITY: Validate file =====
   if (file.size > MAX_PHOTO_SIZE_BYTES) {
     logSecurityEvent("PHOTO_UPLOAD_SIZE_EXCEEDED", {
       size: file.size,
@@ -267,10 +331,9 @@ async function uploadProfilePhoto(file) {
 function broadcastProfileUpdated(profile) {
   try {
     try {
-      // ===== SECURITY: Store sanitized data only =====
       const sanitizedProfile = {
         name: sanitizeString(profile.name, MAX_NAME_LENGTH),
-        email: profile.email, // Read-only, safe
+        email: profile.email,
         bio: sanitizeString(profile.bio, MAX_BIO_LENGTH),
         photo: profile.photo,
       };
@@ -288,12 +351,12 @@ function broadcastProfileUpdated(profile) {
 
 // -------------------- Auth state and initial profile fetch --------------------
 onAuthStateChanged(auth, async (user) => {
-  // ✅ NEW: Get UID from URL
-  VIEWING_UID = getUidFromUrl();
-
   if (!user) {
-    // ✅ FIXED: Redirect to login.html in same directory
-    window.location.href = "login.html";
+    const currentPath = window.location.pathname;
+    const pathParts = currentPath.split("/");
+    const loginPath =
+      pathParts.slice(0, pathParts.length - 1).join("/") + "/login.html";
+    window.location.href = window.location.origin + loginPath;
     return;
   }
 
@@ -307,49 +370,26 @@ onAuthStateChanged(auth, async (user) => {
     userAvatar: userNameFromAuth ? userNameFromAuth[0] : "U",
     userProgram: "",
     email: user.email,
-    uid: user.uid,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
   };
   updateSidebarUserInfo();
 
   try {
-    let profile;
-
-    // ✅ FIXED: If viewing other user, fetch their PUBLIC profile (no auth required)
-    if (VIEWING_UID && VIEWING_UID !== user.uid) {
-      // Use public endpoint (no auth required) with apiUrl() helper
-      profile = await fetchPublicProfile(VIEWING_UID);
-    } else {
-      // Viewing own profile - fetch with auth (includes all fields)
-      profile = await fetchJsonWithAuth("/api/users/profile");
-    }
-
+    const profile = await fetchJsonWithAuth("/api/users/profile");
     CURRENT_SESSION.userProgram = profile.program || "";
     updateSidebarUserInfo();
     currentPhotoURL = profile.photo || null;
     currentPhotoFilename = profile.photoFilename || null;
     updateProfileUI(profile);
 
-    // ✅ NEW: Only broadcast if viewing own profile
-    if (!VIEWING_UID || VIEWING_UID === user.uid) {
-      broadcastProfileUpdated(profile);
-    }
+    broadcastProfileUpdated(profile);
 
-    // ✅ NEW: Hide edit controls if viewing other user
-    if (VIEWING_UID && VIEWING_UID !== user.uid) {
-      const editBtn = document.getElementById("editProfileBtn");
-      const changePasswordBtn = document.getElementById(
-        "openChangePasswordBtn"
-      );
-      if (editBtn) editBtn.style.display = "none";
-      if (changePasswordBtn) changePasswordBtn.style.display = "none";
-    }
-
+    updateLastUpdatedTime();
     if (overlay) overlay.classList.remove("visible");
   } catch (err) {
     console.error("Error fetching profile from backend:", err);
     showNotification(
-      "Could not load profile. Please try again later.",
+      "Could not load your profile. Please try again later.",
       "error"
     );
     if (overlay) overlay.classList.remove("visible");
@@ -374,7 +414,6 @@ if (photoInput) {
     const existingError = document.getElementById("photoError");
     if (existingError) existingError.remove();
 
-    // ===== SECURITY: Validate photo =====
     if (file.size > MAX_PHOTO_SIZE_BYTES) {
       logSecurityEvent("PHOTO_VALIDATION_SIZE_FAILED", {
         size: file.size,
@@ -452,7 +491,6 @@ async function saveProfile() {
   const getVal = (id) =>
     document.getElementById(id) ? document.getElementById(id).value.trim() : "";
 
-  // ===== SECURITY: Sanitize all inputs =====
   const name = sanitizeString(getVal("editName"), MAX_NAME_LENGTH);
   const studentNumber = sanitizeString(
     getVal("editStudentNumber"),
@@ -500,7 +538,6 @@ async function saveProfile() {
       bio,
       photo: currentPhotoURL || null,
       photoFilename: currentPhotoFilename || null,
-      // ===== SECURITY: DO NOT SEND EMAIL - it's read-only =====
     };
 
     const updatedProfile = await fetchJsonWithAuth("/api/users/profile", {
@@ -555,6 +592,117 @@ function closeEditModal() {
 window.openEditModal = openEditModal;
 window.closeEditModal = closeEditModal;
 
+// ===== PASSWORD STRENGTH CHECKER =====
+function checkPasswordStrength(password) {
+  let strength = 0;
+  const requirements = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+
+  Object.entries(requirements).forEach(([key, met]) => {
+    if (met) strength++;
+    const reqEl = document.getElementById(`req-${key}`);
+    if (reqEl) {
+      if (met) {
+        reqEl.classList.add("met");
+      } else {
+        reqEl.classList.remove("met");
+      }
+    }
+  });
+
+  const strengthBar = document.getElementById("strengthBar");
+  const strengthValue = document.getElementById("strengthValue");
+
+  if (strengthBar) {
+    strengthBar.classList.remove("weak", "medium", "strong");
+    if (strength < 3) {
+      strengthBar.classList.add("weak");
+      if (strengthValue) {
+        strengthValue.textContent = "Weak";
+        strengthValue.className = "strength-value weak";
+      }
+    } else if (strength < 5) {
+      strengthBar.classList.add("medium");
+      if (strengthValue) {
+        strengthValue.textContent = "Medium";
+        strengthValue.className = "strength-value medium";
+      }
+    } else {
+      strengthBar.classList.add("strong");
+      if (strengthValue) {
+        strengthValue.textContent = "Strong";
+        strengthValue.className = "strength-value strong";
+      }
+    }
+  }
+
+  return strength >= 3;
+}
+
+// ===== PASSWORD MATCH CHECKER =====
+function checkPasswordMatch() {
+  const newPassword = document.getElementById("newPassword").value;
+  const confirmPassword = document.getElementById("confirmNewPassword").value;
+  const feedback = document.getElementById("passwordMatchFeedback");
+
+  if (!confirmPassword) {
+    feedback.className = "password-match-feedback";
+    feedback.textContent = "";
+    return false;
+  }
+
+  if (newPassword === confirmPassword) {
+    feedback.className = "password-match-feedback success";
+    feedback.textContent = "✓ Passwords match";
+    return true;
+  } else {
+    feedback.className = "password-match-feedback error";
+    feedback.textContent = "✗ Passwords do not match";
+    return false;
+  }
+}
+
+// ===== PASSWORD TOGGLE VISIBILITY =====
+function setupPasswordToggle() {
+  const toggleNewPassword = document.getElementById("toggleNewPassword");
+  const toggleConfirmPassword = document.getElementById(
+    "toggleConfirmPassword"
+  );
+  const newPasswordInput = document.getElementById("newPassword");
+  const confirmPasswordInput = document.getElementById("confirmNewPassword");
+
+  if (toggleNewPassword && newPasswordInput) {
+    toggleNewPassword.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (newPasswordInput.type === "password") {
+        newPasswordInput.type = "text";
+        toggleNewPassword.innerHTML = '<i class="bi bi-eye-slash"></i>';
+      } else {
+        newPasswordInput.type = "password";
+        toggleNewPassword.innerHTML = '<i class="bi bi-eye"></i>';
+      }
+    });
+  }
+
+  if (toggleConfirmPassword && confirmPasswordInput) {
+    toggleConfirmPassword.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (confirmPasswordInput.type === "password") {
+        confirmPasswordInput.type = "text";
+        toggleConfirmPassword.innerHTML = '<i class="bi bi-eye-slash"></i>';
+      } else {
+        confirmPasswordInput.type = "password";
+        toggleConfirmPassword.innerHTML = '<i class="bi bi-eye"></i>';
+      }
+    });
+  }
+}
+
 // -------------------- Change password flow --------------------
 function wireChangePasswordUI() {
   const openBtn = document.getElementById("openChangePasswordBtn");
@@ -563,48 +711,116 @@ function wireChangePasswordUI() {
   const cancelBtn = document.getElementById("cancelChangePasswordBtn");
   const form = document.getElementById("changePasswordForm");
   const sendResetBtn = document.getElementById("sendResetEmailBtn");
+  const confirmBtn = document.getElementById("confirmChangePasswordBtn");
 
   const close = () => {
     if (modal) {
       modal.style.display = "none";
       document.body.style.overflow = "auto";
+      resetPasswordForm();
     }
   };
+
+  function resetPasswordForm() {
+    const currentPassword = document.getElementById("currentPassword");
+    const newPassword = document.getElementById("newPassword");
+    const confirmPassword = document.getElementById("confirmNewPassword");
+    const feedback = document.getElementById("passwordMatchFeedback");
+
+    if (currentPassword) currentPassword.value = "";
+    if (newPassword) newPassword.value = "";
+    if (confirmPassword) confirmPassword.value = "";
+    if (feedback) {
+      feedback.className = "password-match-feedback";
+      feedback.textContent = "";
+    }
+
+    // Reset strength bar
+    const strengthBar = document.getElementById("strengthBar");
+    if (strengthBar) {
+      strengthBar.className = "strength-bar";
+      strengthBar.style.width = "0%";
+    }
+
+    const strengthValue = document.getElementById("strengthValue");
+    if (strengthValue) strengthValue.textContent = "-";
+
+    // Reset requirement items
+    document
+      .querySelectorAll(".requirement-item")
+      .forEach((el) => el.classList.remove("met"));
+  }
 
   if (openBtn) {
     openBtn.addEventListener("click", () => {
       if (modal) {
         modal.style.display = "block";
         document.body.style.overflow = "hidden";
-        const cp = document.getElementById("currentPassword");
-        const np = document.getElementById("newPassword");
-        const hint = document.getElementById("passwordHint");
-        if (cp) cp.value = "";
-        if (np) np.value = "";
-        if (hint) hint.style.display = "none";
+        resetPasswordForm();
+        const currentPassword = document.getElementById("currentPassword");
+        if (currentPassword) currentPassword.focus();
       }
     });
   }
+
   if (closeBtn) closeBtn.addEventListener("click", close);
   if (cancelBtn) cancelBtn.addEventListener("click", close);
+
+  // Real-time password validation
+  const newPasswordInput = document.getElementById("newPassword");
+  if (newPasswordInput) {
+    newPasswordInput.addEventListener("input", function () {
+      checkPasswordStrength(this.value);
+      checkPasswordMatch();
+    });
+  }
+
+  const confirmPasswordInput = document.getElementById("confirmNewPassword");
+  if (confirmPasswordInput) {
+    confirmPasswordInput.addEventListener("input", checkPasswordMatch);
+  }
 
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       const currentPassword =
         (document.getElementById("currentPassword") || {}).value?.trim() || "";
       const newPassword =
         (document.getElementById("newPassword") || {}).value?.trim() || "";
-      const hint = document.getElementById("passwordHint");
-      if (newPassword.length < 8) {
-        if (hint) hint.style.display = "block";
+      const confirmPassword =
+        (document.getElementById("confirmNewPassword") || {}).value?.trim() ||
+        "";
+
+      if (!currentPassword) {
+        showNotification("Please enter your current password", "error");
         return;
       }
+
+      if (newPassword.length < 8) {
+        showNotification("New password must be at least 8 characters", "error");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showNotification("Passwords do not match", "error");
+        return;
+      }
+
+      if (!checkPasswordStrength(newPassword)) {
+        showNotification(
+          "Password does not meet security requirements",
+          "error"
+        );
+        return;
+      }
+
       const user = auth.currentUser;
       if (!user) {
         showNotification("No signed-in user.", "error");
         return;
       }
+
       if (!user.email) {
         showNotification(
           "Password change only for email accounts. Use password reset otherwise.",
@@ -612,6 +828,13 @@ function wireChangePasswordUI() {
         );
         return;
       }
+
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML =
+          '<i class="bi bi-arrow-repeat spinning"></i> Changing...';
+      }
+
       try {
         const credential = EmailAuthProvider.credential(
           user.email,
@@ -619,7 +842,7 @@ function wireChangePasswordUI() {
         );
         await reauthenticateWithCredential(user, credential);
         await updatePassword(user, newPassword);
-        showNotification("Password changed successfully.", "success");
+        showNotification("Password changed successfully!", "success");
         logSecurityEvent("PASSWORD_CHANGED", { userId: user.uid });
         close();
       } catch (err) {
@@ -627,6 +850,7 @@ function wireChangePasswordUI() {
         logSecurityEvent("PASSWORD_CHANGE_FAILED", {
           error: err && err.code ? err.code : "Unknown error",
         });
+
         if (err.code === "auth/wrong-password")
           showNotification("Current password is incorrect.", "error");
         else if (err.code === "auth/requires-recent-login")
@@ -636,6 +860,11 @@ function wireChangePasswordUI() {
             "Could not change password. Try password reset email.",
             "error"
           );
+      } finally {
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = "Change Password";
+        }
       }
     });
   }
@@ -647,6 +876,11 @@ function wireChangePasswordUI() {
         showNotification("No email available for reset.", "error");
         return;
       }
+
+      sendResetBtn.disabled = true;
+      sendResetBtn.innerHTML =
+        '<i class="bi bi-arrow-repeat spinning"></i> Sending...';
+
       try {
         await sendPasswordResetEmail(auth, user.email);
         showNotification(
@@ -663,6 +897,10 @@ function wireChangePasswordUI() {
           "Could not send reset email. Try again later.",
           "error"
         );
+      } finally {
+        sendResetBtn.disabled = false;
+        sendResetBtn.innerHTML =
+          '<i class="bi bi-envelope-paper"></i> Send Password Reset Email';
       }
     });
   }
@@ -673,7 +911,6 @@ function validateField(field) {
   const existing = document.getElementById(`${field.id}Error`);
   if (existing) existing.remove();
 
-  // ===== SECURITY: Skip validation for disabled fields (email) =====
   if (field.disabled) {
     field.classList.remove("error");
     return true;
@@ -712,10 +949,33 @@ function updateLastUpdatedTime() {
   lastUpdated.textContent = `Last updated: ${date} ${time} UTC`;
 }
 
+// ===== TAB FUNCTIONALITY =====
+function setupTabs() {
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  const tabContents = document.querySelectorAll(".tab-content");
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.getAttribute("data-tab");
+
+      // Remove active class from all buttons and contents
+      tabBtns.forEach((b) => b.classList.remove("active"));
+      tabContents.forEach((content) => content.classList.remove("active"));
+
+      // Add active class to clicked button and corresponding content
+      btn.classList.add("active");
+      const activeContent = document.getElementById(`tab-${tabName}`);
+      if (activeContent) {
+        activeContent.classList.add("active");
+      }
+    });
+  });
+}
+
 // -------------------- Page animation --------------------
 function animateOnLoad() {
   try {
-    const sections = document.querySelectorAll(".profile-section");
+    const sections = document.querySelectorAll(".tab-section");
     sections.forEach((section, idx) => {
       section.style.opacity = "0";
       section.style.transform = "translateY(12px)";
@@ -744,6 +1004,8 @@ function animateOnLoad() {
 // -------------------- DOMContentLoaded wiring --------------------
 document.addEventListener("DOMContentLoaded", () => {
   animateOnLoad();
+  setupTabs();
+  setupPasswordToggle();
   initializeFormValidation();
   updateLastUpdatedTime();
 
@@ -768,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", () => {
       saveProfile();
     });
 
-  // keyboard shortcuts
+  // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
       e.preventDefault();
@@ -808,3 +1070,15 @@ function initializeFormValidation() {
     });
   });
 }
+
+// Close modals when clicking outside
+window.addEventListener("click", (e) => {
+  const editModal = document.getElementById("editModal");
+  if (e.target === editModal) closeEditModal();
+
+  const changePasswordModal = document.getElementById("changePasswordModal");
+  if (e.target === changePasswordModal) {
+    changePasswordModal.style.display = "none";
+    document.body.style.overflow = "auto";
+  }
+});

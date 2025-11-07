@@ -11,10 +11,8 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css"
       rel="stylesheet"
     />
-    <!-- ✅ FIXED: Changed from relative path to absolute path -->
-    <link rel="stylesheet" href="/student/styles/profile.css" />
+    <link rel="stylesheet" href="../styles/profile.css" />
     <style>
-      /* Inline styles retained from original file for notifications, overlays, etc. */
       .notification {
         position: fixed;
         top: 20px;
@@ -71,27 +69,6 @@
       .form-textarea.error {
         border-color: #f44336;
       }
-      .form-label::after {
-        content: " *";
-        color: #f44336;
-        display: inline-block;
-      }
-      .modal.loading {
-        position: relative;
-      }
-      .modal.loading::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.7);
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
       .spinning {
         animation: spin 1s linear infinite;
         display: inline-block;
@@ -101,13 +78,6 @@
           transform: rotate(360deg);
         }
       }
-      #lastUpdated {
-        font-size: 12px;
-        color: var(--medium-text);
-        text-align: right;
-        margin-top: 10px;
-      }
-      /* Loading overlay for initial page load */
       #loadingOverlay {
         position: fixed;
         top: 0;
@@ -131,31 +101,8 @@
       body.dark-mode #loadingOverlay {
         background: rgba(33, 33, 33, 0.9);
       }
-
-      /* Minimal styling for Change Password modal to match existing UI */
-      #changePasswordModal .modal-content {
-        max-width: 520px;
-        margin: 20px auto;
-      }
-
-      /* ✅ NEW: Read-only profile styles */
-      .read-only-profile .edit-profile-btn {
-        display: none !important;
-      }
-      .read-only-profile #editProfileBtn {
-        display: none !important;
-      }
-      .read-only-badge {
-        display: inline-block;
-        background: #2196f3;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 4px;
-        font-size: 12px;
-        margin-left: 10px;
-      }
     </style>
-    <title id="pageTitle">Profile - Study Group</title>
+    <title>Profile - Study Group</title>
   </head>
   <body>
     <!-- Loading Overlay -->
@@ -163,7 +110,7 @@
       <div class="spinner">
         <i class="bi bi-arrow-repeat spinning"></i>
       </div>
-      <p>Loading profile...</p>
+      <p>Loading your profile...</p>
     </div>
 
     <!-- Sidebar -->
@@ -174,33 +121,42 @@
           StudyGroup
         </div>
       </div>
-      <nav class="sidebar-menu">
+      <nav class="sidebar-menu" role="navigation">
         <a href="dashboard.html" class="sidebar-item">
           <i class="bi bi-house"></i>
-          Dashboard
+          <span>Dashboard</span>
         </a>
         <a href="profile.html" class="sidebar-item active">
           <i class="bi bi-person"></i>
-          Profile
+          <span>Profile</span>
         </a>
         <a href="study-rooms.html" class="sidebar-item">
           <i class="bi bi-door-open"></i>
-          Study Rooms
+          <span>Study Rooms</span>
         </a>
         <a href="resources.html" class="sidebar-item">
           <i class="bi bi-folder"></i>
-          Resources
+          <span>Resources</span>
         </a>
         <a href="discussion.html" class="sidebar-item">
           <i class="bi bi-chat-dots"></i>
-          Discussion Forum
+          <span>Discussion Forum</span>
         </a>
         <a href="report.html" class="sidebar-item">
           <i class="bi bi-flag"></i>
-          Report
+          <span>Report</span>
+        </a>
+        <!-- Admin Panel Link (only visible to admins) -->
+        <a
+          href="../../admin/index.html"
+          id="adminPanelLink"
+          class="sidebar-item admin-item"
+          style="display: none"
+        >
+          <i class="bi bi-shield-check"></i>
+          <span>Admin Panel</span>
         </a>
       </nav>
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -234,8 +190,6 @@
           <h1 class="page-title">Profile</h1>
         </div>
         <div class="nav-actions">
-          <!-- Keyboard shortcut hint -->
-          <span class="shortcut-hint">Ctrl+E to edit</span>
           <button
             class="theme-toggle"
             id="themeToggle"
@@ -248,7 +202,7 @@
 
       <!-- Profile Content -->
       <div class="profile-content">
-        <!-- Profile Header -->
+        <!-- Profile Header with Completion Tracker -->
         <div class="profile-header">
           <div class="profile-avatar-section">
             <div class="profile-avatar" id="profileAvatar">
@@ -260,103 +214,151 @@
             </button>
           </div>
           <div class="profile-info">
-            <h1 class="profile-name" id="displayName">
-              Loading...
-              <span
-                id="readOnlyBadge"
-                class="read-only-badge"
-                style="display: none"
-              >
-                Viewing Profile
-              </span>
-            </h1>
-            <p class="profile-email" id="displayEmail">
-              <i class="bi bi-envelope"></i>
-              <span class="email-text">Loading...</span>
-            </p>
-            <p class="profile-bio" id="displayBio">Loading...</p>
-            <div id="lastUpdated">Last updated: 2025-10-10 08:17:59 UTC</div>
+            <!-- Name Section (Without Icon) -->
+            <div class="profile-header-top">
+              <h1 class="profile-name" id="displayName">
+                <span id="displayNameText">Loading...</span>
+              </h1>
+            </div>
+
+            <!-- Profile Completion Tracker -->
+            <div class="completion-tracker">
+              <div class="completion-header">
+                <span class="completion-label">Profile Completion</span>
+                <span class="completion-percentage" id="completionPercentage"
+                  >0%</span
+                >
+              </div>
+              <div class="completion-bar">
+                <div
+                  class="completion-fill"
+                  id="completionFill"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <div class="completion-items" id="completionItems"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Profile Sections -->
-        <div class="profile-sections">
-          <!-- Left Column -->
-          <div>
-            <!-- Personal Information -->
-            <div class="profile-section">
-              <h2 class="section-title">
-                <div class="section-icon">
-                  <i class="bi bi-person"></i>
-                </div>
-                Personal Information
-              </h2>
+        <!-- Tabs Navigation -->
+        <div class="profile-tabs">
+          <div class="tabs-container">
+            <button class="tab-btn active" data-tab="personal">
+              <i class="bi bi-person"></i> Personal
+            </button>
+            <button class="tab-btn" data-tab="academic">
+              <i class="bi bi-mortarboard"></i> Academic
+            </button>
+            <button class="tab-btn" data-tab="security">
+              <i class="bi bi-shield-lock"></i> Security & Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="tabs-content">
+          <!-- Personal Tab -->
+          <div class="tab-content active" id="tab-personal">
+            <div class="tab-section">
+              <h2 class="section-title">Personal Information</h2>
               <div class="info-grid">
-                <div class="info-item">
+                <div class="info-card">
                   <div class="info-label">Full Name</div>
                   <div class="info-value" id="infoName">Loading...</div>
                 </div>
-                <div class="info-item">
+                <div class="info-card">
+                  <div class="info-label">Email Address</div>
+                  <div class="info-value email" id="infoEmail">Loading...</div>
+                </div>
+                <div class="info-card">
                   <div class="info-label">Student Number</div>
                   <div class="info-value" id="infoStudentNumber">
                     Loading...
                   </div>
                 </div>
-                <div class="info-item">
-                  <div class="info-label">Program</div>
-                  <div class="info-value" id="infoProgram">Loading...</div>
+                <div class="info-card full-width">
+                  <div class="info-label">About Me</div>
+                  <div class="bio-section" id="infoBio">Loading...</div>
                 </div>
-                <div class="info-item">
-                  <div class="info-label">Year Level</div>
-                  <div class="info-value" id="infoYearLevel">Loading...</div>
-                </div>
-                <div class="info-item full-width">
-                  <div class="info-label">Email Address</div>
-                  <div class="info-value email" id="infoEmail">Loading...</div>
-                </div>
-              </div>
-              <div style="margin-top: 25px">
-                <div class="info-label">About Me</div>
-                <div class="bio-section" id="infoBio">Loading...</div>
               </div>
             </div>
           </div>
 
-          <!-- Right Column -->
-          <div>
-            <!-- Academic Information - Moved to right column -->
-            <div class="profile-section">
-              <h2 class="section-title">
-                <div class="section-icon">
-                  <i class="bi bi-mortarboard"></i>
-                </div>
-                Academic Information
-              </h2>
+          <!-- Academic Tab -->
+          <div class="tab-content" id="tab-academic">
+            <div class="tab-section">
+              <h2 class="section-title">Academic Information</h2>
               <div class="info-grid">
-                <div class="info-item full-width">
-                  <div class="info-label">Institution</div>
-                  <div class="info-value" id="infoInstitution">
-                    Pateros Technological College
-                  </div>
+                <div class="info-card">
+                  <div class="info-label">Program</div>
+                  <div class="info-value" id="infoProgram">Loading...</div>
                 </div>
-                <div class="info-item">
+                <div class="info-card">
+                  <div class="info-label">Institution</div>
+                  <div class="info-value" id="infoInstitution">Loading...</div>
+                </div>
+                <div class="info-card">
+                  <div class="info-label">Year Level</div>
+                  <div class="info-value" id="infoYearLevel">Loading...</div>
+                </div>
+                <div class="info-card">
                   <div class="info-label">Specialization</div>
                   <div class="info-value" id="infoSpecialization">
-                    Web Development
+                    Loading...
                   </div>
                 </div>
-                <div class="info-item">
+                <div class="info-card">
                   <div class="info-label">Expected Graduation</div>
-                  <div class="info-value" id="infoGraduation">2026</div>
+                  <div class="info-value" id="infoGraduation">Loading...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security & Settings Tab -->
+          <div class="tab-content" id="tab-security">
+            <div class="tab-section">
+              <h2 class="section-title">Security & Settings</h2>
+              <div class="security-cards">
+                <div class="security-card">
+                  <div class="security-icon">
+                    <i class="bi bi-shield-check"></i>
+                  </div>
+                  <div class="security-content">
+                    <h3>Change Password</h3>
+                    <p>Update your password to keep your account secure</p>
+                  </div>
+                  <button
+                    class="security-action-btn"
+                    id="openChangePasswordBtn"
+                  >
+                    <i class="bi bi-arrow-right"></i>
+                  </button>
+                </div>
+
+                <div class="security-card">
+                  <div class="security-icon">
+                    <i class="bi bi-envelope-paper"></i>
+                  </div>
+                  <div class="security-content">
+                    <h3>Password Reset Email</h3>
+                    <p>Send a password reset link to your email</p>
+                  </div>
+                  <button class="security-action-btn" id="sendResetEmailBtn">
+                    <i class="bi bi-arrow-right"></i>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        <div class="profile-footer" id="lastUpdated">
+          Last updated: 2025-11-07 17:32:46 UTC
+        </div>
       </div>
-      <!-- /.profile-content -->
     </div>
-    <!-- /.main-content -->
 
     <!-- Edit Profile Modal -->
     <div id="editModal" class="modal">
@@ -377,19 +379,13 @@
                 <i class="bi bi-camera"></i> Choose Photo
               </div>
               <div class="upload-hint">
-                Recommended: Square image, max 5MB (JPG, PNG, GIF)
+                Recommended: Square image, max 10MB (JPG, PNG, GIF)
               </div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="editName">Full Name</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editName"
-                value="DanePascual"
-                required
-              />
+              <input type="text" class="form-input" id="editName" required />
             </div>
 
             <div class="form-group">
@@ -398,13 +394,12 @@
                 type="email"
                 class="form-input"
                 id="editEmail"
-                value="danepascual@paterostechnologicalcollege.edu.ph"
                 required
+                disabled
               />
               <div class="email-hint">
-                <i class="bi bi-info-circle"></i>
-                Email must be from Pateros Technological College domain
-                (@paterostechnologicalcollege.edu.ph)
+                <i class="bi bi-lock"></i>
+                Email cannot be changed
               </div>
             </div>
 
@@ -416,110 +411,48 @@
                 type="text"
                 class="form-input"
                 id="editStudentNumber"
-                value="2025-00001"
                 required
               />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="editProgram">Program</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editProgram"
-                value="BSIT"
-                required
-              />
+              <input type="text" class="form-input" id="editProgram" required />
             </div>
 
             <div class="form-group">
-              <label for="editInstitution">Institution</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editInstitution"
-                value="Pateros Technological College"
-              />
+              <label class="form-label" for="editInstitution"
+                >Institution</label
+              >
+              <input type="text" class="form-input" id="editInstitution" />
             </div>
 
             <div class="form-group">
-              <label for="editYearLevel">Year Level</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editYearLevel"
-                value="3rd Year"
-              />
+              <label class="form-label" for="editYearLevel">Year Level</label>
+              <input type="text" class="form-input" id="editYearLevel" />
             </div>
 
             <div class="form-group">
-              <label for="editSpecialization">Specialization</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editSpecialization"
-                value="Web Development"
-              />
+              <label class="form-label" for="editSpecialization"
+                >Specialization</label
+              >
+              <input type="text" class="form-input" id="editSpecialization" />
             </div>
 
             <div class="form-group">
-              <label for="editGraduation">Expected Graduation</label>
-              <input
-                type="text"
-                class="form-input"
-                id="editGraduation"
-                value="2026"
-              />
+              <label class="form-label" for="editGraduation"
+                >Expected Graduation</label
+              >
+              <input type="text" class="form-input" id="editGraduation" />
             </div>
 
             <div class="form-group">
-              <label for="editBio">About Me</label>
+              <label class="form-label" for="editBio">About Me</label>
               <textarea
                 class="form-textarea"
                 id="editBio"
                 placeholder="Tell us about yourself..."
-              >
-Information Technology student passionate about web development, cybersecurity, and collaborative learning. Always eager to explore new technologies and connect with fellow IT enthusiasts.</textarea
-              >
-            </div>
-
-            <!-- Change Password controls (in-edit modal) -->
-            <div
-              style="
-                margin-top: 12px;
-                display: flex;
-                gap: 8px;
-                align-items: center;
-              "
-            >
-              <button
-                type="button"
-                id="openChangePasswordBtn"
-                class="modal-btn"
-                style="
-                  background: #ff9800;
-                  color: #fff;
-                  border: none;
-                  padding: 8px 12px;
-                  border-radius: 6px;
-                "
-              >
-                Change Password
-              </button>
-              <button
-                type="button"
-                id="sendResetEmailBtn"
-                class="modal-btn"
-                style="
-                  border: 1px solid var(--primary-color);
-                  background: #fff;
-                  color: var(--primary-color);
-                  padding: 8px 12px;
-                  border-radius: 6px;
-                "
-              >
-                Send Password Reset Email
-              </button>
+              ></textarea>
             </div>
           </form>
         </div>
@@ -542,70 +475,145 @@ Information Technology student passionate about web development, cybersecurity, 
       </div>
     </div>
 
-    <!-- Change Password Modal (separate) -->
-    <div id="changePasswordModal" class="modal" style="display: none">
-      <div class="modal-content">
+    <!-- Change Password Modal (Improved) -->
+    <div id="changePasswordModal" class="modal">
+      <div class="modal-content password-modal">
         <div class="modal-header">
-          <h3>Change Password</h3>
+          <h3 class="modal-title">
+            <i class="bi bi-shield-lock"></i> Change Password
+          </h3>
           <button class="close-modal" id="closeChangePasswordModal">×</button>
         </div>
         <div class="modal-body">
           <form id="changePasswordForm">
+            <!-- Current Password -->
             <div class="form-group">
               <label class="form-label" for="currentPassword"
                 >Current Password</label
               >
               <input
                 type="password"
-                id="currentPassword"
                 class="form-input"
+                id="currentPassword"
                 required
               />
             </div>
+
+            <!-- New Password with Strength Indicator -->
             <div class="form-group">
               <label class="form-label" for="newPassword">New Password</label>
-              <input
-                type="password"
-                id="newPassword"
-                class="form-input"
-                required
-                minlength="8"
-              />
-              <div class="form-error" id="passwordHint" style="display: none">
-                Password should be at least 8 characters.
+              <div class="password-input-wrapper">
+                <input
+                  type="password"
+                  class="form-input"
+                  id="newPassword"
+                  required
+                  minlength="8"
+                />
+                <button
+                  type="button"
+                  class="password-toggle-btn"
+                  id="toggleNewPassword"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+
+              <!-- Password Strength Indicator -->
+              <div class="password-strength">
+                <div class="strength-bar" id="strengthBar"></div>
+              </div>
+              <div class="strength-text" id="strengthText">
+                <span class="strength-label">Strength:</span>
+                <span class="strength-value" id="strengthValue">-</span>
+              </div>
+
+              <!-- Password Requirements -->
+              <div class="password-requirements">
+                <div class="requirement-item" id="req-length">
+                  <i class="bi bi-circle"></i>
+                  <span>At least 8 characters</span>
+                </div>
+                <div class="requirement-item" id="req-uppercase">
+                  <i class="bi bi-circle"></i>
+                  <span>1 uppercase letter (A-Z)</span>
+                </div>
+                <div class="requirement-item" id="req-lowercase">
+                  <i class="bi bi-circle"></i>
+                  <span>1 lowercase letter (a-z)</span>
+                </div>
+                <div class="requirement-item" id="req-number">
+                  <i class="bi bi-circle"></i>
+                  <span>1 number (0-9)</span>
+                </div>
+                <div class="requirement-item" id="req-special">
+                  <i class="bi bi-circle"></i>
+                  <span>1 special character (!@#$...)</span>
+                </div>
               </div>
             </div>
-            <div class="modal-actions">
-              <button
-                type="button"
-                class="modal-btn modal-btn-cancel"
-                id="cancelChangePasswordBtn"
+
+            <!-- Confirm Password -->
+            <div class="form-group">
+              <label class="form-label" for="confirmNewPassword"
+                >Confirm New Password</label
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="modal-btn modal-btn-save"
-                id="confirmChangePasswordBtn"
-              >
-                Change Password
-              </button>
+              <div class="password-input-wrapper">
+                <input
+                  type="password"
+                  class="form-input"
+                  id="confirmNewPassword"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle-btn"
+                  id="toggleConfirmPassword"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              <div
+                class="password-match-feedback"
+                id="passwordMatchFeedback"
+              ></div>
+            </div>
+
+            <!-- Helpful Tips -->
+            <div class="password-tips">
+              <h4><i class="bi bi-lightbulb"></i> Password Tips</h4>
+              <ul>
+                <li>Use a mix of uppercase, lowercase, numbers, and symbols</li>
+                <li>Avoid using personal information or common words</li>
+                <li>Use a unique password you haven't used elsewhere</li>
+                <li>Consider using a passphrase (e.g., "MyDog@Barks2024!")</li>
+              </ul>
             </div>
           </form>
+        </div>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="modal-btn modal-btn-cancel"
+            id="cancelChangePasswordBtn"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="modal-btn modal-btn-save"
+            id="confirmChangePasswordBtn"
+            form="changePasswordForm"
+          >
+            Change Password
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Firebase SDK (as a module) -->
-    <!-- ✅ FIXED: Correct path to config/firebase.js (not /student/config/) -->
-    <script type="module" src="/config/firebase.js"></script>
-    <!-- Load centralized sidebar BEFORE page script so theme & sidebar are initialized -->
-    <!-- ✅ FIXED: Correct path to student/scripts/sidebar.js -->
-    <script type="module" src="/student/scripts/sidebar.js"></script>
-    <!-- Bootstrap JS, etc -->
+    <script type="module" src="../../config/firebase.js"></script>
+    <script type="module" src="../scripts/sidebar.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <!-- Your profile logic -->
-    <!-- ✅ FIXED: Correct path to student/scripts/profile.js -->
-    <script type="module" src="/student/scripts/profile.js"></script>
+    <script type="module" src="../scripts/profile.js"></script>
   </body>
 </html>

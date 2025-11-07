@@ -1,3 +1,34 @@
+/* ===== COMPLETELY HIDE BROWSER PASSWORD ICONS ===== */
+input[type="password"] {
+  -webkit-text-security: disc;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-outer-spin-button,
+input[type="password"]::-webkit-inner-spin-button,
+input[type="password"]::-webkit-textfield-decoration-container,
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Override Bootstrap's password field defaults */
+.form-control[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+.password-input-wrapper
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+#privateRoomPasswordModal
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
 :root {
   --primary-color: #4caf50;
   --primary-hover: #388e3c;
@@ -48,9 +79,7 @@ body.dark-mode .sidebar {
 }
 
 body.dark-mode .top-nav,
-body.dark-mode .study-rooms-list,
-body.dark-mode .recommended-list,
-body.dark-mode .stat-card {
+body.dark-mode .study-rooms-list {
   background: #2a2a2a;
   color: #e0e0e0;
 }
@@ -118,24 +147,6 @@ body.dark-mode .room-tag:hover {
   background: rgba(76, 175, 80, 0.3);
 }
 
-body.dark-mode .rec-room-card {
-  background: #333;
-  color: #e0e0e0;
-}
-
-body.dark-mode .rec-room-card:hover {
-  background: #3a3a3a;
-}
-
-body.dark-mode .rec-tag {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
-}
-
-body.dark-mode .rec-tag:hover {
-  background: rgba(76, 175, 80, 0.3);
-}
-
 body.dark-mode .empty-state {
   background: #333;
   color: #bbb;
@@ -183,15 +194,10 @@ body.dark-mode .menu-toggle:hover {
 /* FIXED: Make sure all text in dark mode is properly colored */
 body.dark-mode .text-center.text-muted,
 body.dark-mode .small,
-body.dark-mode .stat-number,
-body.dark-mode .stat-label,
-body.dark-mode .stat-change,
-body.dark-mode .stat-timestamp,
 body.dark-mode p,
 body.dark-mode h3,
 body.dark-mode .empty-state h3,
 body.dark-mode .empty-state p,
-body.dark-mode .rec-subtext,
 body.dark-mode .section-title,
 body.dark-mode .page-title,
 body.dark-mode .room-title,
@@ -203,6 +209,44 @@ body.dark-mode .toast-message {
 
 body.dark-mode .page-title {
   color: #e0e0e0;
+}
+
+body.dark-mode .password-input-wrapper {
+  border-color: #444;
+}
+
+body.dark-mode .password-toggle-btn {
+  color: #999;
+}
+
+body.dark-mode .password-toggle-btn:hover {
+  color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.15);
+}
+
+body.dark-mode .password-requirements-container {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+body.dark-mode .requirements-title {
+  color: #e0e0e0;
+}
+
+body.dark-mode .requirement-item {
+  color: #bbb;
+}
+
+body.dark-mode .requirement-item.met {
+  color: #4caf50;
+}
+
+body.dark-mode .requirement-item.met i {
+  color: #4caf50;
+}
+
+body.dark-mode .requirement-item.unmet i {
+  color: #999;
 }
 
 /* Sidebar Styles */
@@ -295,6 +339,7 @@ body.dark-mode .page-title {
   font-weight: bold;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
+
 .user-avatar img {
   width: 40px;
   height: 40px;
@@ -410,66 +455,22 @@ body.dark-mode .page-title {
 /* Study Rooms Content */
 .study-rooms-page-content {
   padding: 30px;
+  height: calc(100vh - 80px);
+  overflow: hidden;
 }
-.content-row {
-  display: flex;
-  gap: 30px;
-  margin-bottom: 30px;
-}
-.main-section {
-  flex: 2;
-}
-.side-section {
-  flex: 1;
-  max-width: 400px;
-}
-/* Stats grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 30px;
-}
-.stat-card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: var(--card-shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--hover-shadow);
-}
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  color: #4caf50;
-  margin-bottom: 5px;
-}
-.stat-label {
-  font-size: 12px;
-  color: var(--medium-text);
-}
-.stat-change {
-  font-size: 10px;
-  color: #4caf50;
-  margin-top: 3px;
-}
-.stat-timestamp {
-  font-size: 10px;
-  color: var(--light-text);
-  margin-top: 3px;
-}
+
 /* Study Rooms List */
 .study-rooms-list {
   background: white;
   border-radius: 15px;
   padding: 25px;
   box-shadow: var(--card-shadow);
-  margin-bottom: 30px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+
 .section-title {
   font-size: 20px;
   font-weight: bold;
@@ -478,12 +479,44 @@ body.dark-mode .page-title {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
+
+/* ===== ROOM CONTAINER - ENABLE INFINITE SCROLL ===== */
+#roomContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 0;
+}
+
+/* Scrollbar styling */
+#roomContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+#roomContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#roomContainer::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+#roomContainer::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
 .room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
+  padding: 20px;
 }
+
+/* ===== ROOM CARD - FIXED LAYOUT WITH VISIBLE TEXT ===== */
 .room-card {
   background: var(--background-light);
   border-radius: 12px;
@@ -492,60 +525,66 @@ body.dark-mode .page-title {
   border: 2px solid transparent;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
 }
+
 .room-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--hover-shadow);
   border-color: #4caf50;
 }
-.room-status {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ccc;
-}
-.room-status.active {
-  background: #4caf50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(76, 175, 80, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-  }
-}
+
 .room-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 15px;
+  gap: 12px;
+  flex-shrink: 0;
 }
+
+.room-header-content {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
 .room-title {
   font-size: 16px;
   font-weight: bold;
   color: var(--dark-text);
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
 }
+
 .room-description {
   font-size: 13px;
   color: var(--medium-text);
-  line-height: 1.4;
+  line-height: 1.5;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-wrap: break-word;
+  word-break: break-word;
+  margin-bottom: 12px;
 }
+
 .room-tags {
   display: flex;
   gap: 8px;
-  margin: 15px 0;
+  margin: 12px 0;
   flex-wrap: wrap;
 }
+
 .room-tag {
   background: #e8f5e8;
   color: #2e7d32;
@@ -554,24 +593,36 @@ body.dark-mode .page-title {
   font-size: 11px;
   font-weight: 500;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
 .room-tag:hover {
   background: #d0e7d0;
   transform: translateY(-1px);
 }
+
 .room-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 10px;
+  flex-shrink: 0;
 }
+
 .participant-count {
   font-size: 13px;
   color: var(--medium-text);
   display: flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
 .join-btn {
   background: #4caf50;
   color: white;
@@ -581,94 +632,20 @@ body.dark-mode .page-title {
   font-size: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
+
 .join-btn:hover {
   background: #388e3c;
   transform: translateY(-1px);
 }
-/* Recommended */
-.recommended-list {
-  background: var(--white);
-  border-radius: 20px;
-  box-shadow: var(--card-shadow);
-  padding: 24px 20px;
-  max-width: 400px;
-  margin: 0 auto;
-}
-.rec-header {
-  margin-bottom: 18px;
-}
-.rec-title {
-  font-weight: bold;
-  font-size: 20px;
-  color: var(--dark-text);
-}
-.rec-subtext {
-  font-size: 14px;
-  color: #7cbf7d;
-  margin-top: 2px;
-  margin-left: 2px;
-}
-.rec-room-card {
-  background: var(--background-light);
-  border-radius: 14px;
-  box-shadow: var(--card-shadow);
-  padding: 16px 14px 18px 14px;
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  transition: all 0.3s ease;
-}
-.rec-room-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--hover-shadow);
-}
-.rec-room-title {
-  font-weight: bold;
-  font-size: 17px;
-  color: #246c3a;
-}
-body.dark-mode .rec-room-title {
-  color: #4caf50;
-}
-.rec-tags {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.rec-tag {
-  background: #e8f5e8;
-  color: #388e3c;
-  border-radius: 18px;
-  padding: 5px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-.rec-tag:hover {
-  background: #d0e7d0;
-}
-.rec-join-btn {
-  align-self: flex-end;
-  background: #4caf50;
-  color: #fff;
-  border: none;
-  border-radius: 20px;
-  padding: 8px 28px;
-  font-size: 15px;
-  font-weight: 500;
-  box-shadow: var(--card-shadow);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 6px;
-}
-.rec-join-btn:hover {
-  background: #388e3c;
-  transform: translateY(-2px);
-  box-shadow: var(--hover-shadow);
+
+.join-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Create Room Modal */
@@ -677,30 +654,233 @@ body.dark-mode .rec-room-title {
   border: none;
   overflow: hidden;
 }
+
 .modal-header {
   background: #4caf50;
   color: white;
   padding: 20px 25px;
   border-bottom: none;
 }
+
 .modal-body {
   padding: 25px;
 }
+
 .modal-footer {
   border-top: none;
   padding: 15px 25px 25px;
 }
+
 .form-label {
   font-weight: 600;
   color: var(--dark-text);
   margin-bottom: 8px;
 }
+
+/* ===== PASSWORD INPUT WRAPPER WITH TOGGLE BUTTON ===== */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--background-light);
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.password-input-wrapper:focus-within {
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+}
+
+.password-input-wrapper .form-control {
+  border: none;
+  padding: 12px 45px 12px 45px;
+  flex: 1;
+  background: transparent;
+  color: var(--dark-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.password-input-wrapper .form-control:focus {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+
+.password-input-wrapper .form-control::placeholder {
+  color: var(--light-text);
+}
+
+body.dark-mode .password-input-wrapper {
+  background: #333;
+  border-color: #444;
+}
+
+body.dark-mode .password-input-wrapper:focus-within {
+  border-color: #4caf50;
+  background: #3a3a3a;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+}
+
+body.dark-mode .password-input-wrapper .form-control {
+  background: transparent;
+  color: #e0e0e0;
+}
+
+body.dark-mode .password-input-wrapper .form-control::placeholder {
+  color: #999;
+}
+
+/* Lock icon for password input */
+.input-icon {
+  position: absolute;
+  left: 15px;
+  color: var(--light-text);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+body.dark-mode .input-icon {
+  color: #999;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 15px;
+  background: none;
+  border: none;
+  color: var(--light-text);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.password-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== PASSWORD REQUIREMENTS CONTAINER ===== */
+.password-requirements-container {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #e8f5e8;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.requirements-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.requirements-title i {
+  color: var(--primary-color);
+  font-size: 14px;
+}
+
+.requirements-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--medium-text);
+  padding: 4px 0;
+  transition: all 0.2s ease;
+}
+
+.requirement-item i {
+  font-size: 14px;
+  color: #ccc;
+  transition: color 0.2s ease;
+  min-width: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.requirement-item.met {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.requirement-item.met i {
+  color: #4caf50;
+}
+
+.requirement-item.unmet {
+  color: var(--medium-text);
+}
+
+.requirement-item.unmet i {
+  color: #bbb;
+}
+
+.requirement-item span {
+  margin: 0;
+}
+
+/* Room filters */
+.room-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--dark-text);
+}
+
+.filter-btn:hover {
+  background: #e0e0e0;
+}
+
+.filter-btn.active {
+  background: #4caf50;
+  color: white;
+}
+
 .tag-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 15px;
 }
+
 .tag-option {
   background: #f0f0f0;
   border-radius: 15px;
@@ -712,35 +892,12 @@ body.dark-mode .rec-room-title {
   user-select: none;
   border: 1px solid transparent;
 }
+
 .tag-option:hover {
   background: #e0e0e0;
 }
-.tag-option.selected {
-  background: #4caf50;
-  color: white;
-}
 
-/* Room filters */
-.room-filters {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.filter-btn {
-  background: #f0f0f0;
-  border: none;
-  border-radius: 20px;
-  padding: 8px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: var(--dark-text);
-}
-.filter-btn:hover {
-  background: #e0e0e0;
-}
-.filter-btn.active {
+.tag-option.selected {
   background: #4caf50;
   color: white;
 }
@@ -752,6 +909,7 @@ body.dark-mode .rec-room-title {
   right: 20px;
   z-index: 1050;
 }
+
 .toast {
   background: white;
   border-radius: 10px;
@@ -763,6 +921,7 @@ body.dark-mode .rec-room-title {
   min-width: 250px;
   animation: slideIn 0.3s ease;
 }
+
 @keyframes slideIn {
   0% {
     transform: translateX(100%);
@@ -773,40 +932,51 @@ body.dark-mode .rec-room-title {
     opacity: 1;
   }
 }
+
 .toast.success {
   border-left: 4px solid #4caf50;
 }
+
 .toast.error {
   border-left: 4px solid #f44336;
 }
+
 .toast.info {
   border-left: 4px solid #2196f3;
 }
+
 .toast-icon {
   margin-right: 15px;
   font-size: 24px;
 }
+
 .toast-icon.success {
   color: #4caf50;
 }
+
 .toast-icon.error {
   color: #f44336;
 }
+
 .toast-icon.info {
   color: #2196f3;
 }
+
 .toast-content {
   flex: 1;
 }
+
 .toast-title {
   font-weight: bold;
   margin-bottom: 3px;
   color: var(--dark-text);
 }
+
 .toast-message {
   color: var(--medium-text);
   font-size: 14px;
 }
+
 .toast-close {
   cursor: pointer;
   color: var(--light-text);
@@ -851,8 +1021,7 @@ body.dark-mode .rec-room-title {
   margin-top: 20px;
 }
 
-/* Responsive Design - IMPROVED FOR SEARCH BAR */
-/* Large screens */
+/* Responsive Design */
 @media (min-width: 1200px) {
   .search-input {
     width: 300px;
@@ -862,7 +1031,6 @@ body.dark-mode .rec-room-title {
   }
 }
 
-/* Medium screens */
 @media (max-width: 1199px) and (min-width: 992px) {
   .search-input {
     width: 250px;
@@ -872,7 +1040,6 @@ body.dark-mode .rec-room-title {
   }
 }
 
-/* Small screens */
 @media (max-width: 991px) and (min-width: 768px) {
   .search-input {
     width: 200px;
@@ -882,13 +1049,9 @@ body.dark-mode .rec-room-title {
   }
 }
 
-/* Extra small screens */
 @media (max-width: 767px) {
   .main-content.shifted {
     margin-left: 0;
-  }
-  .content-row {
-    flex-direction: column;
   }
   .search-input {
     width: 150px;
@@ -902,19 +1065,34 @@ body.dark-mode .rec-room-title {
   .study-rooms-page-content {
     padding: 20px;
   }
-  .side-section {
-    max-width: 100%;
-  }
-  .recommended-list {
-    max-width: 100%;
-    padding: 18px 5px;
-  }
   .page-title {
     font-size: 20px;
   }
+
+  .password-requirements-container {
+    padding: 10px 12px;
+  }
+
+  .requirement-item {
+    font-size: 11px;
+    padding: 3px 0;
+  }
+
+  .requirement-item i {
+    font-size: 12px;
+    min-width: 12px;
+  }
+
+  .requirements-title {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .requirements-title i {
+    font-size: 13px;
+  }
 }
 
-/* Very small screens */
 @media (max-width: 480px) {
   .search-input {
     width: 120px;
@@ -936,9 +1114,54 @@ body.dark-mode .rec-room-title {
   .nav-right {
     gap: 8px;
   }
+
+  .password-input-wrapper {
+    border-radius: 12px;
+  }
+
+  .password-toggle-btn {
+    right: 12px;
+    padding: 5px 8px;
+    font-size: 16px;
+  }
+
+  .input-icon {
+    left: 12px;
+    font-size: 14px;
+  }
+
+  .password-input-wrapper .form-control {
+    padding: 12px 45px 12px 45px;
+    font-size: 14px;
+  }
+
+  .password-requirements-container {
+    padding: 8px 10px;
+    margin-top: 10px;
+  }
+
+  .requirements-title {
+    font-size: 11px;
+    margin-bottom: 5px;
+    gap: 4px;
+  }
+
+  .requirements-title i {
+    font-size: 12px;
+  }
+
+  .requirement-item {
+    font-size: 10px;
+    padding: 2px 0;
+    gap: 6px;
+  }
+
+  .requirement-item i {
+    font-size: 11px;
+    min-width: 11px;
+  }
 }
 
-/* Extremely small screens - enhance mobile view */
 @media (max-width: 360px) {
   .search-input {
     width: 100px;
@@ -975,6 +1198,52 @@ body.dark-mode .rec-room-title {
   }
   .study-rooms-page-content {
     padding: 15px 10px;
+  }
+
+  .password-input-wrapper {
+    border-radius: 12px;
+  }
+
+  .password-toggle-btn {
+    right: 10px;
+    padding: 4px 6px;
+    font-size: 14px;
+  }
+
+  .input-icon {
+    left: 10px;
+    font-size: 12px;
+  }
+
+  .password-input-wrapper .form-control {
+    padding: 12px 40px 12px 45px;
+    font-size: 12px;
+  }
+
+  .password-requirements-container {
+    padding: 6px 8px;
+    margin-top: 8px;
+  }
+
+  .requirements-title {
+    font-size: 10px;
+    margin-bottom: 4px;
+    gap: 3px;
+  }
+
+  .requirements-title i {
+    font-size: 10px;
+  }
+
+  .requirement-item {
+    font-size: 9px;
+    padding: 1px 0;
+    gap: 4px;
+  }
+
+  .requirement-item i {
+    font-size: 10px;
+    min-width: 10px;
   }
 }
 
@@ -1067,36 +1336,643 @@ body.dark-mode .logout-message-content {
   }
 }
 
-/* Responsive styles for logout button on small screens */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .logout-btn {
     margin-bottom: 15px;
   }
 }
 
-/* PAGINATION CONTROLS */
-.pagination-controls {
+/* ===== ROOM TABS SYSTEM ===== */
+.room-tabs-container {
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
+}
+
+.room-tabs {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-top: 24px;
+  gap: 8px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 0;
+  min-width: min-content;
 }
-.pagination-controls button {
-  background: #4caf50;
-  color: #fff;
+
+.room-tab {
+  background: none;
   border: none;
-  padding: 8px 24px;
-  border-radius: 8px;
-  font-size: 15px;
+  color: var(--medium-text);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  position: relative;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
 }
-.pagination-controls button:disabled {
+
+.room-tab i {
+  font-size: 16px;
+}
+
+.room-tab:hover {
+  color: var(--dark-text);
+}
+
+.room-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+body.dark-mode .room-tabs {
+  border-bottom-color: #333;
+}
+
+body.dark-mode .room-tab {
+  color: #bbb;
+}
+
+body.dark-mode .room-tab:hover {
+  color: #e0e0e0;
+}
+
+body.dark-mode .room-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+  .room-tabs {
+    gap: 4px;
+  }
+
+  .room-tab {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .room-tab i {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .room-tabs {
+    gap: 2px;
+  }
+
+  .room-tab {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .room-tab i {
+    display: none;
+  }
+}
+
+/* ===== INFINITE SCROLL STYLES ===== */
+
+.room-grid-sentinel {
+  height: 50px;
+  visibility: hidden;
+}
+
+.room-grid-loader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  text-align: center;
+  color: var(--medium-text);
+  animation: fadeIn 0.3s ease;
+}
+
+.loader-spinner {
+  font-size: 32px;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-spinner .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.room-grid-loader p {
+  font-size: 14px;
+  margin: 0;
+  color: var(--medium-text);
+}
+
+body.dark-mode .room-grid-loader {
+  color: #bbb;
+}
+
+body.dark-mode .loader-spinner {
+  color: var(--primary-color);
+}
+
+.room-grid-end-message {
+  display: none;
+  margin-top: 40px;
+  padding: 40px 20px;
+  text-align: center;
+  animation: fadeIn 0.4s ease;
+}
+
+.end-message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--medium-text);
+}
+
+.end-message-content i {
+  font-size: 42px;
+  color: #4caf50;
+  opacity: 0.6;
+}
+
+.end-message-content p {
+  font-size: 16px;
+  margin: 0;
+  color: var(--dark-text);
+  font-weight: 500;
+}
+
+.end-message-content small {
+  font-size: 12px;
+  color: var(--light-text);
+}
+
+body.dark-mode .end-message-content {
+  color: #bbb;
+}
+
+body.dark-mode .end-message-content p {
+  color: #e0e0e0;
+}
+
+body.dark-mode .end-message-content small {
+  color: #999;
+}
+
+@media (max-width: 768px) {
+  .room-grid-loader {
+    padding: 30px 15px;
+  }
+
+  .room-grid-end-message {
+    margin-top: 30px;
+    padding: 30px 15px;
+  }
+
+  .end-message-content i {
+    font-size: 36px;
+  }
+
+  .end-message-content p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .room-grid-loader {
+    padding: 20px 12px;
+    gap: 8px;
+  }
+
+  .loader-spinner {
+    font-size: 28px;
+  }
+
+  .room-grid-loader p {
+    font-size: 12px;
+  }
+
+  .room-grid-end-message {
+    margin-top: 20px;
+    padding: 20px 12px;
+  }
+
+  .end-message-content i {
+    font-size: 32px;
+  }
+
+  .end-message-content p {
+    font-size: 13px;
+  }
+
+  .end-message-content small {
+    font-size: 11px;
+  }
+}
+
+/* ===== PRIVACY BADGE STYLES ===== */
+.privacy-badge-container {
+  flex-shrink: 0;
+}
+
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.privacy-badge.public {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.privacy-badge.public:hover {
   background: #c8e6c9;
-  color: #888;
-  cursor: not-allowed;
+  border-color: #81c784;
 }
-.pagination-controls button:hover:not(:disabled) {
+
+.privacy-badge.private {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid #e1bee7;
+}
+
+.privacy-badge.private:hover {
+  background: #e1bee7;
+  border-color: #ba68c8;
+}
+
+body.dark-mode .privacy-badge.public {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+body.dark-mode .privacy-badge.public:hover {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+body.dark-mode .privacy-badge.private {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+  border-color: rgba(156, 39, 176, 0.3);
+}
+
+body.dark-mode .privacy-badge.private:hover {
+  background: rgba(156, 39, 176, 0.3);
+  border-color: rgba(156, 39, 176, 0.5);
+}
+
+.privacy-badge i {
+  font-size: 12px;
+}
+
+/* ===== PRIVATE ROOM PASSWORD MODAL ===== */
+#privateRoomPasswordModal .modal-header {
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  color: white;
+}
+
+#privateRoomPasswordModal .modal-header .btn-close {
+  filter: invert(1);
+}
+
+#privateRoomPasswordModal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+#privateRoomPasswordModal .modal-body {
+  padding: 25px;
+}
+
+#privateRoomPasswordModal .modal-body p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--dark-text);
+  margin-bottom: 12px;
+}
+
+body.dark-mode #privateRoomPasswordModal .modal-body p {
+  color: #e0e0e0;
+}
+
+#privateRoomPasswordModal .form-label {
+  color: var(--dark-text);
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: block;
+}
+
+body.dark-mode #privateRoomPasswordModal .form-label {
+  color: #e0e0e0;
+}
+
+#privateRoomPasswordModal .password-input-wrapper {
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--background-light);
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+#privateRoomPasswordModal .password-input-wrapper:focus-within {
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+}
+
+body.dark-mode #privateRoomPasswordModal .password-input-wrapper {
+  background: #333;
+  border-color: #444;
+}
+
+body.dark-mode #privateRoomPasswordModal .password-input-wrapper:focus-within {
+  border-color: #4caf50;
+  background: #3a3a3a;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control {
+  border: none;
+  padding: 12px 45px 12px 45px;
+  flex: 1;
+  background: transparent;
+  color: var(--dark-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+body.dark-mode #privateRoomPasswordModal .password-input-wrapper .form-control {
+  background: transparent;
+  color: #e0e0e0;
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control::placeholder {
+  color: var(--light-text);
+}
+
+body.dark-mode
+  #privateRoomPasswordModal
+  .password-input-wrapper
+  .form-control::placeholder {
+  color: #999;
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control:focus {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+
+#privateRoomPasswordModal .input-icon {
+  position: absolute;
+  left: 15px;
+  color: var(--light-text);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+body.dark-mode #privateRoomPasswordModal .input-icon {
+  color: #999;
+}
+
+#privateRoomPasswordModal .password-toggle-btn {
+  position: absolute;
+  right: 15px;
+  background: none;
+  border: none;
+  color: var(--light-text);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+#privateRoomPasswordModal .password-toggle-btn:hover {
+  color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+body.dark-mode #privateRoomPasswordModal .password-toggle-btn {
+  color: #999;
+}
+
+body.dark-mode #privateRoomPasswordModal .password-toggle-btn:hover {
+  color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.15);
+}
+
+#privateRoomPasswordModal .modal-body small {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--medium-text);
+  line-height: 1.5;
+}
+
+body.dark-mode #privateRoomPasswordModal .modal-body small {
+  color: #bbb !important;
+}
+
+body.dark-mode #privateRoomPasswordModal .text-muted {
+  color: #bbb !important;
+}
+
+body.dark-mode #privateRoomPasswordModal small {
+  color: #bbb !important;
+}
+
+#submitPrivateRoomPassword {
+  background: #4caf50;
+  border-color: #4caf50;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  color: white;
+  cursor: pointer;
+  border: none;
+}
+
+#submitPrivateRoomPassword:hover {
   background: #388e3c;
+  border-color: #388e3c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+#submitPrivateRoomPassword:active {
+  transform: translateY(0);
+}
+
+#submitPrivateRoomPassword:disabled {
+  background: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+body.dark-mode #submitPrivateRoomPassword {
+  background: #4caf50;
+}
+
+body.dark-mode #submitPrivateRoomPassword:hover {
+  background: #66bb6a;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
+}
+
+#privateRoomPasswordModal .modal-footer {
+  border-top: 1px solid var(--border-light);
+  padding: 15px 25px 25px;
+  background: var(--white);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+body.dark-mode #privateRoomPasswordModal .modal-footer {
+  background: #2a2a2a;
+  border-top-color: #333;
+}
+
+#privateRoomPasswordModal .btn-outline-secondary {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--dark-text);
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+body.dark-mode #privateRoomPasswordModal .btn-outline-secondary {
+  border-color: #444;
+  color: #bbb;
+}
+
+#privateRoomPasswordModal .btn-outline-secondary:hover {
+  background: var(--background-light);
+  border-color: var(--medium-text);
+}
+
+body.dark-mode #privateRoomPasswordModal .btn-outline-secondary:hover {
+  background: #333;
+  border-color: #666;
+}
+
+@media (max-width: 480px) {
+  #privateRoomPasswordModal .modal-dialog {
+    margin: 12px;
+  }
+
+  #privateRoomPasswordModal .modal-content {
+    border-radius: 12px;
+  }
+
+  #privateRoomPasswordModal .modal-header {
+    padding: 18px 20px;
+  }
+
+  #privateRoomPasswordModal .modal-body {
+    padding: 20px;
+  }
+
+  #privateRoomPasswordModal .modal-body p {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  #privateRoomPasswordModal .form-label {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  #privateRoomPasswordModal .password-input-wrapper {
+    border-radius: 12px;
+  }
+
+  #privateRoomPasswordModal .password-input-wrapper .form-control {
+    padding: 12px 45px 12px 45px;
+    font-size: 14px;
+  }
+
+  #privateRoomPasswordModal .input-icon {
+    left: 12px;
+    font-size: 14px;
+  }
+
+  #privateRoomPasswordModal .password-toggle-btn {
+    right: 12px;
+    padding: 5px 8px;
+    font-size: 16px;
+  }
+
+  #privateRoomPasswordModal .modal-body small {
+    font-size: 11px;
+    margin-top: 8px;
+  }
+
+  #privateRoomPasswordModal .modal-footer {
+    padding: 12px 20px 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  #submitPrivateRoomPassword,
+  #privateRoomPasswordModal .btn-outline-secondary {
+    font-size: 13px;
+    padding: 9px 16px;
+  }
+
+  #submitPrivateRoomPassword {
+    width: 100%;
+    justify-content: center;
+  }
 }

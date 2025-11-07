@@ -20,117 +20,270 @@
   <body>
     <div class="main-container">
       <div class="login-wrapper">
+        <!-- Left Section -->
         <div class="left-section">
-          <div class="signup-text">Don't have an account?</div>
-          <button class="signup-btn" onclick="goToSignup()">Sign up</button>
+          <div class="left-content">
+            <div class="brand-logo">
+              <i class="bi bi-book"></i>
+              <span>StudyGroup</span>
+            </div>
+            <div class="signup-text">
+              <h2>Join Our Learning Community</h2>
+              <p>Connect with peers and learn together</p>
+            </div>
+            <button class="signup-btn" onclick="goToSignup()">
+              <i class="bi bi-person-plus"></i> Create Account
+            </button>
+          </div>
         </div>
-        <div class="right-section">
-          <h1 class="login-title">
-            LOG IN TO CONTINUE<br />LEARNING WITH BUDDIES!
-          </h1>
 
-          <!-- Inline error area (replaces alert usage for most messages) -->
+        <!-- Right Section -->
+        <div class="right-section">
+          <div class="login-header">
+            <h1 class="login-title">Welcome Back!</h1>
+            <p class="login-subtitle">
+              Log in to continue your learning journey
+            </p>
+          </div>
+
+          <!-- Error Alert -->
           <div
             id="loginError"
             role="alert"
             aria-live="assertive"
-            class="text-danger mb-3"
+            class="alert-box error-alert"
             style="display: none"
-          ></div>
-
-          <form id="loginForm">
-            <div class="form-group">
-              <i class="bi bi-envelope input-icon"></i>
-              <input
-                type="email"
-                class="form-input"
-                id="email"
-                placeholder="Enter your institutional email"
-                required
-              />
+          >
+            <div class="alert-icon">
+              <i class="bi bi-exclamation-circle-fill"></i>
             </div>
-            <div class="form-group">
-              <i class="bi bi-lock input-icon"></i>
-              <input
-                type="password"
-                class="form-input"
-                id="password"
-                placeholder="Enter your password"
-                autocomplete="new-password"
-                required
-              />
-              <button
-                type="button"
-                class="password-toggle"
-                id="passwordToggleBtn"
-              >
-                <i class="bi bi-eye" id="passwordToggleIcon"></i>
-              </button>
+            <div class="alert-content">
+              <div class="alert-title">Login Failed</div>
+              <div class="alert-message" id="loginErrorMessage"></div>
             </div>
-            <div class="forgot-link">
-              <a href="#" onclick="openForgotPasswordModal()"
-                >Forgot password?</a
-              >
-            </div>
-            <button type="submit" class="login-btn" id="loginBtn">
-              <span id="loginBtnText">Log in</span>
+            <button
+              class="alert-close"
+              onclick="clearInlineError()"
+              aria-label="Close alert"
+            >
+              <i class="bi bi-x"></i>
             </button>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
 
-    <div id="forgotPasswordModal" class="modal" aria-hidden="true">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 class="modal-title"><i class="bi bi-key"></i> Reset Password</h3>
-          <button class="close-modal" onclick="closeForgotPasswordModal()">
-            ×
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="modal-description">
-            Enter your college email address and we'll send you a link to reset
-            your password.
-          </p>
-          <form id="forgotPasswordForm">
-            <div class="modal-form-group">
-              <input
-                type="email"
-                class="modal-input"
-                id="forgotEmail"
-                placeholder="Enter your college email"
-                required
-              />
-              <i class="bi bi-envelope input-icon"></i>
+          <!-- Success Alert -->
+          <div
+            id="loginSuccess"
+            role="alert"
+            aria-live="assertive"
+            class="alert-box success-alert"
+            style="display: none"
+          >
+            <div class="alert-icon">
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="alert-content">
+              <div class="alert-title">Login Successful!</div>
+              <div class="alert-message">Redirecting to dashboard...</div>
+            </div>
+          </div>
+
+          <!-- Login Form -->
+          <form id="loginForm" class="login-form">
+            <!-- Email Input -->
+            <div class="form-group">
+              <label for="email" class="form-label">College Email</label>
+              <div class="input-wrapper">
+                <i class="bi bi-envelope input-icon"></i>
+                <input
+                  type="email"
+                  class="form-input"
+                  id="email"
+                  placeholder="your.email@paterostechnologicalcollege.edu.ph"
+                  autocomplete="email"
+                  required
+                />
+                <div class="input-indicator" id="emailIndicator">
+                  <i class="bi bi-info-circle"></i>
+                </div>
+              </div>
+              <div class="input-helper" id="emailHelper">
+                Use your college email address
+              </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="form-group">
+              <div class="password-label-row">
+                <label for="password" class="form-label">Password</label>
+                <a
+                  href="#"
+                  onclick="openForgotPasswordModal(event)"
+                  class="forgot-link-inline"
+                >
+                  Forgot?
+                </a>
+              </div>
+              <div class="input-wrapper">
+                <i class="bi bi-lock input-icon"></i>
+                <input
+                  type="password"
+                  class="form-input"
+                  id="password"
+                  placeholder="Enter your password"
+                  autocomplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  id="passwordToggleBtn"
+                  aria-label="Toggle password visibility"
+                >
+                  <i class="bi bi-eye" id="passwordToggleIcon"></i>
+                </button>
+              </div>
+              <div class="input-helper" id="passwordHelper"></div>
+            </div>
+
+            <!-- Remember Me -->
+            <div class="form-footer">
+              <label class="remember-me-checkbox">
+                <input type="checkbox" id="rememberMe" />
+                <span>Remember me</span>
+              </label>
+            </div>
+
+            <!-- Login Button -->
+            <button type="submit" class="login-btn" id="loginBtn">
+              <span class="btn-content">
+                <i class="bi bi-arrow-right btn-icon"></i>
+                <span id="loginBtnText">Log In</span>
+              </span>
+              <span class="btn-loader" id="loginLoader">
+                <i class="bi bi-arrow-repeat spinning"></i>
+              </span>
+            </button>
+
+            <!-- Sign Up Link -->
+            <div class="signup-link">
+              Don't have an account?
+              <a href="#" onclick="goToSignup()">Sign up here</a>
             </div>
           </form>
         </div>
-        <div class="modal-actions">
-          <button
-            type="button"
-            class="modal-btn modal-btn-cancel"
-            onclick="closeForgotPasswordModal()"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="modal-btn modal-btn-send"
-            id="sendResetBtn"
-            onclick="sendResetLink()"
-          >
-            <span class="loading-spinner" id="resetSpinner"></span>
-            <span id="resetBtnText">Send Reset Link</span>
-          </button>
+      </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal" aria-hidden="true">
+      <div class="modal-overlay"></div>
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-header-content">
+              <h3 class="modal-title">
+                <i class="bi bi-key"></i> Reset Password
+              </h3>
+              <p class="modal-subtitle">
+                We'll send you a link to reset your password
+              </p>
+            </div>
+            <button
+              class="close-modal"
+              onclick="closeForgotPasswordModal()"
+              aria-label="Close modal"
+            >
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <form id="forgotPasswordForm">
+              <div class="modal-form-group">
+                <label for="forgotEmail" class="form-label"
+                  >College Email</label
+                >
+                <div class="input-wrapper">
+                  <i class="bi bi-envelope input-icon"></i>
+                  <input
+                    type="email"
+                    class="modal-input"
+                    id="forgotEmail"
+                    placeholder="your.email@paterostechnologicalcollege.edu.ph"
+                    autocomplete="email"
+                    required
+                  />
+                </div>
+                <div class="input-helper">
+                  Enter the email address associated with your account
+                </div>
+              </div>
+            </form>
+
+            <!-- Modal Error Alert -->
+            <div
+              id="modalError"
+              role="alert"
+              class="alert-box error-alert modal-alert"
+              style="display: none"
+            >
+              <div class="alert-icon">
+                <i class="bi bi-exclamation-circle-fill"></i>
+              </div>
+              <div class="alert-content">
+                <div class="alert-message" id="modalErrorMessage"></div>
+              </div>
+            </div>
+
+            <!-- Modal Success Alert -->
+            <div
+              id="modalSuccess"
+              role="alert"
+              class="alert-box success-alert modal-alert"
+              style="display: none"
+            >
+              <div class="alert-icon">
+                <i class="bi bi-check-circle-fill"></i>
+              </div>
+              <div class="alert-content">
+                <div class="alert-message">
+                  Reset link sent! Check your inbox and spam folder.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn-cancel"
+              onclick="closeForgotPasswordModal()"
+            >
+              <i class="bi bi-x"></i> Cancel
+            </button>
+            <button
+              type="button"
+              class="modal-btn modal-btn-send"
+              id="sendResetBtn"
+              onclick="sendResetLink()"
+            >
+              <span class="btn-content">
+                <i class="bi bi-send btn-icon"></i>
+                <span id="resetBtnText">Send Reset Link</span>
+              </span>
+              <span class="btn-loader" id="resetSpinner">
+                <i class="bi bi-arrow-repeat spinning"></i>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Bootstrap JS bundle (keeps modals etc working) -->
+    <!-- Bootstrap JS bundle -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-    <!-- App scripts: keep these as module imports so they can import the shared config -->
+    <!-- App scripts -->
     <script type="module" src="../scripts/login.js"></script>
   </body>
 </html>

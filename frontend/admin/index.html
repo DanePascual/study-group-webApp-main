@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/welcome.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="index.html" class="nav-item active">Welcome</a>
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Welcome to Admin Panel</h1>
+          <p>Manage system, users, reports, and administrative tasks</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Welcome Hero Card -->
+          <div class="welcome-hero">
+            <div class="welcome-hero-content">
+              <h2>Welcome, <span id="welcomeName">Admin</span></h2>
+              <p>
+                You have full access to the admin panel. Use the sections below
+                to manage your platform.
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Access Cards -->
+          <div class="quick-access-grid">
+            <a href="dashboard.html" class="quick-access-card card-dashboard">
+              <div class="card-header">
+                <h3>Dashboard</h3>
+              </div>
+              <p>View system metrics and statistics</p>
+              <span class="card-arrow">→</span>
+            </a>
+
+            <a href="users.html" class="quick-access-card card-users">
+              <div class="card-header">
+                <h3>Users</h3>
+              </div>
+              <p>Manage student accounts and bans</p>
+              <span class="card-arrow">→</span>
+            </a>
+
+            <a href="reports.html" class="quick-access-card card-reports">
+              <div class="card-header">
+                <h3>Reports</h3>
+              </div>
+              <p>Review and respond to user reports</p>
+              <span class="card-arrow">→</span>
+            </a>
+
+            <a href="admins.html" class="quick-access-card card-admins">
+              <div class="card-header">
+                <h3>Admins</h3>
+              </div>
+              <p>Manage admin accounts and permissions</p>
+              <span class="card-arrow">→</span>
+            </a>
+
+            <a href="audit-logs.html" class="quick-access-card card-audit">
+              <div class="card-header">
+                <h3>Audit Logs</h3>
+              </div>
+              <p>Track all admin actions and changes</p>
+              <span class="card-arrow">→</span>
+            </a>
+          </div>
+
+          <!-- Quick Info Section -->
+          <div class="quick-info">
+            <div class="info-item">
+              <h4>System Administration</h4>
+              <p>
+                Monitor system health, user activity, and platform metrics. Take
+                immediate action on reported issues.
+              </p>
+            </div>
+            <div class="info-item">
+              <h4>User Management</h4>
+              <p>
+                View all users, manage access permissions, handle ban requests,
+                and resolve account issues.
+              </p>
+            </div>
+            <div class="info-item">
+              <h4>Content Moderation</h4>
+              <p>
+                Review reports from users, moderate inappropriate content, and
+                maintain community standards.
+              </p>
+            </div>
+            <div class="info-item">
+              <h4>Audit Trail</h4>
+              <p>
+                Maintain complete transparency with detailed logs of all
+                administrative actions and changes.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+  </body>
+</html>

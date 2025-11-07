@@ -1,0 +1,247 @@
+/* frontend/admin/css/dashboard.css */
+/* Dashboard page specific styles */
+
+/* ===== Dashboard Sections ===== */
+.dashboard-section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+/* ===== Stats Grid ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.stat-number {
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.stat-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stat-card-warning .stat-number {
+  color: var(--warning-color);
+}
+
+/* ===== Recent Actions Table ===== */
+.recent-actions-container {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.actions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.actions-table thead {
+  background-color: rgba(99, 102, 241, 0.1);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.actions-table th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.actions-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.actions-table tbody tr:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.actions-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ===== Action Badge ===== */
+.action-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.badge-primary {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: #60a5fa;
+}
+
+.badge-success {
+  background-color: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.badge-danger {
+  background-color: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.badge-warning {
+  background-color: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.badge-info {
+  background-color: rgba(167, 139, 250, 0.2);
+  color: #a78bfa;
+}
+
+.badge-default {
+  background-color: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+/* ===== Timestamp ===== */
+.timestamp-full {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: "Courier New", monospace;
+}
+
+.timestamp-ago {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ===== Responsive Dashboard ===== */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .stat-number {
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .actions-table {
+    font-size: 12px;
+  }
+
+  .actions-table th,
+  .actions-table td {
+    padding: 12px;
+  }
+
+  .timestamp-full {
+    display: none;
+  }
+
+  .dashboard-section {
+    margin-bottom: 30px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-number {
+    font-size: 28px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-description {
+    font-size: 12px;
+  }
+
+  .actions-table th:nth-child(3),
+  .actions-table td:nth-child(3),
+  .actions-table th:nth-child(4),
+  .actions-table td:nth-child(4) {
+    display: none;
+  }
+
+  .actions-table th,
+  .actions-table td {
+    padding: 8px;
+  }
+
+  .action-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .timestamp-ago {
+    font-size: 11px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+}

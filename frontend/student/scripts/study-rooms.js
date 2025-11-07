@@ -1,10 +1,15 @@
-// ===== study-rooms.js (SECURITY HARDENED) =====
+// ===== study-rooms.js (COMPLETE CORRECTED - Full Visible Text) =====
 // - Input sanitization on all user inputs (XSS prevention)
-// - Input validation (lengths, required fields)
-// - Confirmation dialog before creating room
-// - Rate limiting feedback
-// - Privacy & session scheduling support
-// - Security logging
+// - Smart tab-based filtering with proper state management
+// - Privacy indicators and password protection for private rooms
+// - Complete room state management
+// - SIMPLIFIED: Removed tags, schedule session, subject area
+// - FIXED: Skip password prompt if user is already a member of private room
+// - FIXED: Load all rooms at once, not in batches
+// - FIXED: Card layout with full text wrapping (no tooltips)
+// - FIXED: Footer (participant count + Enter Now button) at bottom of card
+// - ADDED: Password visibility toggle with eye icon
+// - ADDED: Real-time password requirements validation
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -23,13 +28,16 @@ const STUDY_GROUPS_API = apiUrl("/api/study-groups");
 // ===== SECURITY: Constants =====
 const MAX_ROOM_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_TAGS = 3;
 
+// ===== STATE MANAGEMENT =====
 let CURRENT_SESSION = null;
 let createRoomModal;
+let passwordModal;
 let allRooms = [];
-let currentRoomPage = 1;
-let roomsPerPage = 9;
+let filteredRooms = [];
+let displayedRooms = [];
+let currentTab = "all-rooms";
+let pendingPrivateRoomId = null;
 
 /* ===== SECURITY: Utilities ===== */
 function escapeHtml(s) {
@@ -58,6 +66,567 @@ function logSecurityEvent(eventType, details) {
     `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
     details
   );
+}
+
+function debugLog(msg, data = null) {
+  console.log(
+    `%c[STUDY_ROOMS] ${msg}`,
+    "color: #4caf50; font-weight: bold;",
+    data || ""
+  );
+}
+
+/* ===== PASSWORD VISIBILITY TOGGLE ===== */
+function initializePasswordToggles() {
+  // Toggle for creation modal password field
+  const passwordToggleBtn = document.getElementById("passwordToggleBtn");
+  const roomPassword = document.getElementById("roomPassword");
+
+  if (passwordToggleBtn && roomPassword) {
+    passwordToggleBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      togglePasswordVisibility(roomPassword, passwordToggleBtn);
+    });
+  }
+
+  // Toggle for access modal password field
+  const accessPasswordToggleBtn = document.getElementById(
+    "accessPasswordToggleBtn"
+  );
+  const privateRoomPassword = document.getElementById("privateRoomPassword");
+
+  if (accessPasswordToggleBtn && privateRoomPassword) {
+    accessPasswordToggleBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      togglePasswordVisibility(privateRoomPassword, accessPasswordToggleBtn);
+    });
+  }
+}
+
+function togglePasswordVisibility(inputElement, toggleButton) {
+  const isPassword = inputElement.type === "password";
+  inputElement.type = isPassword ? "text" : "password";
+
+  const icon = toggleButton.querySelector("i");
+  if (icon) {
+    icon.classList.toggle("bi-eye");
+    icon.classList.toggle("bi-eye-slash");
+  }
+
+  debugLog(`Password visibility toggled: ${isPassword ? "visible" : "hidden"}`);
+}
+
+/* ===== PASSWORD REQUIREMENTS VALIDATION ===== */
+function initializePasswordRequirements() {
+  const roomPassword = document.getElementById("roomPassword");
+
+  if (roomPassword) {
+    roomPassword.addEventListener("input", function () {
+      validatePasswordRequirements(this.value);
+    });
+  }
+}
+
+function validatePasswordRequirements(password) {
+  // Requirement 1: Minimum 8 characters
+  const lengthReq = document.getElementById("req-length");
+  const hasLength = password.length >= 8;
+  updateRequirementStatus(lengthReq, hasLength);
+
+  // Requirement 2: At least one uppercase letter
+  const uppercaseReq = document.getElementById("req-uppercase");
+  const hasUppercase = /[A-Z]/.test(password);
+  updateRequirementStatus(uppercaseReq, hasUppercase);
+
+  // Requirement 3: At least one lowercase letter
+  const lowercaseReq = document.getElementById("req-lowercase");
+  const hasLowercase = /[a-z]/.test(password);
+  updateRequirementStatus(lowercaseReq, hasLowercase);
+
+  // Requirement 4: At least one number
+  const numberReq = document.getElementById("req-number");
+  const hasNumber = /[0-9]/.test(password);
+  updateRequirementStatus(numberReq, hasNumber);
+
+  debugLog("Password requirements validated", {
+    length: hasLength,
+    uppercase: hasUppercase,
+    lowercase: hasLowercase,
+    number: hasNumber,
+  });
+}
+
+function updateRequirementStatus(element, isMet) {
+  if (!element) return;
+
+  const icon = element.querySelector("i");
+  if (!icon) return;
+
+  if (isMet) {
+    element.classList.add("met");
+    element.classList.remove("unmet");
+    icon.classList.remove("bi-circle");
+    icon.classList.add("bi-check-circle-fill");
+  } else {
+    element.classList.remove("met");
+    element.classList.add("unmet");
+    icon.classList.remove("bi-check-circle-fill");
+    icon.classList.add("bi-circle");
+  }
+}
+
+/* ===== PRIVATE ROOM PASSWORD MODAL ===== */
+function openPrivateRoomPasswordModal(roomId, roomName) {
+  try {
+    const modalElement = document.getElementById("privateRoomPasswordModal");
+    if (!modalElement) {
+      console.error("Private room password modal not found");
+      showToast("Cannot verify password - modal missing", "error");
+      return;
+    }
+
+    if (!passwordModal) {
+      passwordModal = new bootstrap.Modal(modalElement);
+    }
+
+    const roomNameEl = document.getElementById("privateRoomName");
+    if (roomNameEl) {
+      roomNameEl.textContent = escapeHtml(roomName);
+    }
+
+    const passwordInput = document.getElementById("privateRoomPassword");
+    if (passwordInput) {
+      passwordInput.value = "";
+      passwordInput.type = "password";
+    }
+
+    // Reset toggle button to show eye icon
+    const toggleBtn = document.getElementById("accessPasswordToggleBtn");
+    if (toggleBtn) {
+      const icon = toggleBtn.querySelector("i");
+      if (icon) {
+        icon.classList.remove("bi-eye-slash");
+        icon.classList.add("bi-eye");
+      }
+    }
+
+    pendingPrivateRoomId = roomId;
+    passwordModal.show();
+  } catch (err) {
+    console.error("Failed to open password modal:", err);
+    showToast("Cannot open password verification", "error");
+  }
+}
+
+async function handlePrivateRoomPasswordSubmit() {
+  const passwordInput = document.getElementById("privateRoomPassword");
+  if (!passwordInput) {
+    showToast("Password input not found", "error");
+    return;
+  }
+
+  const password = sanitizeString(passwordInput.value, 100);
+  if (!password) {
+    showToast("Please enter the room password", "error");
+    return;
+  }
+
+  if (!pendingPrivateRoomId) {
+    showToast("Room ID missing", "error");
+    return;
+  }
+
+  try {
+    const submitBtn = document.getElementById("submitPrivateRoomPassword");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise spinning"></i> Verifying...';
+    }
+
+    const response = await postJsonWithAuth(
+      `${STUDY_GROUPS_API}/${encodeURIComponent(pendingPrivateRoomId)}/join`,
+      { password }
+    );
+
+    if (response && response.success) {
+      showToast("Password verified! Entering room...", "success");
+      logSecurityEvent("PRIVATE_ROOM_ACCESS_GRANTED", {
+        roomId: pendingPrivateRoomId,
+      });
+
+      if (passwordModal) passwordModal.hide();
+      passwordInput.value = "";
+
+      // Refresh room list to update participant count
+      await fetchAndRenderStudyRooms();
+
+      setTimeout(() => {
+        enterRoom(pendingPrivateRoomId);
+      }, 500);
+    } else {
+      showToast("Incorrect password", "error");
+      logSecurityEvent("PRIVATE_ROOM_ACCESS_DENIED", {
+        roomId: pendingPrivateRoomId,
+      });
+      passwordInput.value = "";
+    }
+  } catch (err) {
+    console.error("Error verifying password:", err);
+    let msg = "Password verification failed";
+    if (err && err.body && err.body.error) {
+      msg = err.body.error;
+    }
+    showToast(msg, "error");
+    logSecurityEvent("PRIVATE_ROOM_PASSWORD_ERROR", {
+      error: err?.message,
+    });
+  } finally {
+    const submitBtn = document.getElementById("submitPrivateRoomPassword");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Verify Password';
+    }
+  }
+}
+
+/* ===== ROOM CARD FACTORY - NO TOOLTIPS ===== */
+function createRoomCardElement(room) {
+  const privacyBadgeHtml =
+    room.privacy === "private"
+      ? `<span class="privacy-badge private"><i class="bi bi-lock-fill"></i> Private</span>`
+      : `<span class="privacy-badge public"><i class="bi bi-globe"></i> Public</span>`;
+
+  // Escape HTML for display
+  const roomNameEscaped = escapeHtml(room.name);
+  const roomDescEscaped = escapeHtml(
+    room.description || "No description provided."
+  );
+
+  const newRoom = document.createElement("div");
+  newRoom.className = "room-card";
+  newRoom.setAttribute("data-room-id", room.id);
+  newRoom.innerHTML = `
+    <div class="room-header">
+      <div class="room-header-content">
+        <h3 class="room-title">
+          ${roomNameEscaped}
+        </h3>
+        <p class="room-description">
+          ${roomDescEscaped}
+        </p>
+      </div>
+      <div class="privacy-badge-container">
+        ${privacyBadgeHtml}
+      </div>
+    </div>
+    <div class="room-footer">
+      <span class="participant-count"><i class="bi bi-people"></i> ${
+        room.participants ? room.participants.length : 1
+      } participant${
+    room.participants && room.participants.length > 1 ? "s" : ""
+  }</span>
+      <button class="join-btn" onclick="window.handleRoomJoin('${escapeHtml(
+        room.id
+      )}', '${escapeHtml(room.name)}', '${room.privacy}')">Enter Now</button>
+    </div>
+  `;
+  return newRoom;
+}
+
+/* ===== HANDLE ROOM JOIN (with privacy check and membership check) ===== */
+export function handleRoomJoin(roomId, roomName, privacy) {
+  debugLog(`Join attempt | Room: ${roomName} | Privacy: ${privacy}`);
+
+  // Find the room in allRooms
+  const room = allRooms.find((r) => String(r.id) === String(roomId));
+  if (!room) {
+    debugLog(`Room not found in allRooms: ${roomId}`);
+    showToast("Room not found", "error");
+    return;
+  }
+
+  const currentUserId = CURRENT_SESSION?.uid;
+  if (!currentUserId) {
+    showToast("User not authenticated", "error");
+    return;
+  }
+
+  const isAlreadyMember = (room.participants || []).includes(currentUserId);
+
+  debugLog(
+    `User ${currentUserId} | Already member: ${isAlreadyMember} | Privacy: ${privacy}`
+  );
+
+  // If private room AND user is NOT already a member → require password
+  if (privacy === "private" && !isAlreadyMember) {
+    logSecurityEvent("PRIVATE_ROOM_JOIN_ATTEMPT", {
+      roomId,
+      roomName,
+      userId: currentUserId,
+    });
+    openPrivateRoomPasswordModal(roomId, roomName);
+  } else if (privacy === "private" && isAlreadyMember) {
+    // Already a member of private room → enter directly
+    debugLog(`User is already member of private room ${roomId}`);
+    logSecurityEvent("PRIVATE_ROOM_REENTRY", {
+      roomId,
+      userId: currentUserId,
+    });
+    enterRoom(roomId);
+  } else if (privacy === "public") {
+    // Public room → check if already member
+    if (isAlreadyMember) {
+      // Already a member → enter directly
+      debugLog(`User is already member of public room ${roomId}`);
+      enterRoom(roomId);
+    } else {
+      // Not a member yet → attempt to join public room
+      attemptJoinPublicRoom(roomId);
+    }
+  }
+}
+
+/* ===== ATTEMPT TO JOIN PUBLIC ROOM ===== */
+async function attemptJoinPublicRoom(roomId) {
+  try {
+    debugLog(`Attempting to join public room: ${roomId}`);
+
+    const submitBtn = document.querySelector(
+      `[data-room-id="${roomId}"] .join-btn`
+    );
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise spinning"></i> Joining...';
+    }
+
+    const response = await postJsonWithAuth(
+      `${STUDY_GROUPS_API}/${encodeURIComponent(roomId)}/join`,
+      {}
+    );
+
+    if (response && response.success) {
+      showToast("Joined room successfully!", "success");
+      logSecurityEvent("PUBLIC_ROOM_JOINED", { roomId });
+
+      // Refresh room list to update participant count
+      await fetchAndRenderStudyRooms();
+
+      setTimeout(() => {
+        enterRoom(roomId);
+      }, 500);
+    }
+  } catch (err) {
+    console.error("Error joining public room:", err);
+    let msg = "Could not join room";
+    if (err && err.body && err.body.error) {
+      msg = err.body.error;
+    }
+    showToast(msg, "error");
+    logSecurityEvent("PUBLIC_ROOM_JOIN_ERROR", {
+      roomId,
+      error: err?.message,
+    });
+  } finally {
+    const submitBtn = document.querySelector(
+      `[data-room-id="${roomId}"] .join-btn`
+    );
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "Enter Now";
+    }
+  }
+}
+
+/* ===== TAB FILTERING LOGIC ===== */
+function filterRoomsByTab(tab) {
+  if (!Array.isArray(allRooms)) {
+    debugLog("allRooms is not an array");
+    return [];
+  }
+
+  const currentUserId = auth.currentUser?.uid;
+  debugLog(`Filtering by tab: ${tab} | Total rooms: ${allRooms.length}`);
+
+  let filtered = [];
+
+  switch (tab) {
+    case "all-rooms":
+      filtered = allRooms;
+      break;
+
+    case "public-rooms":
+      filtered = allRooms.filter((room) => room.privacy === "public");
+      break;
+
+    case "private-rooms":
+      filtered = allRooms.filter((room) => room.privacy === "private");
+      break;
+
+    case "joined-rooms":
+      filtered = allRooms.filter((room) => {
+        const participants = room.participants || [];
+        const createdBy = room.creator || room.createdBy;
+        return (
+          participants.includes(currentUserId) && createdBy !== currentUserId
+        );
+      });
+      break;
+
+    case "created-rooms":
+      filtered = allRooms.filter((room) => {
+        const createdBy = room.creator || room.createdBy;
+        return createdBy === currentUserId;
+      });
+      break;
+
+    default:
+      filtered = allRooms;
+  }
+
+  debugLog(`Filtered results: ${filtered.length} rooms for tab ${tab}`);
+  return filtered;
+}
+
+/* ===== RENDER ALL ROOMS AT ONCE ===== */
+function renderAllRooms() {
+  debugLog("Rendering all rooms");
+
+  const roomsContainer = document.getElementById("roomContainer");
+  if (!roomsContainer) {
+    console.error("Room container not found");
+    return;
+  }
+
+  let roomGrid = document.getElementById("roomGrid");
+  if (roomGrid) {
+    debugLog("Removing old roomGrid");
+    roomGrid.remove();
+  }
+
+  hideLoadingIndicator();
+  hideEndOfListMessage();
+  const emptyState = document.getElementById("emptyState");
+  if (emptyState) {
+    debugLog("Removing old empty state");
+    emptyState.remove();
+  }
+
+  if (filteredRooms.length === 0) {
+    debugLog("No filtered rooms - showing empty state");
+    const emptyStateDiv = document.createElement("div");
+    emptyStateDiv.className = "empty-state";
+    emptyStateDiv.id = "emptyState";
+    emptyStateDiv.innerHTML = `
+      <div class="empty-state-icon"><i class="bi bi-door-closed"></i></div>
+      <h3>No Study Rooms</h3>
+      <p>No rooms match the selected filter. Try selecting a different tab or create a new room.</p>
+      <div class="empty-state-action">
+        <button class="btn btn-success" id="createFirstRoomButton"><i class="bi bi-plus-lg"></i> Create Room</button>
+      </div>
+    `;
+    roomsContainer.appendChild(emptyStateDiv);
+
+    const createFirstRoomBtn = document.getElementById("createFirstRoomButton");
+    if (createFirstRoomBtn) {
+      createFirstRoomBtn.addEventListener("click", openCreateRoomModal);
+    }
+    return;
+  }
+
+  roomGrid = document.createElement("div");
+  roomGrid.className = "room-grid";
+  roomGrid.id = "roomGrid";
+  roomsContainer.appendChild(roomGrid);
+
+  debugLog(`Rendering ${filteredRooms.length} rooms`);
+
+  // Render all filtered rooms at once
+  filteredRooms.forEach((room) => {
+    const cardElement = createRoomCardElement(room);
+    roomGrid.appendChild(cardElement);
+    displayedRooms.push(room);
+  });
+
+  debugLog(
+    `Grid now has ${roomGrid.children.length} room cards | Total displayed: ${displayedRooms.length}`
+  );
+}
+
+/* ===== LOADING INDICATORS ===== */
+function showLoadingIndicator() {
+  let loader = document.getElementById("roomGridLoader");
+  if (!loader) {
+    const roomsContainer = document.getElementById("roomContainer");
+    if (!roomsContainer) return;
+
+    loader = document.createElement("div");
+    loader.id = "roomGridLoader";
+    loader.className = "room-grid-loader";
+    loader.innerHTML = `
+      <div class="loader-spinner">
+        <i class="bi bi-arrow-clockwise spinning"></i>
+      </div>
+      <p>Loading rooms...</p>
+    `;
+    roomsContainer.appendChild(loader);
+    debugLog("Created loading indicator");
+  }
+  loader.style.display = "flex";
+}
+
+function hideLoadingIndicator() {
+  const loader = document.getElementById("roomGridLoader");
+  if (loader) {
+    loader.style.display = "none";
+  }
+}
+
+function showEndOfListMessage() {
+  let endMessage = document.getElementById("roomGridEndMessage");
+  if (!endMessage) {
+    const roomsContainer = document.getElementById("roomContainer");
+    if (!roomsContainer) return;
+
+    endMessage = document.createElement("div");
+    endMessage.id = "roomGridEndMessage";
+    endMessage.className = "room-grid-end-message";
+    endMessage.innerHTML = `
+      <div class="end-message-content">
+        <i class="bi bi-check-circle-fill"></i>
+        <p>You've reached the end!</p>
+        <small>All rooms loaded</small>
+      </div>
+    `;
+    roomsContainer.appendChild(endMessage);
+    debugLog("Created end-of-list message");
+  }
+  endMessage.style.display = "block";
+}
+
+function hideEndOfListMessage() {
+  const endMessage = document.getElementById("roomGridEndMessage");
+  if (endMessage) {
+    endMessage.style.display = "none";
+  }
+}
+
+/* ===== TAB SYSTEM ===== */
+function applyTabFilter(tab) {
+  debugLog(`Applying tab filter: ${tab}`);
+
+  currentTab = tab;
+  displayedRooms = [];
+  filteredRooms = filterRoomsByTab(tab);
+
+  debugLog(`Filtered rooms count: ${filteredRooms.length} for tab ${tab}`);
+
+  try {
+    localStorage.setItem("lastActiveTab", tab);
+  } catch {}
+
+  renderAllRooms();
 }
 
 /* ===== Notifications ===== */
@@ -101,24 +670,32 @@ export function closeToast(toastId) {
 
 /* ===== DOM Init ===== */
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("DOM loaded - initializing basic UI");
+  debugLog("DOM loaded - initializing");
   syncThemeUI();
 
   try {
-    const modalElement = document.getElementById("createRoomModal");
-    if (modalElement) {
-      createRoomModal = new bootstrap.Modal(modalElement);
+    const createRoomModalElement = document.getElementById("createRoomModal");
+    if (createRoomModalElement) {
+      createRoomModal = new bootstrap.Modal(createRoomModalElement);
     }
+
+    const passwordModalElement = document.getElementById(
+      "privateRoomPasswordModal"
+    );
+    if (passwordModalElement) {
+      passwordModal = new bootstrap.Modal(passwordModalElement);
+    }
+
     initializeTooltips();
   } catch (err) {
     console.error("Error initializing Bootstrap components:", err);
   }
 
-  document.querySelectorAll(".filter-btn").forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      handleFilterClick.call(this, e);
-    });
-  });
+  // Initialize password toggles and requirements validation
+  initializePasswordToggles();
+  initializePasswordRequirements();
+
+  initializeTabSystem();
 
   const searchInput = document.getElementById("searchInput");
   if (searchInput) {
@@ -127,18 +704,71 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  const submitPasswordBtn = document.getElementById(
+    "submitPrivateRoomPassword"
+  );
+  if (submitPasswordBtn) {
+    submitPasswordBtn.addEventListener(
+      "click",
+      handlePrivateRoomPasswordSubmit
+    );
+  }
+
+  const passwordInput = document.getElementById("privateRoomPassword");
+  if (passwordInput) {
+    passwordInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        handlePrivateRoomPasswordSubmit();
+      }
+    });
+  }
+
   checkAuth();
 });
 
+/* ===== Tab System Initialization ===== */
+function initializeTabSystem() {
+  const tabButtons = document.querySelectorAll(".room-tab");
+  if (tabButtons.length === 0) {
+    console.warn("No tab buttons found");
+    return;
+  }
+
+  const lastTab = localStorage.getItem("lastActiveTab") || "all-rooms";
+  debugLog(`Initializing tabs with last active: ${lastTab}`);
+
+  tabButtons.forEach((btn) => {
+    const tabId = btn.getAttribute("data-tab");
+
+    btn.addEventListener("click", function () {
+      debugLog(`Tab clicked: ${tabId}`);
+      tabButtons.forEach((b) => {
+        b.classList.remove("active");
+        b.setAttribute("aria-selected", "false");
+      });
+      this.classList.add("active");
+      this.setAttribute("aria-selected", "true");
+
+      applyTabFilter(tabId);
+    });
+
+    if (tabId === lastTab) {
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      currentTab = lastTab;
+    }
+  });
+}
+
 function checkAuth() {
-  console.log("Checking authentication status");
+  debugLog("Checking authentication");
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      console.log("User is authenticated:", user.email);
+      debugLog(`User authenticated: ${user.email}`);
       await loadUserData(user);
       initializeAuthenticatedUI();
     } else {
-      console.log("User is not authenticated, redirecting to login");
+      debugLog("User not authenticated - redirecting to login");
       const currentPath = window.location.pathname;
       const pathParts = currentPath.split("/");
       const loginPath =
@@ -167,6 +797,7 @@ async function loadUserData(user) {
     userAvatar: userName ? userName[0] : user.email ? user.email[0] : "U",
     userProgram: userProgram,
     email: user.email,
+    uid: user.uid,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
   };
 
@@ -243,21 +874,9 @@ function initializeTooltips() {
   }
 }
 
-function updateCurrentTime() {
-  const now = new Date();
-  const philippinesTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  const timeStr =
-    philippinesTime.toISOString().slice(0, 19).replace("T", " ") +
-    " Philippines";
-  const timeElement = document.getElementById("currentTime");
-  if (timeElement) {
-    timeElement.textContent = timeStr;
-  }
-}
-
 /* ===== Authenticated UI ===== */
 function initializeAuthenticatedUI() {
-  console.log("Initializing authenticated UI");
+  debugLog("Initializing authenticated UI");
 
   const createRoomButton = document.getElementById("createRoomButton");
   if (createRoomButton) {
@@ -276,15 +895,6 @@ function initializeAuthenticatedUI() {
     createRoomBtn.addEventListener("click", handleCreateRoom);
   }
 
-  document.querySelectorAll(".tag-option").forEach((tagOption) => {
-    tagOption.addEventListener("click", function (e) {
-      handleTagSelection.call(this, e);
-    });
-  });
-
-  updateCurrentTime();
-  setInterval(updateCurrentTime, 1000);
-
   fetchAndRenderStudyRooms();
 
   setTimeout(() => {
@@ -299,11 +909,9 @@ function initializeAuthenticatedUI() {
 
 /* ===== Create Room ===== */
 function openCreateRoomModal() {
-  console.log("Opening create room modal");
   try {
     const modalElement = document.getElementById("createRoomModal");
     if (!modalElement) {
-      console.error("createRoomModal element not found in DOM");
       showToast(
         "Cannot open create room modal — DOM element missing.",
         "error"
@@ -325,13 +933,10 @@ function openCreateRoomModal() {
 async function handleCreateRoom() {
   const roomNameEl = document.getElementById("roomName");
   const roomDescEl = document.getElementById("roomDescription");
-  const subjectEl = document.getElementById("subjectArea");
   const privacyEl = document.querySelector('input[name="privacy"]:checked');
-  const sessionDateEl = document.getElementById("sessionDate");
-  const sessionTimeEl = document.getElementById("sessionTime");
-  const selectedTagsEl = document.getElementById("selectedTags");
+  const roomPasswordEl = document.getElementById("roomPassword");
 
-  if (!roomNameEl || !subjectEl) {
+  if (!roomNameEl) {
     showToast("Form elements not found", "error");
     return;
   }
@@ -341,13 +946,9 @@ async function handleCreateRoom() {
     roomDescEl ? roomDescEl.value : "",
     MAX_DESCRIPTION_LENGTH
   );
-  const subject = subjectEl.value;
   const privacy = privacyEl ? privacyEl.value : "public";
-  const sessionDate = sessionDateEl ? sessionDateEl.value || null : null;
-  const sessionTime = sessionTimeEl ? sessionTimeEl.value || null : null;
-  const tagsStr = selectedTagsEl ? selectedTagsEl.value : "";
+  const password = roomPasswordEl ? roomPasswordEl.value : null;
 
-  // ===== SECURITY: Validation =====
   if (!roomName) {
     showToast("Room name is required", "error");
     return;
@@ -358,16 +959,42 @@ async function handleCreateRoom() {
     return;
   }
 
-  if (!subject) {
-    showToast("Please select a subject area", "error");
-    return;
+  if (privacy === "private") {
+    if (!password || password.trim().length === 0) {
+      showToast("Private room password is required", "error");
+      return;
+    }
+
+    if (password.length < 8) {
+      showToast("Password must be at least 8 characters", "error");
+      return;
+    }
+
+    if (password.length > 100) {
+      showToast("Password must be 100 characters or less", "error");
+      return;
+    }
+
+    // Validate all password requirements
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      showToast(
+        "Password must contain uppercase, lowercase, and numbers",
+        "error"
+      );
+      return;
+    }
   }
 
-  // ===== SECURITY: Confirmation dialog =====
   const confirmed = confirm(
     `Are you sure you want to create room "${escapeHtml(
       roomName
-    )}"?\n\nSubject: ${escapeHtml(subject)}\nPrivacy: ${privacy}`
+    )}"?\n\nPrivacy: ${privacy}${
+      privacy === "private" ? "\nPassword Protected: Yes" : ""
+    }`
   );
 
   if (!confirmed) {
@@ -376,22 +1003,17 @@ async function handleCreateRoom() {
   }
 
   try {
-    const tagArray = tagsStr
-      ? tagsStr
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      : [];
-
     const payload = {
       name: roomName,
       description: description,
-      subject: subject,
-      tags: tagArray,
       privacy: privacy,
-      sessionDate: sessionDate,
-      sessionTime: sessionTime,
     };
+
+    if (privacy === "private" && password) {
+      payload.password = password;
+    }
+
+    debugLog("Creating room with payload:", payload);
 
     const createBtn = document.getElementById("createRoomBtn");
     if (createBtn) {
@@ -400,10 +1022,16 @@ async function handleCreateRoom() {
         '<i class="bi bi-arrow-clockwise spinning"></i> Creating...';
     }
 
-    await postJsonWithAuth(STUDY_GROUPS_API, payload);
+    const response = await postJsonWithAuth(STUDY_GROUPS_API, payload);
+
+    debugLog("Room created successfully:", response);
 
     showToast("Study room created successfully!", "success");
-    logSecurityEvent("ROOM_CREATED", { roomName, privacy });
+    logSecurityEvent("ROOM_CREATED", {
+      roomName,
+      privacy,
+      hasPassword: privacy === "private",
+    });
 
     if (createRoomModal) createRoomModal.hide();
 
@@ -418,6 +1046,8 @@ async function handleCreateRoom() {
     let msg = "Could not create room. Please try again later.";
     if (err && err.body && (err.body.error || err.body.message)) {
       msg = err.body.error || err.body.message;
+    } else if (err && err.body && err.body.details) {
+      msg = err.body.details.join(", ");
     } else if (err && err.message) {
       msg = err.message;
     }
@@ -434,208 +1064,74 @@ async function handleCreateRoom() {
 function resetCreateRoomForm() {
   const form = document.getElementById("createRoomForm");
   if (form) form.reset();
-  document
-    .querySelectorAll(".tag-option")
-    .forEach((tag) => tag.classList.remove("selected"));
-  const selectedTagsEl = document.getElementById("selectedTags");
-  if (selectedTagsEl) selectedTagsEl.value = "";
-}
 
-function handleTagSelection() {
-  const selectedTags = document.querySelectorAll(".tag-option.selected");
-  if (this.classList.contains("selected")) {
-    this.classList.remove("selected");
-  } else if (selectedTags.length < MAX_TAGS) {
-    this.classList.add("selected");
-  } else {
-    showToast(`You can select up to ${MAX_TAGS} tags`, "error");
-    return;
+  const passwordField = document.getElementById("privateRoomPasswordField");
+  if (passwordField) {
+    passwordField.style.display = "none";
   }
 
-  const tags = Array.from(document.querySelectorAll(".tag-option.selected"))
-    .map((tag) => tag.getAttribute("data-tag"))
-    .filter(Boolean);
-  const selectedTagsEl = document.getElementById("selectedTags");
-  if (selectedTagsEl) selectedTagsEl.value = tags.join(",");
-}
+  // Reset password toggle button icon
+  const toggleBtn = document.getElementById("passwordToggleBtn");
+  if (toggleBtn) {
+    const icon = toggleBtn.querySelector("i");
+    if (icon) {
+      icon.classList.remove("bi-eye-slash");
+      icon.classList.add("bi-eye");
+    }
+  }
 
-/* ===== Filters & Search ===== */
-function handleFilterClick() {
-  document
-    .querySelectorAll(".filter-btn")
-    .forEach((b) => b.classList.remove("active"));
-  this.classList.add("active");
-  const filter = this.getAttribute("data-filter");
-  filterRooms(filter);
-}
-
-function filterRooms(filter) {
-  const roomCards = document.querySelectorAll(".room-card");
-  if (roomCards.length === 0) return;
-  roomCards.forEach((room) => {
-    const tags = room.getAttribute("data-tags") || "";
-    const subject = room.getAttribute("data-subject") || "";
-    if (filter === "all" || tags.includes(filter) || subject === filter)
-      room.style.display = "block";
-    else room.style.display = "none";
+  // Reset all requirement indicators
+  const reqElements = document.querySelectorAll(".requirement-item");
+  reqElements.forEach((req) => {
+    req.classList.remove("met");
+    req.classList.add("unmet");
+    const icon = req.querySelector("i");
+    if (icon) {
+      icon.classList.remove("bi-check-circle-fill");
+      icon.classList.add("bi-circle");
+    }
   });
 }
 
+/* ===== Search ===== */
 function handleSearch() {
   const searchTerm = this.value.trim().toLowerCase();
   const roomCards = document.querySelectorAll(".room-card");
   if (roomCards.length === 0) return;
+
   roomCards.forEach((room) => {
     const titleEl = room.querySelector(".room-title");
     const descEl = room.querySelector(".room-description");
     const title = titleEl ? titleEl.textContent.toLowerCase() : "";
     const description = descEl ? descEl.textContent.toLowerCase() : "";
-    if (title.includes(searchTerm) || description.includes(searchTerm))
+
+    if (title.includes(searchTerm) || description.includes(searchTerm)) {
       room.style.display = "block";
-    else room.style.display = "none";
+    } else {
+      room.style.display = "none";
+    }
   });
 }
 
 /* ===== Fetch & Render ===== */
 async function fetchAndRenderStudyRooms() {
   try {
+    showLoadingIndicator();
+    debugLog("Fetching rooms from API");
     const rooms = await fetchJsonWithAuth(STUDY_GROUPS_API, { method: "GET" });
     allRooms = Array.isArray(rooms) ? rooms : [];
 
-    const emptyState = document.getElementById("emptyState");
-    if (emptyState && allRooms.length > 0) emptyState.remove();
+    debugLog(`Fetched ${allRooms.length} total rooms`, allRooms);
 
-    renderRoomPage();
+    applyTabFilter(currentTab);
 
     window._backendRooms = allRooms;
-
-    const activeRoomsCount = document.getElementById("activeRoomsCount");
-    const yourRoomsCount = document.getElementById("yourRoomsCount");
-    if (activeRoomsCount) activeRoomsCount.textContent = allRooms.length;
-    if (yourRoomsCount) yourRoomsCount.textContent = allRooms.length;
+    hideLoadingIndicator();
   } catch (err) {
     console.error("Error fetching rooms:", err);
     showToast("Unable to load study rooms. Please try again later.", "error");
+    hideLoadingIndicator();
   }
-}
-
-function renderRoomPage() {
-  const roomsContainer = document.getElementById("roomContainer");
-  if (!roomsContainer) {
-    console.error("Room container not found");
-    return;
-  }
-
-  let roomGrid = document.getElementById("roomGrid");
-  if (!roomGrid) {
-    roomGrid = document.createElement("div");
-    roomGrid.className = "room-grid";
-    roomGrid.id = "roomGrid";
-    roomsContainer.appendChild(roomGrid);
-  }
-  roomGrid.innerHTML = "";
-
-  if (allRooms.length === 0) {
-    roomGrid.innerHTML = `<div class="empty-state" id="emptyState">
-      <div class="empty-state-icon"><i class="bi bi-door-closed"></i></div>
-      <h3>No Study Rooms Yet</h3>
-      <p>Create your first study room to collaborate with other students on projects, assignments, or exam prep.</p>
-      <div class="empty-state-action">
-        <button class="btn btn-success" id="createFirstRoomButton"><i class="bi bi-plus-lg"></i> Create Your First Room</button>
-      </div>
-    </div>`;
-    const createFirstRoomBtn = document.getElementById("createFirstRoomButton");
-    if (createFirstRoomBtn)
-      createFirstRoomBtn.addEventListener("click", openCreateRoomModal);
-    return;
-  }
-
-  roomsPerPage = getRoomsPerPage();
-  const totalPages = Math.ceil(allRooms.length / roomsPerPage);
-  if (currentRoomPage > totalPages) currentRoomPage = totalPages || 1;
-  const start = (currentRoomPage - 1) * roomsPerPage;
-  const end = start + roomsPerPage;
-  const roomsToShow = allRooms.slice(start, end);
-
-  roomsToShow.forEach((room) => {
-    const newRoom = document.createElement("div");
-    newRoom.className = "room-card";
-    newRoom.setAttribute("data-tags", (room.tags || []).join(","));
-    newRoom.setAttribute("data-subject", room.subject || "");
-    newRoom.innerHTML = `
-      <div class="room-status ${
-        room.isActive ? "active" : ""
-      }" title="Active room"></div>
-      <div class="room-header">
-        <div>
-          <h3 class="room-title">${escapeHtml(room.name)}</h3>
-          <p class="room-description">${escapeHtml(
-            room.description || "No description provided."
-          )}</p>
-        </div>
-      </div>
-      <div class="room-tags">
-        ${(room.tags || [])
-          .map((tag) => `<span class="room-tag">${escapeHtml(tag)}</span>`)
-          .join("")}
-      </div>
-      <div class="room-footer">
-        <span class="participant-count"><i class="bi bi-people"></i> ${
-          room.participants ? room.participants.length : 1
-        } participant${
-      room.participants && room.participants.length > 1 ? "s" : ""
-    }</span>
-        <button class="join-btn" onclick="window.enterRoom('${escapeHtml(
-          room.id
-        )}')">Enter Now</button>
-      </div>
-    `;
-    roomGrid.appendChild(newRoom);
-  });
-
-  let paginationDiv = document.getElementById("roomPagination");
-  if (paginationDiv) paginationDiv.remove();
-
-  if (totalPages > 1) {
-    paginationDiv = document.createElement("div");
-    paginationDiv.className = "pagination-controls";
-    paginationDiv.id = "roomPagination";
-
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "Previous";
-    prevBtn.disabled = currentRoomPage === 1;
-    prevBtn.onclick = () => {
-      if (currentRoomPage > 1) {
-        currentRoomPage--;
-        renderRoomPage();
-      }
-    };
-    paginationDiv.appendChild(prevBtn);
-
-    const pageInfo = document.createElement("span");
-    pageInfo.style.cssText =
-      "margin: 0 12px; font-weight: 500; color: var(--dark-text);";
-    pageInfo.textContent = `Page ${currentRoomPage} of ${totalPages}`;
-    paginationDiv.appendChild(pageInfo);
-
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Next";
-    nextBtn.disabled = currentRoomPage === totalPages;
-    nextBtn.onclick = () => {
-      if (currentRoomPage < totalPages) {
-        currentRoomPage++;
-        renderRoomPage();
-      }
-    };
-    paginationDiv.appendChild(nextBtn);
-
-    roomGrid.parentNode.appendChild(paginationDiv);
-  }
-}
-
-function getRoomsPerPage() {
-  const sidebar = document.getElementById("sidebar");
-  return sidebar && sidebar.classList.contains("open") ? 9 : 12;
 }
 
 /* ===== Keyboard Shortcuts ===== */
@@ -719,3 +1215,4 @@ window.enterRoom = enterRoom;
 window.showToast = showToast;
 window.closeToast = closeToast;
 window.logout = logout;
+window.handleRoomJoin = handleRoomJoin;

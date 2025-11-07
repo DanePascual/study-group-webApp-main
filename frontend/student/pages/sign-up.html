@@ -18,13 +18,46 @@
   <body>
     <div class="main-container">
       <div class="signup-card">
-        <!-- Left side -->
+        <!-- Left side - Password Requirements -->
         <div class="left-section">
-          <div class="welcome-title">
-            SIGN UP TO START YOUR LEARNING JOURNEY!
-          </div>
-          <div class="welcome-subtitle">
-            Join your learning community and collaborate with fellow students
+          <div class="requirements-container">
+            <div class="requirements-title">
+              <i class="bi bi-lock-fill"></i> Password Requirements
+            </div>
+            <div class="requirements-list">
+              <div class="requirement-item" id="req-length">
+                <span class="requirement-icon">
+                  <i class="bi bi-circle"></i>
+                </span>
+                <span class="requirement-text">At least 8 characters</span>
+              </div>
+              <div class="requirement-item" id="req-uppercase">
+                <span class="requirement-icon">
+                  <i class="bi bi-circle"></i>
+                </span>
+                <span class="requirement-text">1 uppercase letter (A-Z)</span>
+              </div>
+              <div class="requirement-item" id="req-lowercase">
+                <span class="requirement-icon">
+                  <i class="bi bi-circle"></i>
+                </span>
+                <span class="requirement-text">1 lowercase letter (a-z)</span>
+              </div>
+              <div class="requirement-item" id="req-number">
+                <span class="requirement-icon">
+                  <i class="bi bi-circle"></i>
+                </span>
+                <span class="requirement-text">1 number (0-9)</span>
+              </div>
+              <div class="requirement-item" id="req-special">
+                <span class="requirement-icon">
+                  <i class="bi bi-circle"></i>
+                </span>
+                <span class="requirement-text"
+                  >1 special character (!@#$...)</span
+                >
+              </div>
+            </div>
           </div>
 
           <div class="login-section">
@@ -33,7 +66,7 @@
           </div>
         </div>
 
-        <!-- Right side -->
+        <!-- Right side - Sign Up Form -->
         <div class="right-section">
           <h1 class="signup-title">Create Your Account</h1>
 
@@ -74,7 +107,7 @@
               />
             </div>
 
-            <!-- OTP Request Button moved below email field -->
+            <!-- OTP Request Button -->
             <div class="form-group centered-btn-container">
               <button type="button" class="request-otp-btn" id="requestOtpBtn">
                 Request OTP

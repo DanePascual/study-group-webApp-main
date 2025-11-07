@@ -5,11 +5,15 @@
 // - fast-path cached profile render + profile:updated listener
 // - auth listener using authFetch for authoritative profile
 // - idempotent init guard so module can be included on every page safely
-// ✅ FIXED: Ignores profile:updated when viewing other users (/profile/uid)
-// ✅ FIXED: Uses absolute CSS path
+// - admin panel link visibility check
 
-import { onAuthStateChanged } from "/config/firebase.js";
+import { onAuthStateChanged, db } from "../../config/firebase.js";
 import { authFetch } from "./apiClient.js";
+import { adminApiUrl } from "../../config/appConfig.js";
+import {
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
 /* ----------------------- Helpers ----------------------- */
 const el = (id) => document.getElementById(id);
@@ -17,8 +21,7 @@ const el = (id) => document.getElementById(id);
 function injectSidebarCss() {
   try {
     if (document.getElementById("sidebar-shared-css")) return;
-    // ✅ FIXED: Use absolute path instead of relative
-    const href = "/student/styles/sidebar.css";
+    const href = "../styles/sidebar.css";
     const link = document.createElement("link");
     link.id = "sidebar-shared-css";
     link.rel = "stylesheet";
@@ -34,16 +37,41 @@ function injectSidebarCss() {
 }
 
 /* ----------------------- Theme (global) ----------------------- */
+function applyThemeImmediately() {
+  try {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    const body = document.body;
+    const html = document.documentElement;
+
+    if (savedTheme === "dark") {
+      body.classList.add("dark-mode");
+      html.setAttribute("data-theme", "dark");
+    } else {
+      body.classList.remove("dark-mode");
+      html.setAttribute("data-theme", "light");
+    }
+  } catch (e) {
+    console.warn(
+      "applyThemeImmediately error:",
+      e && e.message ? e.message : e
+    );
+  }
+}
+
 function applyInitialTheme() {
   try {
     const themeToggle = el("themeToggle");
     const savedTheme = localStorage.getItem("theme") || "light";
     const body = document.body;
+    const html = document.documentElement;
+
     if (savedTheme === "dark") {
       body.classList.add("dark-mode");
+      html.setAttribute("data-theme", "dark");
       if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
     } else {
       body.classList.remove("dark-mode");
+      html.setAttribute("data-theme", "light");
       if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
     }
   } catch (e) {
@@ -53,15 +81,19 @@ function applyInitialTheme() {
 
 function setTheme(isDark) {
   const body = document.body;
+  const html = document.documentElement;
   const themeToggle = el("themeToggle");
+
   if (isDark) {
     body.classList.add("dark-mode");
+    html.setAttribute("data-theme", "dark");
     if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
     try {
       localStorage.setItem("theme", "dark");
     } catch {}
   } else {
     body.classList.remove("dark-mode");
+    html.setAttribute("data-theme", "light");
     if (themeToggle) themeToggle.innerHTML = '<i class="bi bi-moon"></i>';
     try {
       localStorage.setItem("theme", "light");
@@ -86,9 +118,51 @@ function wireThemeToggle() {
   window.addEventListener("storage", (e) => {
     if (!e.key) return;
     if (e.key === "theme" || e.key === "theme-sync") {
-      applyInitialTheme();
+      applyThemeImmediately();
     }
   });
+}
+
+/* ----------------------- Admin Panel Visibility ----------------------- */
+async function checkAndShowAdminLink(user) {
+  try {
+    console.log("[sidebar] Checking admin status for user:", user.uid);
+
+    const adminLink = el("adminPanelLink");
+    if (!adminLink) {
+      console.log("[sidebar] Admin link element not found in sidebar");
+      return;
+    }
+
+    const token = await user.getIdToken(true);
+    console.log("[sidebar] Got user token, checking admin dashboard...");
+
+    // ✅ FIXED: Use adminApiUrl from appConfig instead of hardcoded localhost
+    const response = await fetch(adminApiUrl("/api/admin/dashboard"), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("[sidebar] Admin dashboard response status:", response.status);
+
+    if (response.ok) {
+      console.log("[sidebar] ✅ User is admin - showing admin panel link");
+      adminLink.style.display = "block";
+    } else if (response.status === 403) {
+      console.log("[sidebar] ℹ️ User is not an admin (403 Forbidden)");
+      adminLink.style.display = "none";
+    } else {
+      console.warn(`[sidebar] ⚠️ Unexpected status: ${response.status}`);
+      adminLink.style.display = "none";
+    }
+  } catch (err) {
+    console.error("[sidebar] ❌ Admin check failed:", err.message);
+    const adminLink = el("adminPanelLink");
+    if (adminLink) adminLink.style.display = "none";
+  }
 }
 
 /* ----------------------- Sidebar UI / Profile ----------------------- */
@@ -127,18 +201,6 @@ function updateSidebar(profile = {}) {
         img.style.objectFit = "cover";
         img.style.display = "block";
         img.style.borderRadius = "50%";
-        img.onerror = () => {
-          // ✅ Fallback if image fails to load
-          img.style.display = "none";
-          avatarNode.textContent = profile.name
-            ? profile.name
-                .split(" ")
-                .map((n) => (n ? n[0] : ""))
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()
-            : "U";
-        };
         avatarNode.appendChild(img);
       } else if (profile.name) {
         const initials = profile.name
@@ -197,29 +259,9 @@ async function fetchAndUpdateSidebarProfile(user) {
   }
 }
 
-// ✅ NEW: Check if viewing other user profile
-function isViewingOtherUserProfile() {
-  const pathname = window.location.pathname;
-  const pathParts = pathname.split("/");
-  // Expected format: /profile/uid (viewing other user)
-  // OR /student/pages/profile.html (viewing own profile)
-  if (pathParts.length >= 3 && pathParts[1] === "profile") {
-    return true; // Viewing /profile/uid
-  }
-  return false; // Viewing own profile or other page
-}
-
 function setupProfileUpdatedListener() {
   window.addEventListener("profile:updated", (e) => {
     try {
-      // ✅ FIXED: Don't update sidebar with other user's profile data when viewing /profile/uid
-      if (isViewingOtherUserProfile()) {
-        console.log(
-          "[sidebar] Ignoring profile:updated while viewing other user profile"
-        );
-        return; // Don't update sidebar with other user's data
-      }
-
       const profile = e && e.detail ? e.detail : null;
       if (profile) {
         updateSidebar(profile);
@@ -253,13 +295,20 @@ function setupAuthListener() {
     if (user) {
       applyCachedProfileIfAny();
       fetchAndUpdateSidebarProfile(user).catch(() => {});
+
+      // ===== NEW: Check admin status =====
+      checkAndShowAdminLink(user).catch(() => {});
     } else {
       const nameNode = el("sidebarName");
       const avatarNode = el("sidebarAvatar");
       const courseNode = el("sidebarCourse");
+      const adminLink = el("adminPanelLink");
+
       if (nameNode) nameNode.textContent = "Not signed in";
       if (avatarNode) avatarNode.textContent = "";
       if (courseNode) courseNode.textContent = "";
+      if (adminLink) adminLink.style.display = "none";
+
       try {
         localStorage.removeItem("userProfile");
       } catch {}

@@ -1,12 +1,6 @@
 // frontend/student/scripts/dashboard.js
-// ✅ FIXED: Optimized dashboard script with instant todo updates, proper imports, and strikethrough on checkbox
-// - Fast local todo deletion (no re-fetch delay)
-// - Corrected apiClient import path
-// - Removed "+" text from button
-// - Checkbox immediately shows strikethrough effect
-// - Edit/toggle/delete errors handled properly
-// - ✅ FIXED: Changed PATCH to PUT for todo updates
-// - ✅ FIXED: Reminder date/time now saves correctly - converts empty strings to null, updates local array
+// ✅ CLEANED: Removed admin panel check (moved to sidebar.js)
+// ✅ UPDATED: Active Study Rooms now match study-rooms.js design
 
 import { auth, db, onAuthStateChanged } from "../../config/firebase.js";
 import {
@@ -16,16 +10,75 @@ import {
 import fetchWithAuth, {
   fetchJsonWithAuth,
   postJsonWithAuth,
-  putJsonWithAuth, // ✅ FIXED: Changed from patchJsonWithAuth
+  putJsonWithAuth,
   deleteWithAuth,
-} from "./apiClient.js"; // ✅ FIXED: Same directory
+} from "./apiClient.js";
 import { apiUrl } from "../../config/appConfig.js";
 
 // Wait for Firebase Authentication to load and set CURRENT_SESSION dynamically
 let CURRENT_SESSION = null;
+let passwordModal = null;
+let pendingPrivateRoomId = null;
 
 onAuthStateChanged(async (user) => {
   if (user) {
+    // ===== Check if user is banned =====
+    try {
+      console.log("[dashboard] Checking ban status for user:", user.uid);
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+
+        if (userData.isBanned === true) {
+          console.warn("[dashboard] ❌ User is banned!");
+          console.warn("[dashboard] Ban reason:", userData.bannedReason);
+          console.warn("[dashboard] Banned at:", userData.bannedAt);
+
+          // Show error message
+          const errorDiv = document.createElement("div");
+          errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ef4444;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            max-width: 500px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+          `;
+          errorDiv.innerHTML = `
+            🚫 Your account has been banned and you cannot access this page. You are being logged out...
+          `;
+          document.body.appendChild(errorDiv);
+
+          // Sign out
+          await auth.signOut();
+          sessionStorage.removeItem("idToken");
+          sessionStorage.removeItem("uid");
+
+          // Redirect to login
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 2000);
+
+          return;
+        }
+      }
+
+      console.log("[dashboard] ✅ User is not banned - access allowed");
+    } catch (err) {
+      console.error("[dashboard] Error checking ban status:", err);
+      // Continue anyway on error
+    }
+
     // Fetch user program from Firestore (keyed by UID)
     let userProgram = "";
     try {
@@ -52,28 +105,16 @@ onAuthStateChanged(async (user) => {
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
     };
 
-    // Update sidebar client area, but do it defensively so centralized sidebar.js (which fetches backend profile)
-    // can later overwrite with the authoritative name/photo.
     updateSidebarUserInfo();
-
     validateUserSession();
-
-    // Only initialize page UI that depends on DOM after DOM is ready.
     scheduleUIInit();
     console.log(`Dashboard ready for ${CURRENT_SESSION.user}`);
   } else {
     console.log("No user is signed in.");
-    // Redirect to login (relative to pages directory)
     window.location.href = "login.html";
-    console.log("Redirecting to login: login.html");
   }
 });
 
-/**
- * Defensive sidebar update:
- * - Only writes a temporary name/initials if sidebar is still in a default/loading state.
- * - Does NOT overwrite a photo <img> that may be set by centralized sidebar.js after it fetches the user's backend profile.
- */
 function updateSidebarUserInfo() {
   try {
     const avatar = document.getElementById("sidebarAvatar");
@@ -99,11 +140,9 @@ function updateSidebarUserInfo() {
         (CURRENT_SESSION && CURRENT_SESSION.userProgram) || "";
     }
 
-    // Only set initials if there's no <img> already present (so we don't overwrite server-provided photo)
     if (avatar) {
       const hasImg = avatar.querySelector && avatar.querySelector("img");
       if (!hasImg) {
-        // Only set initials when avatar area is empty or in default state
         const currentAvatarText = avatar.textContent
           ? avatar.textContent.trim()
           : "";
@@ -124,15 +163,12 @@ let allRooms = [];
 let currentRoomPage = 1;
 let roomsPerPage = 9;
 
-// Use apiUrl to resolve runtime API base for local vs production
 const STUDY_GROUPS_API = apiUrl("/api/study-groups");
 
-// Utility: safe query selectors used after DOM ready
 function $(sel) {
   return document.querySelector(sel);
 }
 
-// Schedule UI initialization after DOMContentLoaded (if not yet loaded)
 function scheduleUIInit() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initDashboardUI);
@@ -149,16 +185,9 @@ function renderRoomPageDebounced() {
   }, 120);
 }
 
-// Theme: centralized in sidebar.js
-// NOTE: theme initialization and toggle are handled by sidebar.js (single source of truth).
-// Dashboard will not initialize or bind the toggle to avoid duplicate listeners.
-
-// Theme, search, todo, etc. wired here (DOM-ready)
 function initDashboardUI() {
-  // Sidebar state: watch for class changes (sidebar.js controls toggle)
   watchSidebarToggle();
 
-  // Wire profileLink if present
   const profileLink = document.getElementById("profileLink");
   if (profileLink) {
     profileLink.addEventListener("click", function (e) {
@@ -167,7 +196,6 @@ function initDashboardUI() {
     });
   }
 
-  // Wire search input
   const searchInput = document.querySelector(".search-input");
   let searchTimeout;
   if (searchInput) {
@@ -182,7 +210,6 @@ function initDashboardUI() {
     });
   }
 
-  // Wire Todo form and modal behaviors
   const todoForm = document.getElementById("todoForm");
   const todoModal = document.getElementById("todoModal");
   if (todoForm) {
@@ -199,16 +226,17 @@ function initDashboardUI() {
     });
   }
 
-  // Initialize keyboard + UI events that depend on DOM
-  initUIEvents();
+  // Initialize password modal
+  initPasswordModal();
 
-  // Fetch rooms and todos now that DOM is ready
+  // Initialize password toggle
+  initializePasswordToggles();
+
+  initUIEvents();
   fetchAndRenderRooms();
   fetchTodos();
-  // renderTodos will be called from fetchTodos when data loads
 }
 
-// Observe sidebar class changes and re-render room grid responsively
 function watchSidebarToggle() {
   const sidebarEl = document.getElementById("sidebar");
   if (!sidebarEl) return;
@@ -217,14 +245,12 @@ function watchSidebarToggle() {
     const nowOpen = sidebarEl.classList.contains("open");
     if (nowOpen !== lastOpen) {
       lastOpen = nowOpen;
-      // roomsPerPage changed — re-render page
       renderRoomPageDebounced();
     }
   });
   observer.observe(sidebarEl, { attributes: true, attributeFilter: ["class"] });
 }
 
-// Sidebar-influenced logic for rooms per page
 function getRoomsPerPage() {
   const sidebarEl = document.getElementById("sidebar");
   return sidebarEl && sidebarEl.classList.contains("open") ? 9 : 12;
@@ -253,10 +279,307 @@ function performSearch(query) {
   console.log("Search results for:", query, filtered);
 }
 
-function joinRoom(roomId) {
-  setTimeout(() => {
-    window.location.href = `study-room-inside.html?room=${roomId}`;
-  }, 500);
+// ===== PASSWORD VISIBILITY TOGGLE =====
+function initializePasswordToggles() {
+  const accessPasswordToggleBtn = document.getElementById(
+    "accessPasswordToggleBtn"
+  );
+  const privateRoomPassword = document.getElementById("privateRoomPassword");
+
+  if (accessPasswordToggleBtn && privateRoomPassword) {
+    accessPasswordToggleBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      togglePasswordVisibility(privateRoomPassword, accessPasswordToggleBtn);
+    });
+  }
+}
+
+function togglePasswordVisibility(inputElement, toggleButton) {
+  const isPassword = inputElement.type === "password";
+  inputElement.type = isPassword ? "text" : "password";
+
+  const icon = toggleButton.querySelector("i");
+  if (icon) {
+    icon.classList.toggle("bi-eye");
+    icon.classList.toggle("bi-eye-slash");
+  }
+}
+
+// ===== SECURITY: Utilities =====
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+      "/": "&#x2F;",
+      "`": "&#x60;",
+      "=": "&#x3D;",
+    }[c];
+  });
+}
+
+function sanitizeString(str, maxLength = 255) {
+  if (typeof str !== "string") return "";
+  return str.trim().substring(0, maxLength);
+}
+
+function showToast(message, type = "success") {
+  console.log(`${type}: ${message}`);
+  showNotification(message, type);
+}
+
+// ===== PRIVATE ROOM PASSWORD MODAL =====
+function initPasswordModal() {
+  try {
+    const modalElement = document.getElementById("privateRoomPasswordModal");
+    if (!modalElement) {
+      console.error("Private room password modal not found in DOM");
+      return;
+    }
+    passwordModal = new bootstrap.Modal(modalElement);
+  } catch (err) {
+    console.error("Failed to initialize password modal:", err);
+  }
+}
+
+function openPrivateRoomPasswordModal(roomId, roomName) {
+  try {
+    const modalElement = document.getElementById("privateRoomPasswordModal");
+    if (!modalElement) {
+      console.error("Private room password modal not found");
+      showToast("Cannot verify password - modal missing", "error");
+      return;
+    }
+
+    if (!passwordModal) {
+      passwordModal = new bootstrap.Modal(modalElement);
+    }
+
+    const roomNameEl = document.getElementById("privateRoomName");
+    if (roomNameEl) {
+      roomNameEl.textContent = escapeHtml(roomName);
+    }
+
+    const passwordInput = document.getElementById("privateRoomPassword");
+    if (passwordInput) {
+      passwordInput.value = "";
+      passwordInput.type = "password";
+    }
+
+    // Reset toggle button to show eye icon
+    const toggleBtn = document.getElementById("accessPasswordToggleBtn");
+    if (toggleBtn) {
+      const icon = toggleBtn.querySelector("i");
+      if (icon) {
+        icon.classList.remove("bi-eye-slash");
+        icon.classList.add("bi-eye");
+      }
+    }
+
+    pendingPrivateRoomId = roomId;
+    passwordModal.show();
+  } catch (err) {
+    console.error("Failed to open password modal:", err);
+    showToast("Cannot open password verification", "error");
+  }
+}
+
+async function handlePrivateRoomPasswordSubmit() {
+  const passwordInput = document.getElementById("privateRoomPassword");
+  if (!passwordInput) {
+    showToast("Password input not found", "error");
+    return;
+  }
+
+  const password = sanitizeString(passwordInput.value, 100);
+  if (!password) {
+    showToast("Please enter the room password", "error");
+    return;
+  }
+
+  if (!pendingPrivateRoomId) {
+    showToast("Room ID missing", "error");
+    return;
+  }
+
+  try {
+    const submitBtn = document.getElementById("submitPrivateRoomPassword");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise spinning"></i> Verifying...';
+    }
+
+    const response = await postJsonWithAuth(
+      `${STUDY_GROUPS_API}/${encodeURIComponent(pendingPrivateRoomId)}/join`,
+      { password }
+    );
+
+    if (response && response.success) {
+      showToast("Password verified! Entering room...", "success");
+
+      if (passwordModal) passwordModal.hide();
+      passwordInput.value = "";
+
+      await fetchAndRenderRooms();
+
+      setTimeout(() => {
+        enterRoom(pendingPrivateRoomId);
+      }, 500);
+    } else {
+      showToast("Incorrect password", "error");
+      passwordInput.value = "";
+    }
+  } catch (err) {
+    console.error("Error verifying password:", err);
+    let msg = "Password verification failed";
+    if (err && err.body && err.body.error) {
+      msg = err.body.error;
+    }
+    showToast(msg, "error");
+  } finally {
+    const submitBtn = document.getElementById("submitPrivateRoomPassword");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Verify Password';
+    }
+  }
+}
+
+// ===== ROOM CARD FACTORY WITH PRIVACY BADGES =====
+function createRoomCardElement(room) {
+  const privacyBadgeHtml =
+    room.privacy === "private"
+      ? `<span class="privacy-badge private"><i class="bi bi-lock-fill"></i> Private</span>`
+      : `<span class="privacy-badge public"><i class="bi bi-globe"></i> Public</span>`;
+
+  const roomNameEscaped = escapeHtml(room.name);
+  const roomDescEscaped = escapeHtml(
+    room.description || "No description provided."
+  );
+
+  const card = document.createElement("div");
+  card.className = "room-card";
+  card.setAttribute("data-room-id", room.id);
+  card.innerHTML = `
+    <div class="room-header">
+      <div class="room-header-content">
+        <h3 class="room-title">${roomNameEscaped}</h3>
+        <p class="room-description">${roomDescEscaped}</p>
+      </div>
+      <div class="privacy-badge-container">
+        ${privacyBadgeHtml}
+      </div>
+    </div>
+    <div class="room-footer">
+      <span class="participant-count"><i class="bi bi-people"></i> ${
+        room.participants ? room.participants.length : 1
+      } participant${
+    room.participants && room.participants.length > 1 ? "s" : ""
+  }</span>
+      <button class="join-btn" onclick="window.handleDashboardRoomJoin('${escapeHtml(
+        room.id
+      )}', '${escapeHtml(room.name)}', '${room.privacy}')">Enter Now</button>
+    </div>
+  `;
+  return card;
+}
+
+// ===== HANDLE ROOM JOIN (with privacy check) =====
+export function handleDashboardRoomJoin(roomId, roomName, privacy) {
+  console.log(`Join attempt | Room: ${roomName} | Privacy: ${privacy}`);
+
+  const room = allRooms.find((r) => String(r.id) === String(roomId));
+  if (!room) {
+    console.log(`Room not found: ${roomId}`);
+    showToast("Room not found", "error");
+    return;
+  }
+
+  const currentUserId = CURRENT_SESSION?.uid;
+  if (!currentUserId) {
+    showToast("User not authenticated", "error");
+    return;
+  }
+
+  const isAlreadyMember = (room.participants || []).includes(currentUserId);
+
+  // If private room AND user is NOT already a member → require password
+  if (privacy === "private" && !isAlreadyMember) {
+    openPrivateRoomPasswordModal(roomId, roomName);
+  } else if (privacy === "private" && isAlreadyMember) {
+    // Already a member of private room → enter directly
+    enterRoom(roomId);
+  } else if (privacy === "public") {
+    if (isAlreadyMember) {
+      // Already a member → enter directly
+      enterRoom(roomId);
+    } else {
+      // Not a member yet → attempt to join public room
+      attemptJoinPublicRoom(roomId);
+    }
+  }
+}
+
+async function attemptJoinPublicRoom(roomId) {
+  try {
+    console.log(`Attempting to join public room: ${roomId}`);
+
+    const submitBtn = document.querySelector(
+      `[data-room-id="${roomId}"] .join-btn`
+    );
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<i class="bi bi-arrow-clockwise spinning"></i> Joining...';
+    }
+
+    const response = await postJsonWithAuth(
+      `${STUDY_GROUPS_API}/${encodeURIComponent(roomId)}/join`,
+      {}
+    );
+
+    if (response && response.success) {
+      showToast("Joined room successfully!", "success");
+      await fetchAndRenderRooms();
+
+      setTimeout(() => {
+        enterRoom(roomId);
+      }, 500);
+    }
+  } catch (err) {
+    console.error("Error joining public room:", err);
+    let msg = "Could not join room";
+    if (err && err.body && err.body.error) {
+      msg = err.body.error;
+    }
+    showToast(msg, "error");
+  } finally {
+    const submitBtn = document.querySelector(
+      `[data-room-id="${roomId}"] .join-btn`
+    );
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "Enter Now";
+    }
+  }
+}
+
+function enterRoom(roomId) {
+  try {
+    showToast("Entering study room...", "info");
+    setTimeout(() => {
+      window.location.href = `study-room-inside.html?room=${encodeURIComponent(
+        roomId
+      )}`;
+    }, 800);
+  } catch (err) {
+    console.error("enterRoom error:", err);
+    showToast("Could not enter room.", "error");
+  }
 }
 
 function showNotification(message, type = "info") {
@@ -338,7 +661,7 @@ function renderTodos() {
           <div class="todo-content">
             <input type="checkbox" class="todo-checkbox" ${
               todo.completed ? "checked" : ""
-            } onchange="toggleTodo(${originalIndex})">
+            } onchange="window.toggleTodo(${originalIndex})">
             <div class="todo-text ${todo.completed ? "completed" : ""}">${
         todo.text
       }</div>
@@ -353,10 +676,10 @@ function renderTodos() {
               }</span>
             </div>
             <div class="todo-actions">
-              <button class="todo-action-btn" onclick="editTodo(${originalIndex})" title="Edit task">
+              <button class="todo-action-btn" onclick="window.editTodo(${originalIndex})" title="Edit task">
                 <i class="bi bi-pencil"></i>
               </button>
-              <button class="todo-action-btn" onclick="deleteTodo(${originalIndex})" title="Delete task">
+              <button class="todo-action-btn" onclick="window.deleteTodo(${originalIndex})" title="Delete task">
                 <i class="bi bi-trash"></i>
               </button>
             </div>
@@ -407,26 +730,26 @@ function initUIEvents() {
     }
   });
 
-  // sidebar.js provides logout handling - no double binding required
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    console.log("Logout button detected - using sidebar.js logout function");
+  // Password modal submit handler
+  const submitPasswordBtn = document.getElementById(
+    "submitPrivateRoomPassword"
+  );
+  if (submitPasswordBtn) {
+    submitPasswordBtn.addEventListener(
+      "click",
+      handlePrivateRoomPasswordSubmit
+    );
+  }
+
+  const passwordInput = document.getElementById("privateRoomPassword");
+  if (passwordInput) {
+    passwordInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        handlePrivateRoomPasswordSubmit();
+      }
+    });
   }
 }
-
-function updateParticipantCounts() {
-  const rooms = ["cs", "web-dev", "database"];
-  rooms.forEach((room) => {
-    const countElement = document.getElementById(`${room}-count`);
-    if (countElement) {
-      const currentCount = parseInt(countElement.textContent) || 0;
-      const variation = Math.floor(Math.random() * 3) - 1;
-      const newCount = Math.max(0, currentCount + variation);
-      countElement.textContent = newCount;
-    }
-  });
-}
-setInterval(updateParticipantCounts, 30000);
 
 function validateUserSession() {
   if (CURRENT_SESSION)
@@ -434,7 +757,7 @@ function validateUserSession() {
 }
 
 // ====================
-// Room Pagination Logic (Responsive to Sidebar)
+// Room Pagination Logic
 // ====================
 async function fetchAndRenderRooms() {
   const roomGrid = document.getElementById("roomGrid");
@@ -445,7 +768,6 @@ async function fetchAndRenderRooms() {
   if (!roomGrid) return;
   roomGrid.innerHTML = `<div style="text-align:center;">Loading rooms...</div>`;
   try {
-    // Public endpoint - resolved via apiUrl
     const response = await fetch(STUDY_GROUPS_API);
     if (!response.ok) throw new Error("Failed to fetch study rooms.");
     allRooms = await response.json();
@@ -462,7 +784,6 @@ async function fetchAndRenderRooms() {
   }
 }
 
-// Room rendering without creator display
 function renderRoomPage() {
   const roomGrid = document.getElementById("roomGrid");
   const paginationDivId = "roomPagination";
@@ -480,32 +801,7 @@ function renderRoomPage() {
   roomGrid.innerHTML = "";
 
   roomsToShow.forEach((room) => {
-    const card = document.createElement("div");
-    card.className = "room-card";
-    card.innerHTML = `
-      <div class="room-header">
-        <div>
-          <h3 class="room-title">${room.name}</h3>
-          <p class="room-description">${
-            room.description || "No description"
-          }</p>
-        </div>
-      </div>
-      <div class="room-tags">
-        ${(room.tags || [])
-          .map((tag) => `<span class="room-tag">${tag}</span>`)
-          .join("")}
-      </div>
-      <div class="room-footer">
-        <span class="participant-count">
-          <i class="bi bi-people"></i>
-          ${room.participants ? room.participants.length : 1} participants
-        </span>
-        <button class="join-btn" onclick="joinRoom('${room.id}')">
-          Join Now
-        </button>
-      </div>
-    `;
+    const card = createRoomCardElement(room);
     roomGrid.appendChild(card);
   });
 
@@ -545,7 +841,6 @@ function renderRoomPage() {
     roomGrid.parentNode.appendChild(pagination);
   }
 
-  // Animate the room cards after rendering
   animateRoomCards();
 }
 
@@ -562,7 +857,7 @@ function animateRoomCards() {
   });
 }
 
-// ========== Todos Backend (use apiClient helpers) ==========
+// ========== Todos Backend ==========
 async function fetchTodos() {
   try {
     const data = await fetchJsonWithAuth("/api/todos");
@@ -580,77 +875,64 @@ async function fetchTodos() {
   }
 }
 
-// ✅ FIXED: saveTodo - Reminder date/time now saves correctly
 async function saveTodo() {
   const textEl = document.getElementById("todoText");
   const reminderEl = document.getElementById("todoReminder");
   const text = textEl ? textEl.value.trim() : "";
-  const reminder = reminderEl ? reminderEl.value : ""; // ✅ Gets datetime-local value
+  const reminder = reminderEl ? reminderEl.value : "";
 
   if (!text) {
     showNotification("Please enter a task description!", "error");
     return;
   }
 
-  // ✅ FIXED: Convert empty string reminder to null
   const todo = {
     text,
     completed: false,
-    reminder: reminder || null, // ✅ CHANGED: Empty string becomes null
+    reminder: reminder || null,
     created: new Date().toISOString(),
     priority: "medium",
   };
 
   try {
     if (editingTodoIndex >= 0) {
-      // ✅ FIXED: Edit existing todo
       const id = todos[editingTodoIndex].id;
       const updatedTodo = {
         ...todos[editingTodoIndex],
         text,
-        reminder: reminder || null, // ✅ CHANGED: Empty string becomes null
+        reminder: reminder || null,
       };
 
       await putJsonWithAuth(
         `/api/todos/${encodeURIComponent(id)}`,
         updatedTodo
       );
-
-      // ✅ NEW: Update local todos array with the updated values
       todos[editingTodoIndex] = updatedTodo;
-
       console.log(`[dashboard] ✅ Todo updated: ${id}`);
       showNotification("Task updated successfully!", "success");
     } else {
-      // ✅ FIXED: Create new todo
       const response = await postJsonWithAuth("/api/todos", todo);
-
-      // ✅ NEW: Add the newly created todo to the array
       todos.push(response);
-
       console.log("[dashboard] ✅ New todo created");
       showNotification("New task added!", "success");
     }
     closeTodoModal();
-    renderTodos(); // ✅ Re-render to show changes immediately
+    renderTodos();
   } catch (err) {
     console.error("Error: Could not save task.", err);
     showNotification("Could not save task.", "error");
   }
 }
 
-// ✅ FIXED: toggleTodo now updates UI IMMEDIATELY without waiting for backend
 async function toggleTodo(index) {
   const todo = todos[index];
   if (!todo) return;
 
-  // ✅ Toggle completed state IMMEDIATELY in UI
   todo.completed = !todo.completed;
-  renderTodos(); // Re-render immediately so checkbox strikethrough appears instantly
+  renderTodos();
 
   try {
-    // Send update to backend asynchronously (don't wait)
-    await putJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo); // ✅ FIXED: Changed from patchJsonWithAuth
+    await putJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo);
     console.log(`[dashboard] ✅ Todo toggled: ${todo.id} = ${todo.completed}`);
     showNotification(
       `Task ${todo.completed ? "completed" : "reopened"}!`,
@@ -658,32 +940,27 @@ async function toggleTodo(index) {
     );
   } catch (err) {
     console.error("Error: Could not update task.", err);
-    // ✅ Rollback on error
     todo.completed = !todo.completed;
     renderTodos();
     showNotification("Could not update task.", "error");
   }
 }
 
-// ✅ FIXED: deleteTodo now removes IMMEDIATELY from UI without re-fetching
 async function deleteTodo(index) {
   const todo = todos[index];
   if (!todo) return;
 
   if (!confirm("Are you sure you want to delete this task?")) return;
 
-  // ✅ Remove from array IMMEDIATELY
   const removedTodo = todos.splice(index, 1)[0];
-  renderTodos(); // Re-render immediately (no delay!)
+  renderTodos();
 
   try {
-    // Send delete to backend asynchronously
     await deleteWithAuth(`/api/todos/${encodeURIComponent(removedTodo.id)}`);
     console.log(`[dashboard] ✅ Todo deleted: ${removedTodo.id}`);
     showNotification("Task deleted!", "info");
   } catch (err) {
     console.error("Error: Could not delete task.", err);
-    // ✅ Restore on error
     todos.splice(index, 0, removedTodo);
     renderTodos();
     showNotification("Could not delete task.", "error");
@@ -695,7 +972,6 @@ window.StudyDashboard = {
   showNotification,
   openTodoModal,
   closeTodoModal,
-  joinRoom,
   validateUserSession,
   currentUser: () => (CURRENT_SESSION ? CURRENT_SESSION.user : ""),
   currentSession: () => (CURRENT_SESSION ? CURRENT_SESSION.datetime : ""),
@@ -706,4 +982,5 @@ window.closeTodoModal = closeTodoModal;
 window.editTodo = editTodo;
 window.deleteTodo = deleteTodo;
 window.toggleTodo = toggleTodo;
-window.joinRoom = joinRoom;
+window.handleDashboardRoomJoin = handleDashboardRoomJoin;
+window.handlePrivateRoomPasswordSubmit = handlePrivateRoomPasswordSubmit;

@@ -1,13 +1,64 @@
 // frontend/student/scripts/sign-up.js
 // Updated to use centralized apiUrl helper from appConfig.js
+// - Password requirements live validation
+// - Real-time requirement checkmarks
 // - Removed all hardcoded http://localhost:5000 URLs
 // - Now uses dynamic API_BASE from appConfig.js
-// - Maintains all existing functionality
 
 import { apiUrl } from "../../config/appConfig.js";
 
 // Wait for the DOM to be fully loaded before attaching event listeners
 document.addEventListener("DOMContentLoaded", function () {
+  // ===== PASSWORD REQUIREMENTS LIVE VALIDATION =====
+  const passwordInput = document.getElementById("password");
+
+  const requirements = {
+    length: { element: document.getElementById("req-length"), regex: /.{8,}/ },
+    uppercase: {
+      element: document.getElementById("req-uppercase"),
+      regex: /[A-Z]/,
+    },
+    lowercase: {
+      element: document.getElementById("req-lowercase"),
+      regex: /[a-z]/,
+    },
+    number: { element: document.getElementById("req-number"), regex: /\d/ },
+    special: {
+      element: document.getElementById("req-special"),
+      regex: /[!@#$%^&*(),.?":{}|<>]/,
+    },
+  };
+
+  function updateRequirementStatus() {
+    const password = passwordInput.value;
+    let allMet = true;
+
+    Object.keys(requirements).forEach((key) => {
+      const req = requirements[key];
+      const isMet = req.regex.test(password);
+
+      if (isMet) {
+        req.element.classList.add("met");
+      } else {
+        req.element.classList.remove("met");
+        allMet = false;
+      }
+    });
+
+    return allMet;
+  }
+
+  if (passwordInput) {
+    passwordInput.addEventListener("input", function () {
+      updateRequirementStatus();
+      checkPasswordStrength(this.value);
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      if (confirmPassword) {
+        checkPasswordMatch();
+      }
+    });
+  }
+
   // Password toggle functionality
   window.togglePassword = function (inputId, iconId) {
     const passwordInput = document.getElementById(inputId);
@@ -226,7 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (existingMsg) existingMsg.remove();
   }
 
-  // Real-time validation - MODIFIED ERROR MESSAGE
+  // Real-time validation
   if (emailInput) {
     emailInput.addEventListener("input", function (e) {
       const email = e.target.value;
@@ -257,30 +308,6 @@ document.addEventListener("DOMContentLoaded", function () {
         showFieldSuccess(studentIdInput);
       } else {
         clearFieldState(studentIdInput);
-      }
-    });
-  }
-
-  const passwordInput = document.getElementById("password");
-  if (passwordInput) {
-    passwordInput.addEventListener("input", function (e) {
-      const password = e.target.value;
-      const passwordInput = e.target;
-
-      if (password) {
-        const isStrong = checkPasswordStrength(password);
-        if (isStrong) {
-          showFieldSuccess(passwordInput);
-        } else {
-          clearFieldState(passwordInput);
-        }
-      } else {
-        clearFieldState(passwordInput);
-      }
-
-      const confirmPassword = document.getElementById("confirmPassword").value;
-      if (confirmPassword) {
-        checkPasswordMatch();
       }
     });
   }
@@ -442,36 +469,36 @@ document.addEventListener("DOMContentLoaded", function () {
     const alertDiv = document.createElement("div");
     alertDiv.className = `alert alert-${type}`;
     alertDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                min-width: 350px;
-                max-width: 500px;
-                padding: 16px 20px;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                background: ${type === "error" ? "#ff4444" : "#4caf50"};
-                color: white;
-                font-size: 14px;
-                line-height: 1.4;
-                animation: slideInRight 0.3s ease-out;
-            `;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 350px;
+      max-width: 500px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      background: ${type === "error" ? "#ff4444" : "#4caf50"};
+      color: white;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: slideInRight 0.3s ease-out;
+    `;
 
     alertDiv.innerHTML = `
-                <div style="white-space: pre-line;">${message}</div>
-                <button onclick="this.parentElement.remove()" style="
-                    position: absolute;
-                    top: 8px;
-                    right: 12px;
-                    background: none;
-                    border: none;
-                    color: white;
-                    font-size: 18px;
-                    cursor: pointer;
-                    opacity: 0.8;
-                ">&times;</button>
-            `;
+      <div style="white-space: pre-line;">${message}</div>
+      <button onclick="this.parentElement.remove()" style="
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        opacity: 0.8;
+      ">&times;</button>
+    `;
 
     document.body.appendChild(alertDiv);
 
@@ -487,11 +514,11 @@ document.addEventListener("DOMContentLoaded", function () {
   // Add CSS animations
   const style = document.createElement("style");
   style.textContent = `
-            @keyframes slideInRight {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  `;
   document.head.appendChild(style);
 
   // Reset OTP verification if email changes

@@ -1,5 +1,4 @@
 // Entry module - wires everything together
-// ✅ FIXED: Uses URL paths (/profile/uid) for user profile navigation
 import { CONFIG } from "./config.js";
 import { db, auth } from "./firebase-init.js";
 import { UserAuth } from "./user-auth.js";
@@ -17,17 +16,6 @@ window.__CONFIG__ = {
 
 // module level instances
 let userModule, roomModule, chatModule, videoModule, uiModule;
-
-// ✅ FIXED: Navigate to user profile using URL path (/profile/uid)
-window.viewUserProfile = function (uid) {
-  if (!uid) {
-    console.warn("[index.js] No UID provided to viewUserProfile");
-    return;
-  }
-  console.log(`[index.js] Navigating to profile of user: ${uid}`);
-  // ✅ Uses URL path format: /profile/{uid}
-  window.location.href = `/profile/${encodeURIComponent(uid)}`;
-};
 
 async function initializeApp() {
   try {

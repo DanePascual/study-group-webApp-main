@@ -8,6 +8,7 @@
 // ✅ FIXED: Image upload removed - use JSON only
 // ✅ FIXED: Comments fetched from API (not localStorage) with avatars from DB
 // ✅ FIXED: Footer avatar always shows current user's profile picture
+// ✅ FIXED: Comment scroll now respects comments order (newest-first vs oldest-first)
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -639,11 +640,49 @@ function initializeTopicPage() {
 
       showNotification("Comment added successfully");
 
+      // --- SCROLL FIX: Determine where to scroll based on comments order ---
+      // The API returns comments in order specified by getTopicComments() call (we requested sort: "newest").
+      // If the comments array is newest-first (newest at index 0) we should scroll to top (scrollTop = 0).
+      // If the comments array is oldest-first (oldest at index 0) we should scroll to bottom (scrollTop = scrollHeight).
+      // We'll inspect timestamps to decide, and fall back to scrolling to top.
       setTimeout(() => {
         const commentsList = document.getElementById(
           "commentModalCommentsList"
         );
-        if (commentsList) {
+        if (!commentsList) return;
+
+        let scrollToTop = true; // default: newest-first -> scroll to top
+
+        try {
+          if (comments && comments.length > 1) {
+            const firstTs = new Date(
+              comments[0].created || comments[0].created_at
+            ).getTime();
+            const lastTs = new Date(
+              comments[comments.length - 1].created ||
+                comments[comments.length - 1].created_at
+            ).getTime();
+
+            if (!isNaN(firstTs) && !isNaN(lastTs)) {
+              // If first is older than last, then array is oldest-first -> scroll bottom
+              // If first is newer than last, array is newest-first -> scroll top
+              scrollToTop = firstTs >= lastTs;
+            } else {
+              // If timestamps are invalid, default to newest-first behavior
+              scrollToTop = true;
+            }
+          } else if (comments && comments.length === 1) {
+            // Single comment -> assume it is the newest; show it (top)
+            scrollToTop = true;
+          }
+        } catch (e) {
+          // on any error, default to showing newest-first
+          scrollToTop = true;
+        }
+
+        if (scrollToTop) {
+          commentsList.scrollTop = 0;
+        } else {
           commentsList.scrollTop = commentsList.scrollHeight;
         }
       }, 100);

@@ -11,8 +11,26 @@ const DEFAULT_API_BASE =
 export const API_BASE =
   (typeof window !== "undefined" && window.API_BASE) || DEFAULT_API_BASE;
 
+// Admin API uses same base as student API
+export const ADMIN_API_BASE = API_BASE;
+
 export function apiUrl(path = "") {
   if (!path) return API_BASE;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return API_BASE.replace(/\/+$/, "") + normalized;
+}
+
+// NEW: Admin API URL helper
+export function adminApiUrl(path = "") {
+  if (!path) return ADMIN_API_BASE;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return ADMIN_API_BASE.replace(/\/+$/, "") + normalized;
+}
+
+// Make available globally for backward compatibility (if needed)
+if (typeof window !== "undefined") {
+  window.API_BASE = API_BASE;
+  window.ADMIN_API_BASE = ADMIN_API_BASE;
+  window.apiUrl = apiUrl;
+  window.adminApiUrl = adminApiUrl;
 }

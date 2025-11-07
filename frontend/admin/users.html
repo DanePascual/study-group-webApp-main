@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Users - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/users.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="index.html" class="nav-item">Welcome</a>
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item active">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Users Management</h1>
+          <p>Manage student accounts and handle bans</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Filters Section -->
+          <div class="filters-section">
+            <div class="filters-bar">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by name or email..."
+                class="search-input"
+              />
+
+              <!-- STATUS FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="statusTrigger"
+                  onclick="toggleCustomSelect('status')"
+                >
+                  <span class="custom-select-value" id="statusValue"
+                    >All Users</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="statusDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', '', 'All Users')"
+                  >
+                    All Users
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'active', 'Active')"
+                  >
+                    Active
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'banned', 'Banned')"
+                  >
+                    Banned
+                  </div>
+                </div>
+              </div>
+
+              <button
+                id="clearFiltersBtn"
+                class="clear-filters-btn"
+                onclick="clearAllFilters()"
+                title="Clear all filters"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Users Table -->
+          <div class="table-wrapper">
+            <div class="table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Program</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersList">
+                  <tr>
+                    <td colspan="6" class="loading">
+                      <div class="spinner"></div>
+                      <span>Loading users...</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none">
+              <div class="empty-state-content">
+                <div class="empty-icon">👥</div>
+                <h3>No Users Found</h3>
+                <p>There are no users matching your filters.</p>
+                <button onclick="clearAllFilters()" class="btn btn-primary">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-section">
+            <div class="pagination">
+              <button
+                id="prevBtn"
+                class="pagination-btn pagination-nav"
+                title="Previous page"
+              >
+                ←
+              </button>
+              <div class="page-info">
+                <span id="pageInfo">Page 1 of 1</span>
+              </div>
+              <button
+                id="nextBtn"
+                class="pagination-btn pagination-nav"
+                title="Next page"
+              >
+                →
+              </button>
+            </div>
+
+            <!-- Page Size Selector -->
+            <div class="page-size-selector">
+              <label for="limitSelect">Show:</label>
+              <select
+                id="limitSelect"
+                class="limit-select"
+                onchange="changePageSize()"
+              >
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal: View User Details -->
+    <div id="viewUserModal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2>User Details</h2>
+          <button class="modal-close" onclick="closeModal('viewUserModal')">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="user-details-grid">
+            <div class="detail-item">
+              <label>Name</label>
+              <p id="detailName">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Email</label>
+              <p id="detailEmail">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Program</label>
+              <p id="detailProgram">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Year Level</label>
+              <p id="detailYearLevel">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Student Number</label>
+              <p id="detailStudentNumber">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Status</label>
+              <p id="detailStatus">-</p>
+            </div>
+            <div class="detail-item">
+              <label>Joined</label>
+              <p id="detailJoined">-</p>
+            </div>
+            <div
+              class="detail-item"
+              id="bannedAtContainer"
+              style="display: none"
+            >
+              <label>Banned At</label>
+              <p id="detailBannedAt">-</p>
+            </div>
+            <div
+              class="detail-item"
+              id="banReasonContainer"
+              style="display: none"
+            >
+              <label>Ban Reason</label>
+              <p id="detailBanReason">-</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('viewUserModal')"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Ban User -->
+    <div id="banUserModal" class="modal">
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Ban User</h2>
+          <button class="modal-close" onclick="closeModal('banUserModal')">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>User Name</label>
+            <p id="banUserName" style="font-weight: 600; margin: 0">-</p>
+          </div>
+          <div class="form-group">
+            <label for="banReason">Ban Reason</label>
+            <textarea
+              id="banReason"
+              class="form-textarea"
+              placeholder="Enter the reason for banning this user..."
+              required
+            >
+Violation of community guidelines</textarea
+            >
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('banUserModal')"
+          >
+            Cancel
+          </button>
+          <button class="btn btn-danger" onclick="confirmBanUser()">
+            Ban User
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Confirm Unban -->
+    <div id="unbanConfirmModal" class="modal">
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Unban User</h2>
+          <button class="modal-close" onclick="closeModal('unbanConfirmModal')">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Are you sure you want to unban
+            <strong id="unbanUserName">this user</strong>?
+          </p>
+          <p
+            style="
+              color: var(--text-secondary);
+              font-size: 13px;
+              margin-top: 12px;
+            "
+          >
+            This user will regain access to their account immediately.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('unbanConfirmModal')"
+          >
+            Cancel
+          </button>
+          <button class="btn btn-success" onclick="confirmUnbanUser()">
+            Unban User
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script type="module" src="js/admin-users.js"></script>
+  </body>
+</html>

@@ -1,3 +1,34 @@
+/* ===== COMPLETELY HIDE BROWSER PASSWORD ICONS ===== */
+input[type="password"] {
+  -webkit-text-security: disc;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-outer-spin-button,
+input[type="password"]::-webkit-inner-spin-button,
+input[type="password"]::-webkit-textfield-decoration-container,
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Override Bootstrap's password field defaults */
+.form-control[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+.password-input-wrapper
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+#privateRoomPasswordModal
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
 :root {
   --primary-color: #4caf50;
   --primary-hover: #388e3c;
@@ -133,6 +164,24 @@ body.dark-mode .participant-count {
   color: var(--medium-text);
 }
 
+body.dark-mode .modal-content {
+  background: #2a2a2a;
+  color: var(--dark-text);
+}
+
+body.dark-mode .modal-header {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  border-color: #444;
+}
+
+body.dark-mode .btn-close {
+  filter: invert(1);
+}
+
+body.dark-mode .modal-footer {
+  border-color: #444;
+}
+
 /* Sidebar Styles */
 .sidebar {
   position: fixed;
@@ -250,6 +299,7 @@ body.dark-mode .participant-count {
   font-weight: bold;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
+
 .user-avatar img {
   width: 40px;
   height: 40px;
@@ -269,7 +319,7 @@ body.dark-mode .participant-count {
   margin-left: 280px;
 }
 
-/* Top Navigation - WITHOUT CLOCK */
+/* Top Navigation */
 .top-nav {
   background: white;
   padding: 15px 30px;
@@ -398,7 +448,7 @@ body.dark-mode .participant-count {
   max-width: 400px;
 }
 
-/* Fix section title size */
+/* Section Title */
 .section-title {
   font-size: 20px;
   font-weight: 600;
@@ -430,6 +480,7 @@ body.dark-mode .participant-count {
   gap: 20px;
 }
 
+/* ===== ROOM CARD - FIXED LAYOUT WITH VISIBLE TEXT ===== */
 .room-card {
   background: var(--background-light);
   border-radius: var(--border-radius);
@@ -438,6 +489,9 @@ body.dark-mode .participant-count {
   border: 2px solid transparent;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
 }
 
 .room-card::before {
@@ -462,11 +516,22 @@ body.dark-mode .participant-count {
   border-color: var(--primary-color);
 }
 
+/* ===== ROOM HEADER WITH PRIVACY BADGE ===== */
 .room-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 15px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.room-header-content {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .room-title {
@@ -474,19 +539,28 @@ body.dark-mode .participant-count {
   font-weight: 600;
   color: var(--dark-text);
   margin-bottom: 5px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .room-description {
   font-size: 13px;
   color: var(--medium-text);
   line-height: 1.5;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-wrap: break-word;
+  word-break: break-word;
+  margin-bottom: 12px;
 }
 
 .room-tags {
-  display: flex;
-  gap: 8px;
-  margin: 15px 0;
-  flex-wrap: wrap;
+  display: none;
 }
 
 .room-tag {
@@ -505,11 +579,16 @@ body.dark-mode .participant-count {
   transform: translateY(-1px);
 }
 
+/* ===== ROOM FOOTER ===== */
 .room-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .participant-count {
@@ -518,6 +597,8 @@ body.dark-mode .participant-count {
   display: flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .join-btn {
@@ -530,12 +611,88 @@ body.dark-mode .participant-count {
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .join-btn:hover {
   background: var(--primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.join-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== PRIVACY BADGE STYLES ===== */
+.privacy-badge-container {
+  flex-shrink: 0;
+}
+
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.privacy-badge.public {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.privacy-badge.public:hover {
+  background: #c8e6c9;
+  border-color: #81c784;
+}
+
+.privacy-badge.private {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid #e1bee7;
+}
+
+.privacy-badge.private:hover {
+  background: #e1bee7;
+  border-color: #ba68c8;
+}
+
+body.dark-mode .privacy-badge.public {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+body.dark-mode .privacy-badge.public:hover {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+body.dark-mode .privacy-badge.private {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+  border-color: rgba(156, 39, 176, 0.3);
+}
+
+body.dark-mode .privacy-badge.private:hover {
+  background: rgba(156, 39, 176, 0.3);
+  border-color: rgba(156, 39, 176, 0.5);
+}
+
+.privacy-badge i {
+  font-size: 12px;
 }
 
 /* To-Do Section */
@@ -590,7 +747,7 @@ body.dark-mode .participant-count {
 /* Scrollable Study Notes & Tasks */
 #todoList,
 .scrollable-tasks {
-  max-height: 300px; /* Adjust this value based on your design */
+  max-height: 300px;
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
@@ -1092,6 +1249,7 @@ body.dark-mode .logout-message-content {
   gap: 16px;
   margin-top: 24px;
 }
+
 .pagination-controls button {
   background: #4caf50;
   color: #fff;
@@ -1102,11 +1260,367 @@ body.dark-mode .logout-message-content {
   cursor: pointer;
   transition: background 0.2s;
 }
+
 .pagination-controls button:disabled {
   background: #c8e6c9;
   color: #888;
   cursor: not-allowed;
 }
+
 .pagination-controls button:hover:not(:disabled) {
   background: #388e3c;
+}
+
+/* ===== BOOTSTRAP MODAL OVERRIDES ===== */
+.modal-content {
+  border-radius: 15px;
+  border: none;
+  overflow: hidden;
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+  padding: 20px 25px;
+  border-bottom: none;
+}
+
+.modal-header .btn-close {
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+.modal-body {
+  padding: 25px;
+  color: var(--dark-text);
+}
+
+.modal-body p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-light);
+  padding: 15px 25px 25px;
+}
+
+.btn-primary {
+  background: #4caf50;
+  border-color: #4caf50;
+}
+
+.btn-primary:hover {
+  background: #388e3c;
+  border-color: #388e3c;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  border-color: #f0f0f0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
+  border-color: #e0e0e0;
+  color: #333;
+}
+
+body.dark-mode .btn-secondary {
+  background: #333;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #444;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+/* ===== PRIVATE ROOM PASSWORD MODAL - MATCH STUDY-ROOMS STYLE ===== */
+#privateRoomPasswordModal .modal-dialog {
+  max-width: 500px;
+}
+
+#privateRoomPasswordModal .modal-content {
+  background: #2a2a2a;
+  border: none;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+#privateRoomPasswordModal .modal-header {
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  color: white;
+  padding: 20px 25px;
+  border-bottom: none;
+}
+
+#privateRoomPasswordModal .modal-header .btn-close {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.9;
+}
+
+#privateRoomPasswordModal .modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+#privateRoomPasswordModal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: white;
+  font-size: 18px;
+}
+
+#privateRoomPasswordModal .modal-body {
+  background: #2a2a2a;
+  padding: 25px;
+}
+
+#privateRoomPasswordModal .modal-body p {
+  color: #e0e0e0 !important;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+#privateRoomPasswordModal .form-group {
+  margin-bottom: 20px;
+}
+
+#privateRoomPasswordModal .form-label {
+  color: #e0e0e0 !important;
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: block;
+  font-size: 14px;
+}
+
+/* ===== PASSWORD INPUT WRAPPER WITH TOGGLE BUTTON ===== */
+#privateRoomPasswordModal .password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 2px solid #555;
+  border-radius: 10px;
+  background: #3a3a3a;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+#privateRoomPasswordModal .password-input-wrapper:focus-within {
+  border-color: #4caf50;
+  background: #404040;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.2);
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control {
+  border: none;
+  padding: 12px 45px 12px 45px;
+  flex: 1;
+  background: transparent;
+  color: #e0e0e0;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control:focus {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+
+#privateRoomPasswordModal .password-input-wrapper .form-control::placeholder {
+  color: #999;
+}
+
+/* Lock icon for password input */
+#privateRoomPasswordModal .input-icon {
+  position: absolute;
+  left: 15px;
+  color: #999;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+/* Password toggle button */
+#privateRoomPasswordModal .password-toggle-btn {
+  position: absolute;
+  right: 15px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+#privateRoomPasswordModal .password-toggle-btn:hover {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.15);
+}
+
+#privateRoomPasswordModal .password-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+#privateRoomPasswordModal .modal-body small {
+  color: #bbb !important;
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+#privateRoomPasswordModal .modal-footer {
+  background: #2a2a2a;
+  border-top: 1px solid #444;
+  padding: 15px 25px 25px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+#privateRoomPasswordModal .btn-secondary {
+  background: transparent;
+  border: 1px solid #555;
+  color: #bbb;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+#privateRoomPasswordModal .btn-secondary:hover {
+  background: #333;
+  border-color: #777;
+  color: #e0e0e0;
+}
+
+#privateRoomPasswordModal .btn-primary {
+  background: #4caf50;
+  border: none;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#privateRoomPasswordModal .btn-primary:hover {
+  background: #66bb6a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
+}
+
+#privateRoomPasswordModal .btn-primary:disabled {
+  background: #666;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 480px) {
+  #privateRoomPasswordModal .modal-dialog {
+    margin: 12px;
+  }
+
+  #privateRoomPasswordModal .modal-header {
+    padding: 18px 20px;
+  }
+
+  #privateRoomPasswordModal .modal-body {
+    padding: 20px;
+  }
+
+  #privateRoomPasswordModal .modal-body p {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  #privateRoomPasswordModal .form-label {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  #privateRoomPasswordModal .password-input-wrapper .form-control {
+    padding: 12px 45px 12px 45px;
+    font-size: 14px;
+  }
+
+  #privateRoomPasswordModal .input-icon {
+    left: 12px;
+    font-size: 14px;
+  }
+
+  #privateRoomPasswordModal .password-toggle-btn {
+    right: 12px;
+    padding: 5px 8px;
+    font-size: 16px;
+  }
+
+  #privateRoomPasswordModal .modal-body small {
+    font-size: 11px;
+    margin-top: 8px;
+  }
+
+  #privateRoomPasswordModal .modal-footer {
+    padding: 12px 20px 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  #privateRoomPasswordModal .btn-secondary,
+  #privateRoomPasswordModal .btn-primary {
+    font-size: 13px;
+    padding: 9px 16px;
+  }
+
+  #privateRoomPasswordModal .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Admin Link Styling */
+.admin-link {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  padding: 10px 20px !important;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.admin-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, #5558e3, #7c3aed);
 }

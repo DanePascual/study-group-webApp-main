@@ -23,25 +23,41 @@
           StudyGroup
         </div>
       </div>
-      <nav class="sidebar-menu">
-        <a href="dashboard.html" class="sidebar-item"
-          ><i class="bi bi-house"></i>Dashboard</a
+      <nav class="sidebar-menu" role="navigation">
+        <a href="dashboard.html" class="sidebar-item">
+          <i class="bi bi-house"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="profile.html" class="sidebar-item">
+          <i class="bi bi-person"></i>
+          <span>Profile</span>
+        </a>
+        <a href="study-rooms.html" class="sidebar-item">
+          <i class="bi bi-door-open"></i>
+          <span>Study Rooms</span>
+        </a>
+        <a href="resources.html" class="sidebar-item">
+          <i class="bi bi-folder"></i>
+          <span>Resources</span>
+        </a>
+        <a href="discussion.html" class="sidebar-item active">
+          <i class="bi bi-chat-dots"></i>
+          <span>Discussion Forum</span>
+        </a>
+        <a href="report.html" class="sidebar-item">
+          <i class="bi bi-flag"></i>
+          <span>Report</span>
+        </a>
+        <!-- Admin Panel Link (only visible to admins) -->
+        <a
+          href="../../admin/index.html"
+          id="adminPanelLink"
+          class="sidebar-item admin-item"
+          style="display: none"
         >
-        <a href="profile.html" class="sidebar-item"
-          ><i class="bi bi-person"></i>Profile</a
-        >
-        <a href="study-rooms.html" class="sidebar-item"
-          ><i class="bi bi-door-open"></i>Study Rooms</a
-        >
-        <a href="resources.html" class="sidebar-item"
-          ><i class="bi bi-folder"></i>Resources</a
-        >
-        <a href="discussion.html" class="sidebar-item active"
-          ><i class="bi bi-chat-dots"></i>Discussion Forum</a
-        >
-        <a href="report.html" class="sidebar-item"
-          ><i class="bi bi-graph-up"></i>Report</a
-        >
+          <i class="bi bi-shield-check"></i>
+          <span>Admin Panel</span>
+        </a>
       </nav>
       <div class="sidebar-footer">
         <div

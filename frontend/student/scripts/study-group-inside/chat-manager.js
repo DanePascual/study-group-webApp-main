@@ -1,6 +1,5 @@
 // ChatManager (ES module) - Clean, stable non-virtualized implementation
 // ✅ FIXED: Enrich author names from userAuth cache instead of using raw Firestore data
-// ✅ FIXED: Make author names and avatars clickable to view profile
 
 import { db } from "./firebase-init.js";
 import {
@@ -395,20 +394,12 @@ export class ChatManager {
           enrichedAuthorName && enrichedAuthorName[0]
             ? enrichedAuthorName[0].toUpperCase()
             : "U";
-
-        // ✅ NEW: Make avatar clickable
-        avatarHtml = `<div class="message-avatar placeholder-avatar" style="cursor: pointer;" onclick="window.viewUserProfile('${
-          msg.authorUid
-        }')" title="View ${escapeHtml(
+        avatarHtml = `<div class="message-avatar placeholder-avatar">${escapeHtml(
+          placeholderAvatar
+        )}</div>`;
+        authorNameHtml = `<div class="message-author">${escapeHtml(
           enrichedAuthorName
-        )}'s profile">${escapeHtml(placeholderAvatar)}</div>`;
-
-        // ✅ NEW: Make author name clickable
-        authorNameHtml = `<div class="message-author" style="cursor: pointer; color: var(--primary-color);" onclick="window.viewUserProfile('${
-          msg.authorUid
-        }')" title="View ${escapeHtml(
-          enrichedAuthorName
-        )}'s profile">${escapeHtml(enrichedAuthorName)}</div>`;
+        )}</div>`;
       } else {
         avatarHtml = `<div class="message-avatar message-avatar-placeholder"></div>`;
         authorNameHtml = "";

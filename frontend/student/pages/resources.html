@@ -20,7 +20,7 @@
     <!-- Page styles -->
     <link rel="stylesheet" href="../styles/resources.css" />
 
-    <!-- DOMPurify for safe HTML sanitization (optional, used when descriptions include limited HTML) -->
+    <!-- DOMPurify for safe HTML sanitization -->
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"
       crossorigin="anonymous"
@@ -36,33 +36,42 @@
           StudyGroup
         </div>
       </div>
-      <nav class="sidebar-menu">
+      <nav class="sidebar-menu" role="navigation">
         <a href="dashboard.html" class="sidebar-item">
           <i class="bi bi-house"></i>
-          Dashboard
+          <span>Dashboard</span>
         </a>
         <a href="profile.html" class="sidebar-item">
           <i class="bi bi-person"></i>
-          Profile
+          <span>Profile</span>
         </a>
         <a href="study-rooms.html" class="sidebar-item">
           <i class="bi bi-door-open"></i>
-          Study Rooms
+          <span>Study Rooms</span>
         </a>
         <a href="resources.html" class="sidebar-item active">
           <i class="bi bi-folder"></i>
-          Resources
+          <span>Resources</span>
         </a>
         <a href="discussion.html" class="sidebar-item">
           <i class="bi bi-chat-dots"></i>
-          Discussion Forum
+          <span>Discussion Forum</span>
         </a>
         <a href="report.html" class="sidebar-item">
-          <i class="bi bi-graph-up"></i>
-          Report
+          <i class="bi bi-flag"></i>
+          <span>Report</span>
+        </a>
+        <!-- Admin Panel Link (only visible to admins) -->
+        <a
+          href="../../admin/index.html"
+          id="adminPanelLink"
+          class="sidebar-item admin-item"
+          style="display: none"
+        >
+          <i class="bi bi-shield-check"></i>
+          <span>Admin Panel</span>
         </a>
       </nav>
-      <!-- Update the sidebar-footer section -->
       <div class="sidebar-footer">
         <div
           class="user-info"
@@ -103,7 +112,6 @@
           <button class="theme-toggle" id="themeToggle" title="Toggle theme">
             <i class="bi bi-moon"></i>
           </button>
-          <!-- UPDATED SEARCH BAR to match dashboard.html -->
           <div class="search-bar">
             <input
               type="text"
@@ -120,14 +128,65 @@
 
       <!-- Resources Content -->
       <div class="resources-content">
-        <div class="resources-header-bar">
+        <!-- ===== TAB SYSTEM ===== -->
+        <div class="resources-tabs-section">
+          <div
+            class="resources-tabs"
+            role="tablist"
+            aria-label="Resource filters"
+          >
+            <button
+              class="resources-tab active"
+              data-tab="all"
+              role="tab"
+              aria-selected="true"
+              aria-controls="all-resources"
+            >
+              <i class="bi bi-grid-3x3-gap-fill"></i>
+              All Resources
+            </button>
+            <button
+              class="resources-tab"
+              data-tab="downloaded"
+              role="tab"
+              aria-selected="false"
+              aria-controls="downloaded-resources"
+            >
+              <i class="bi bi-download"></i>
+              Your Downloaded Files
+            </button>
+            <button
+              class="resources-tab"
+              data-tab="uploaded"
+              role="tab"
+              aria-selected="false"
+              aria-controls="uploaded-resources"
+            >
+              <i class="bi bi-upload"></i>
+              Your Uploaded Files
+            </button>
+            <button
+              class="resources-tab"
+              data-tab="recent"
+              role="tab"
+              aria-selected="false"
+              aria-controls="recent-resources"
+            >
+              <i class="bi bi-clock-history"></i>
+              Recent Uploads
+            </button>
+          </div>
+        </div>
+
+        <!-- Resource Filters and Controls (Hidden for Recent Tab) -->
+        <div class="resources-header-bar" id="resourcesHeaderBar">
           <div
             class="resource-filters"
             role="group"
             aria-label="Filter resources"
           >
             <button class="resource-filter-btn active" data-type="all">
-              <i class="bi bi-grid-3x3-gap-fill"></i> All
+              <i class="bi bi-grid-3x3-gap-fill"></i> All Types
             </button>
             <button class="resource-filter-btn" data-type="docx">
               <i class="bi bi-file-earmark-word"></i> Documents
@@ -184,48 +243,61 @@
 
         <!-- Resource Grid View (default) -->
         <div class="resources-grid" id="resourcesGrid">
-          <!-- Will be populated by JavaScript -->
           <div class="skeleton-loader"></div>
         </div>
 
         <!-- Resource List View (hidden by default) -->
-        <div class="resources-list" id="resourcesList" style="display: none">
-          <!-- Will be populated by JavaScript -->
-        </div>
+        <div
+          class="resources-list"
+          id="resourcesList"
+          style="display: none"
+        ></div>
 
-        <!-- Recent Uploads Section -->
-        <div class="resources-table-section">
-          <div class="table-header">
-            <h2 class="table-title">Recent Uploads</h2>
-            <div class="table-actions">
-              <select
-                class="sort-dropdown"
-                id="tableSort"
-                aria-label="Sort table"
-              >
-                <option value="newest">Newest first</option>
-                <option value="name-asc">Name (A-Z)</option>
-                <option value="size">Size</option>
-              </select>
-            </div>
-          </div>
-
+        <!-- Recent Uploads Table (hidden by default) -->
+        <div
+          class="recent-uploads-section"
+          id="recentUploadsSection"
+          style="display: none"
+        >
           <div class="table-responsive">
-            <table class="resources-table" aria-label="Recent uploads">
+            <table
+              class="recent-uploads-table"
+              aria-label="Recently uploaded resources"
+            >
               <thead>
                 <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Uploaded By</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Size</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col"><i class="bi bi-file-earmark"></i> Title</th>
+                  <th scope="col"><i class="bi bi-person"></i> Uploaded By</th>
+                  <th scope="col"><i class="bi bi-calendar3"></i> Date</th>
+                  <th scope="col"><i class="bi bi-tag"></i> Category</th>
+                  <th scope="col"><i class="bi bi-download"></i> Downloads</th>
+                  <th scope="col"><i class="bi bi-hdd"></i> Size</th>
+                  <th scope="col" class="actions-col">
+                    <i class="bi bi-gear"></i> Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody id="resourcesTable">
-                <!-- Will be populated by JavaScript -->
-              </tbody>
+              <tbody id="recentUploadsTable"></tbody>
             </table>
+          </div>
+
+          <!-- Load More Button -->
+          <div
+            class="load-more-container"
+            id="loadMoreContainer"
+            style="display: none"
+          >
+            <button class="load-more-btn" id="loadMoreBtn">
+              <i class="bi bi-arrow-repeat"></i> Load More
+            </button>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" id="recentEmptyState" style="display: none">
+            <div class="empty-state-icon">
+              <i class="bi bi-folder2-open"></i>
+            </div>
+            <div class="empty-state-text">No recent uploads found</div>
           </div>
         </div>
       </div>
@@ -336,28 +408,6 @@
                   Provide a brief description of what this resource contains
                 </div>
               </div>
-
-              <div class="mb-3">
-                <label for="coverImageInput" class="form-label"
-                  >Cover Image (optional)</label
-                >
-                <input
-                  type="file"
-                  class="form-control"
-                  id="coverImageInput"
-                  accept="image/*"
-                />
-                <div class="form-text">
-                  Add a cover image to make your resource more visible
-                </div>
-                <img
-                  src=""
-                  id="coverImagePreview"
-                  class="cover-preview"
-                  alt="Cover image preview"
-                  style="display: none"
-                />
-              </div>
             </div>
             <div class="modal-footer">
               <button
@@ -378,7 +428,7 @@
       </div>
     </div>
 
-    <!-- Toast Notifications Container (accessible) -->
+    <!-- Toast Notifications Container -->
     <div
       id="toastContainer"
       class="toast-container"
@@ -386,19 +436,19 @@
       aria-live="polite"
     ></div>
 
-    <!-- Bootstrap JS bundle (includes Popper) -->
+    <!-- Bootstrap JS bundle -->
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"
       crossorigin="anonymous"
     ></script>
 
-    <!-- Firebase config (modular) -->
+    <!-- Firebase config -->
     <script type="module" src="../../config/firebase.js"></script>
 
-    <!-- Centralized sidebar must load before page script -->
+    <!-- Sidebar -->
     <script type="module" src="../scripts/sidebar.js"></script>
 
-    <!-- Page script (resources) -->
+    <!-- Resources script -->
     <script type="module" src="../scripts/resources.js"></script>
   </body>
 </html>

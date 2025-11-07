@@ -28,8 +28,9 @@ textarea,
 select {
   font-family: inherit;
 }
+
 .main-container {
-  background: linear-gradient(135deg, #618668 0%, #a2e0d8 100%);
+  background: linear-gradient(135deg, #2d8659 0%, #4caf50 50%, #66bb6a 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -66,34 +67,99 @@ select {
   padding: 60px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   text-align: center;
   color: white;
 }
 
-.welcome-title {
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  line-height: 1.2;
+/* ===== PASSWORD REQUIREMENTS SECTION ===== */
+.requirements-container {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 300px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.welcome-subtitle {
+.requirements-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: white;
+}
+
+.requirements-title i {
+  font-size: 20px;
+}
+
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.requirement-item.met {
+  background: rgba(76, 175, 80, 0.3);
+  color: #c8e6c9;
+}
+
+.requirement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.requirement-icon i {
   font-size: 16px;
-  margin-bottom: 40px;
-  opacity: 0.95;
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.requirement-item.met .requirement-icon i {
+  color: #4caf50;
+}
+
+.requirement-item.met .requirement-icon i::before {
+  content: "\F26B"; /* bootstrap checkmark icon */
+}
+
+.requirement-text {
+  font-size: 13px;
+  text-align: left;
 }
 
 .login-section {
-  margin-top: 20px;
+  margin-top: 30px;
+  width: 100%;
 }
 
 .login-text {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  color: white;
 }
 
 .login-btn {
@@ -107,6 +173,7 @@ select {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s ease;
+  width: 100%;
 }
 
 .login-btn:hover {
@@ -120,6 +187,7 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow-y: auto;
 }
 
 .signup-title {
@@ -232,10 +300,12 @@ select {
   background: #ff4444;
   width: 33%;
 }
+
 .strength-medium {
   background: #ffaa00;
   width: 66%;
 }
+
 .strength-strong {
   background: #4caf50;
   width: 100%;
@@ -301,7 +371,11 @@ select {
     border-radius: 20px;
   }
 
-  .left-section,
+  .left-section {
+    padding: 30px 20px;
+    justify-content: center;
+  }
+
   .right-section {
     padding: 30px 20px;
   }
@@ -311,13 +385,17 @@ select {
     gap: 0;
   }
 
-  .welcome-title {
-    font-size: 24px;
+  .requirements-container {
+    max-width: 100%;
   }
 
   .signup-title {
     font-size: 20px;
     text-align: center;
+  }
+
+  .login-section {
+    margin-top: 20px;
   }
 }
 
@@ -340,6 +418,18 @@ select {
   .password-toggle {
     right: 12px;
     font-size: 15px;
+  }
+
+  .requirements-title {
+    font-size: 16px;
+  }
+
+  .requirement-text {
+    font-size: 12px;
+  }
+
+  .requirements-container {
+    padding: 16px;
   }
 }
 
@@ -372,7 +462,7 @@ input::-ms-clear {
   color: white;
   border: none;
   padding: 12px 30px;
-  width: 100%; /* Take full container width */
+  width: 100%;
   border-radius: 50px;
   font-size: 14px;
   font-weight: 500;
@@ -502,15 +592,4 @@ input::-ms-clear {
   transform: translateY(-50%);
   color: #999;
   font-size: 16px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 14px 20px 14px 45px;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
-  font-size: 15px;
-  color: #333;
-  background: #fafafa;
-  transition: all 0.3s ease;
 }
