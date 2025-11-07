@@ -100,6 +100,9 @@ app.get("/healthz", (req, res) =>
   res.json({ status: "ok", now: new Date().toISOString() })
 );
 
+// ===== FIREBASE AUTH MIDDLEWARE =====
+const firebaseAuthMiddleware = require("./middleware/firebaseAuthMiddleware");
+
 // ===== Routes =====
 const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
@@ -156,6 +159,24 @@ app.use("/api/zegocloud", zegoCloudRoutes);
 console.log(
   "[server] Mounted /api/zegocloud route for ZegoCloud video conferencing"
 );
+
+// ===== ADMIN Routes (with Firebase Auth Middleware) =====
+const adminDashboardRoutes = require("./routes/admin/dashboard");
+app.use("/api/admin/dashboard", firebaseAuthMiddleware, adminDashboardRoutes);
+
+const adminReportsRoutes = require("./routes/admin/reports");
+app.use("/api/admin/reports", firebaseAuthMiddleware, adminReportsRoutes);
+
+const adminUsersRoutes = require("./routes/admin/users");
+app.use("/api/admin/users", firebaseAuthMiddleware, adminUsersRoutes);
+
+const adminAdminsRoutes = require("./routes/admin/admins");
+app.use("/api/admin/admins", firebaseAuthMiddleware, adminAdminsRoutes);
+
+const adminAuditLogsRoutes = require("./routes/admin/audit-logs");
+app.use("/api/admin/audit-logs", firebaseAuthMiddleware, adminAuditLogsRoutes);
+
+console.log("[server] ✅ Admin routes mounted successfully");
 
 // ===== 404 Handler =====
 app.use((req, res) => {

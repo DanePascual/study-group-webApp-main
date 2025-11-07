@@ -1,9 +1,9 @@
 // backend/middleware/firebaseAuthMiddleware.js
 // Verifies Firebase ID token sent in Authorization: Bearer <token>
-// Attaches minimal req.user for safety, and keeps _raw for temporary compatibility.
-// IMPORTANT: Do NOT log req.user._raw or tokens anywhere.
+// Attaches user info and checks admin status from Firestore
 
 const admin = require("../config/firebase-admin");
+const db = admin.firestore();
 
 async function firebaseAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -16,24 +16,61 @@ async function firebaseAuthMiddleware(req, res, next) {
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-    // Minimal safe user object for downstream code
+    // ===== Basic user object =====
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email || null,
       name: decodedToken.name || decodedToken.displayName || null,
-      admin:
-        !!decodedToken.admin ||
-        !!(decodedToken.firebase && decodedToken.firebase.admin) ||
-        false,
-      // Compatibility: keep raw decoded token available but DO NOT log it
-      _raw: decodedToken,
+      admin: false,
+      isAdmin: false,
+      adminRole: null,
+      adminPermissions: {},
+      adminStatus: null,
     };
+
+    // ===== Check if user is admin in Firestore =====
+    try {
+      const adminDoc = await db
+        .collection("admins")
+        .doc(decodedToken.uid)
+        .get();
+
+      if (adminDoc.exists) {
+        const adminData = adminDoc.data();
+        req.user.admin = true;
+        req.user.isAdmin = true;
+        req.user.adminRole = adminData.role || "moderator";
+        req.user.adminPermissions = adminData.permissions || {};
+        req.user.adminStatus = adminData.status || "active";
+
+        console.log(
+          `[firebaseAuth] ✅ Admin verified: ${decodedToken.uid} (${adminData.role})`
+        );
+
+        // ===== Update admin lastActive =====
+        await db
+          .collection("admins")
+          .doc(decodedToken.uid)
+          .update({
+            lastActive: new Date(),
+            loginCount: (adminData.loginCount || 0) + 1,
+          });
+      } else {
+        console.log(
+          `[firebaseAuth] ✅ Regular user verified: ${decodedToken.uid}`
+        );
+      }
+    } catch (adminCheckErr) {
+      console.warn(
+        `[firebaseAuth] ⚠️ Could not check admin status: ${adminCheckErr.message}`
+      );
+      req.user.isAdmin = false;
+    }
 
     return next();
   } catch (error) {
-    // Log only the error message, never the token or decoded payload
     console.error(
-      "Token verification failed:",
+      "[firebaseAuth] ❌ Token verification failed:",
       error && error.message ? error.message : error
     );
     return res.status(401).json({ error: "Invalid or expired token" });

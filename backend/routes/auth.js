@@ -501,6 +501,8 @@ router.post("/signup", signupLimiter, async (req, res) => {
     console.log(`[auth] ✅ Firebase Auth user created: ${userRecord.uid}`);
 
     // ===== Store user profile in Firestore =====
+    console.log(`[auth] Storing user profile for ${email}...`);
+
     await admin
       .firestore()
       .collection("users")
@@ -512,6 +514,10 @@ router.post("/signup", signupLimiter, async (req, res) => {
         program: sanitizedCourse,
         yearLevel: sanitizedYearLevel,
         avatar: sanitizedFirstName.charAt(0).toUpperCase(),
+        isBanned: false,
+        bannedAt: null,
+        bannedReason: null,
+        bannedBy: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       });
