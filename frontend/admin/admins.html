@@ -23,7 +23,9 @@
           <a href="dashboard.html" class="nav-item">Dashboard</a>
           <a href="users.html" class="nav-item">Users</a>
           <a href="reports.html" class="nav-item">Reports</a>
-          <a href="admins.html" class="nav-item active">Admins</a>
+          <a href="admins.html" class="nav-item active" id="adminsNavLink"
+            >Admins</a
+          >
           <a href="audit-logs.html" class="nav-item">Audit Logs</a>
         </nav>
 
@@ -42,10 +44,11 @@
           <p>Manage admin accounts and permissions</p>
         </header>
 
-        <section class="admin-content">
+        <section class="admin-content" id="adminContent">
           <!-- Promote User Button -->
           <div class="action-bar">
             <button
+              id="promoteUserBtn"
               class="btn btn-primary"
               onclick="openModal('promoteUserModal')"
             >
@@ -81,14 +84,39 @@
             <!-- Empty State -->
             <div id="emptyState" class="empty-state" style="display: none">
               <div class="empty-state-content">
-                <div class="empty-icon">👤</div>
+                <div class="empty-icon">👥</div>
                 <h3>No Admins Found</h3>
-                <p>There are no admin accounts in the system.</p>
+                <p>There are no admins in the system yet.</p>
               </div>
             </div>
           </div>
         </section>
       </main>
+    </div>
+
+    <!-- Modal: Access Denied -->
+    <div id="accessDeniedModal" class="modal">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2>Access Denied</h2>
+          <button class="modal-close" onclick="closeAccessDeniedModal()">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            You do not have permission to access the Admins Management page.
+          </p>
+          <p style="margin-top: 16px; font-weight: 600">
+            Only superadmins can manage admin accounts.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="closeAccessDeniedModal()">
+            Okay
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal: Promote User to Admin -->
@@ -107,7 +135,7 @@
               type="email"
               id="promoteEmail"
               class="form-input"
-              placeholder="Enter user email"
+              placeholder="Enter user email..."
             />
           </div>
 
@@ -115,8 +143,7 @@
           <input type="hidden" id="promoteRoleValue" value="" />
 
           <div class="form-group">
-            <label>Role</label>
-            <!-- CUSTOM DROPDOWN FOR MODAL -->
+            <label for="promoteRole">Role</label>
             <div class="custom-select-wrapper-modal">
               <button
                 class="custom-select-trigger-modal"
@@ -158,21 +185,21 @@
                 </div>
                 <div
                   class="custom-select-option-modal"
-                  onclick="selectModalCustomOption('promoteRole', 'superadmin', 'Superadmin')"
+                  onclick="selectModalCustomOption('promoteRole', 'superadmin', 'Super Admin')"
                 >
-                  Superadmin
+                  Super Admin
                 </div>
               </div>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="promoteReason">Reason (Optional)</label>
+            <label for="promoteReason">Reason for Promotion (Optional)</label>
             <textarea
               id="promoteReason"
               class="form-textarea"
-              placeholder="Why are you promoting this user?"
-              rows="3"
+              placeholder="Explain why you're promoting this user..."
+              rows="4"
             ></textarea>
           </div>
         </div>
@@ -190,9 +217,9 @@
       </div>
     </div>
 
-    <!-- Modal: View Admin Details -->
+    <!-- Modal: Admin Details -->
     <div id="viewAdminModal" class="modal">
-      <div class="modal-content modal-md">
+      <div class="modal-content modal-lg">
         <div class="modal-header">
           <h2>Admin Details</h2>
           <button class="modal-close" onclick="closeModal('viewAdminModal')">
@@ -200,50 +227,81 @@
           </button>
         </div>
         <div class="modal-body">
-          <div class="details-section">
-            <div class="detail-item">
-              <label>Name</label>
-              <p id="detailName">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Email</label>
-              <p id="detailEmail">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Role</label>
-              <p id="detailRole">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Status</label>
-              <p id="detailStatus">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Promoted At</label>
-              <p id="detailPromotedAt">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Promoted By</label>
-              <p id="detailPromotedBy">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Total Actions</label>
-              <p id="detailTotalActions">-</p>
-            </div>
-            <div class="detail-item">
-              <label>Last Active</label>
-              <p id="detailLastActive">-</p>
-            </div>
-          </div>
+          <div class="admin-details">
+            <div class="details-row">
+              <div class="detail-section">
+                <h4>Admin Information</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Name</label>
+                    <p id="detailName">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Email</label>
+                    <p id="detailEmail">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Role</label>
+                    <p id="detailRole">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Status</label>
+                    <p id="detailStatus">-</p>
+                  </div>
+                </div>
+              </div>
 
-          <div class="detail-section">
-            <h4>Recent Actions</h4>
-            <div id="detailRecentActions" class="recent-actions-list"></div>
+              <div class="detail-section">
+                <h4>Promotion Details</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Promoted At</label>
+                    <p id="detailPromotedAt">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Promoted By</label>
+                    <p id="detailPromotedBy">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Activity Stats</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>Total Actions</label>
+                  <p id="detailTotalActions">-</p>
+                </div>
+                <div class="detail-item">
+                  <label>Last Active</label>
+                  <p id="detailLastActive">-</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Recent Actions</h4>
+              <div class="detail-group">
+                <div id="detailRecentActions" class="recent-actions-list">
+                  <p class="no-actions">No recent actions</p>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('viewAdminModal')"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Modal: Confirm Action (Suspend/Remove) -->
+    <!-- Modal: Confirm Action -->
     <div id="confirmActionModal" class="modal">
       <div class="modal-content modal-sm">
         <div class="modal-header">
@@ -266,8 +324,8 @@
             Cancel
           </button>
           <button
+            class="btn btn-danger"
             id="confirmActionBtn"
-            class="btn btn-secondary"
             onclick="executeConfirmedAction()"
           >
             Confirm
