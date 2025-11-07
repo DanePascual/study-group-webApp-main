@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Wait for Firebase to be ready
   if (typeof window.firebase === "undefined") {
     console.error("[admin-auth] Firebase not loaded");
-    setTimeout(() => (location.href = "../../student/pages/login.html"), 2000);
+    setTimeout(() => (location.href = "/student/pages/login.html"), 2000);
     return;
   }
 
@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.firebase.onAuthStateChanged(async (user) => {
     if (!user) {
       console.warn("[admin-auth] No user logged in, redirecting to login...");
-      location.href = "../../student/pages/login.html";
+      location.href = "/student/pages/login.html";
       return;
     }
 
@@ -44,10 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!response.ok) {
         if (response.status === 403) {
           console.error("[admin-auth] User is not an admin");
-          setTimeout(
-            () => (location.href = "../../student/pages/login.html"),
-            2000
-          );
+          setTimeout(() => (location.href = "/student/pages/login.html"), 2000);
           return;
         }
         throw new Error(`HTTP ${response.status}`);
@@ -100,10 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }, 100);
     } catch (err) {
       console.error("[admin-auth] Error verifying admin:", err.message);
-      setTimeout(
-        () => (location.href = "../../student/pages/login.html"),
-        3000
-      );
+      setTimeout(() => (location.href = "/student/pages/login.html"), 3000);
     }
   });
 });
@@ -220,7 +214,7 @@ function setupLogoutButton() {
       try {
         await window.firebase.auth.signOut();
         console.log("[admin-auth] ✅ Logged out successfully");
-        location.href = "../../student/pages/login.html";
+        location.href = "/student/pages/login.html";
       } catch (err) {
         console.error("[admin-auth] Logout error:", err);
       }
@@ -237,7 +231,7 @@ function setupLeaveAdminButton() {
       console.log("[admin-auth] Leaving admin panel...");
       try {
         console.log("[admin-auth] Redirecting to student dashboard");
-        location.href = "../../student/pages/dashboard.html";
+        location.href = "/student/pages/dashboard.html";
       } catch (err) {
         console.error("[admin-auth] Leave admin error:", err);
       }
