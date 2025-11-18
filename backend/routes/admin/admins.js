@@ -174,6 +174,7 @@ router.get("/:uid", adminAuthMiddleware, superadminOnly, async (req, res) => {
 
 // POST /api/admin/admins/promote-user
 // Promote user to admin - SUPERADMIN ONLY
+// ✅ FIXED: Allow re-promoting previously removed admins
 router.post(
   "/promote-user",
   adminAuthMiddleware,
@@ -220,17 +221,25 @@ router.post(
         return res.status(404).json({ error: "User not found in database" });
       }
 
-      // ===== Check if already admin =====
+      // ✅ FIXED: Allow re-promotion of previously removed admins
+      // Only reject if the user is currently an active admin
       const existingAdmin = await db.collection("admins").doc(uid).get();
-      if (existingAdmin.exists) {
+      if (existingAdmin.exists && existingAdmin.data().status === "active") {
         return res.status(400).json({ error: "User is already an admin" });
+      }
+
+      // If admin was previously removed, we'll overwrite the old record
+      if (existingAdmin.exists && existingAdmin.data().status !== "active") {
+        console.log(
+          `[admin-admins] Promoting previously removed admin ${uid}...`
+        );
       }
 
       const userData = userDoc.data();
       const userName = userData.name || "Unknown";
       const userEmail = userData.email || email || "N/A";
 
-      // ===== Create admin record =====
+      // ===== Create/Overwrite admin record =====
       const promotedAt = new Date();
       await db
         .collection("admins")
@@ -348,8 +357,9 @@ router.put("/:uid", adminAuthMiddleware, superadminOnly, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/admins/:uid
-// Remove admin status - SUPERADMIN ONLY
+// ✅ FIXED: DELETE /api/admin/admins/:uid
+// COMPLETELY remove admin from the system
+// This allows the user to be promoted again in the future
 router.delete(
   "/:uid",
   adminAuthMiddleware,
@@ -366,23 +376,13 @@ router.delete(
       // ===== Check if admin exists =====
       const adminDoc = await db.collection("admins").doc(adminId).get();
       if (!adminDoc.exists) {
+        console.warn(`[admin-admins] Admin not found: ${adminId}`);
         return res.status(404).json({ error: "Admin not found" });
       }
 
       const adminData = adminDoc.data();
 
-      // ===== Update admin status =====
-      await db.collection("admins").doc(adminId).update({
-        status: "removed",
-      });
-
-      // ===== Remove Firebase custom claim =====
-      await auth.setCustomUserClaims(adminId, { admin: false });
-      console.log(
-        `[admin-admins] ✅ Firebase custom claim removed for ${adminId}`
-      );
-
-      // ===== Log to audit logs =====
+      // ===== Log to audit logs BEFORE deletion =====
       await db.collection("auditLogs").add({
         timestamp: new Date(),
         adminUid: currentAdminUid,
@@ -392,23 +392,59 @@ router.delete(
         targetName: adminData.name || "Unknown",
         targetEmail: adminData.email || "N/A",
         changes: {
-          field: "status",
-          from: "active",
-          to: "removed",
+          field: "admin_status",
+          from: adminData.status || "active",
+          to: "deleted",
         },
         reason: reason || "Admin removed",
         status: "completed",
       });
 
-      console.log(`[admin-admins] ✅ Admin ${adminId} removed`);
+      console.log(
+        `[admin-admins] Audit log created for admin removal: ${adminId}`
+      );
+
+      // ===== Remove Firebase custom claim =====
+      try {
+        await auth.setCustomUserClaims(adminId, { admin: false });
+        console.log(
+          `[admin-admins] ✅ Firebase custom claim removed for ${adminId}`
+        );
+      } catch (claimErr) {
+        console.warn(
+          `[admin-admins] Warning: Could not remove custom claim: ${claimErr.message}`
+        );
+        // Continue with deletion even if claim removal fails
+      }
+
+      // ✅ FIXED: COMPLETELY DELETE the admin document from Firestore
+      // This removes the admin completely so they appear as a regular user
+      // They can be promoted again later if needed
+      await db.collection("admins").doc(adminId).delete();
+      console.log(
+        `[admin-admins] ✅ Admin document completely deleted for ${adminId}`
+      );
 
       res.json({
         success: true,
-        message: "Admin status removed successfully",
+        message:
+          "Admin removed successfully. User is now a regular user and can be promoted again.",
+        removedAdmin: {
+          uid: adminId,
+          name: adminData.name,
+          email: adminData.email,
+          previousRole: adminData.role,
+          removedAt: new Date().toISOString(),
+          removedBy: currentAdminName,
+        },
       });
     } catch (err) {
-      console.error("[admin-admins] Error:", err.message);
-      res.status(500).json({ error: "Failed to remove admin" });
+      console.error("[admin-admins] Error removing admin:", err.message);
+      console.error("[admin-admins] Stack trace:", err.stack);
+      res.status(500).json({
+        error: "Failed to remove admin",
+        details: err.message,
+      });
     }
   }
 );
