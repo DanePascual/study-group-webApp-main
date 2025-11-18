@@ -115,6 +115,17 @@ function validateRoomInput(data) {
   return errors;
 }
 
+// ===== HELPER: Check if room is active =====
+function checkRoomActive(roomData, action = "perform this action") {
+  if (!roomData.isActive) {
+    return {
+      isActive: false,
+      error: `This room has been deactivated by an admin. You cannot ${action}.`,
+    };
+  }
+  return { isActive: true };
+}
+
 // ===== HELPER: Format room response =====
 function formatRoomResponse(data) {
   // Handle createdAt - could be FieldValue.serverTimestamp() or actual Timestamp
@@ -147,9 +158,9 @@ function formatRoomResponse(data) {
     participants: data.participants || [],
     participantCount: (data.participants || []).length,
     createdAt: createdAtStr,
-    isActive: data.isActive || true,
-    hasPassword: !!data.passwordHash, // Frontend needs to know if room is password-protected
-    isPrivate: (data.privacy || "public") === "private", // ✅ NEW: Send isPrivate flag to frontend
+    isActive: data.isActive !== false,
+    hasPassword: !!data.passwordHash,
+    isPrivate: (data.privacy || "public") === "private",
   };
 }
 
@@ -261,19 +272,54 @@ router.post(
   }
 );
 
-// ===== GET /api/study-groups - List all rooms =====
-router.get("/", async (req, res) => {
+// ===== GET /api/study-groups - List all rooms (with deactivation filtering per user) =====
+// ✅ FIXED: Show deactivated rooms ONLY to creators and participants
+router.get("/", firebaseAuthMiddleware, async (req, res) => {
   try {
+    const uid = req.user?.uid;
     const db = admin.firestore();
+
+    // Get ALL rooms (active AND deactivated)
     const snapshot = await db
       .collection("study-groups")
-      .where("isActive", "==", true)
       .orderBy("createdAt", "desc")
       .get();
 
-    const rooms = snapshot.docs.map((doc) => formatRoomResponse(doc.data()));
+    const rooms = snapshot.docs
+      .map((doc) => formatRoomResponse(doc.data()))
+      .filter((room) => {
+        // ✅ If room is active, always show it
+        if (room.isActive) {
+          console.log(
+            `[study-groups] Showing active room ${room.id} to user ${uid}`
+          );
+          return true;
+        }
 
-    console.log(`[study-groups] Fetched ${rooms.length} rooms`);
+        // ✅ If room is deactivated, only show if user is:
+        // 1. The creator (host), OR
+        // 2. A participant
+        if (!room.isActive) {
+          const isCreator = room.creator === uid;
+          const isParticipant = room.participants?.includes(uid);
+
+          if (isCreator || isParticipant) {
+            console.log(
+              `[study-groups] Showing deactivated room ${room.id} to user ${uid} (creator: ${isCreator}, participant: ${isParticipant})`
+            );
+            return true;
+          } else {
+            console.log(
+              `[study-groups] Hiding deactivated room ${room.id} from non-member user ${uid}`
+            );
+            return false;
+          }
+        }
+
+        return false;
+      });
+
+    console.log(`[study-groups] Fetched ${rooms.length} rooms for user ${uid}`);
     res.json(rooms);
   } catch (error) {
     console.error("[study-groups] Error listing rooms:", error);
@@ -291,7 +337,6 @@ router.get("/mine", firebaseAuthMiddleware, async (req, res) => {
     const snapshot = await db
       .collection("study-groups")
       .where("participants", "array-contains", uid)
-      .where("isActive", "==", true)
       .orderBy("createdAt", "desc")
       .get();
 
@@ -325,7 +370,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// ✅ NEW: PUT /api/study-groups/:id/password - Reset room password (owner only, private rooms only)
+// ===== PUT /api/study-groups/:id/password - Reset room password (owner only, private rooms only) =====
 router.put(
   "/:id/password",
   firebaseAuthMiddleware,
@@ -613,6 +658,14 @@ router.post(
         }
 
         const roomData = roomDoc.data();
+
+        // ===== CHECK IF ROOM IS ACTIVE =====
+        const activeCheck = checkRoomActive(roomData, "join this room");
+        if (!activeCheck.isActive) {
+          logSecurityEvent("JOIN_DEACTIVATED_ROOM", uid, { roomId: id });
+          return { status: 403, body: { error: activeCheck.error } };
+        }
+
         const participants = roomData.participants || [];
 
         // ===== Check if already member =====
@@ -754,7 +807,7 @@ router.post(
   }
 );
 
-// ✅ FIXED: DELETE /api/study-groups/:id/participants/:userId - Remove participant =====
+// ===== DELETE /api/study-groups/:id/participants/:userId - Remove participant =====
 // Allow users to remove themselves OR room creator can remove others
 router.delete(
   "/:id/participants/:userId",
@@ -779,7 +832,16 @@ router.delete(
 
       const roomData = doc.data();
 
-      // ✅ FIXED: Allow users to remove themselves OR room creator can remove others
+      // ===== CHECK IF ROOM IS ACTIVE =====
+      const activeCheck = checkRoomActive(
+        roomData,
+        "remove participants from this room"
+      );
+      if (!activeCheck.isActive) {
+        return res.status(403).json({ error: activeCheck.error });
+      }
+
+      // ===== SECURITY: Allow users to remove themselves OR room creator can remove others =====
       const isOwner = roomData.creator === uid;
       const isRemovingSelf = decodedUserId === uid;
 

@@ -176,6 +176,14 @@ app.use("/api/admin/admins", firebaseAuthMiddleware, adminAdminsRoutes);
 const adminAuditLogsRoutes = require("./routes/admin/audit-logs");
 app.use("/api/admin/audit-logs", firebaseAuthMiddleware, adminAuditLogsRoutes);
 
+// ===== ✅ NEW: STUDY ROOMS Routes =====
+const adminStudyRoomsRoutes = require("./routes/admin/study-rooms");
+app.use(
+  "/api/admin/study-rooms",
+  firebaseAuthMiddleware,
+  adminStudyRoomsRoutes
+);
+
 console.log("[server] ✅ Admin routes mounted successfully");
 
 // ===== 404 Handler =====

@@ -84,6 +84,11 @@ router.get("/", adminAuthMiddleware, async (req, res) => {
     const totalAdmins = adminsSnapshot.size;
     console.log(`[admin-dashboard] Total admins: ${totalAdmins}`);
 
+    // ===== ✅ NEW: Get total study rooms =====
+    const roomsSnapshot = await db.collection("study-groups").get();
+    const totalRooms = roomsSnapshot.size;
+    console.log(`[admin-dashboard] Total rooms: ${totalRooms}`);
+
     // ===== Get recent actions (from auditLogs) =====
     const auditLogsSnapshot = await db
       .collection("auditLogs")
@@ -103,7 +108,7 @@ router.get("/", adminAuthMiddleware, async (req, res) => {
       totalReports,
       pendingReports,
       totalAdmins,
-      activeUsers: Math.floor(totalUsers * 0.7), // Placeholder: 70% active
+      totalRooms, // ✅ UPDATED: Added totalRooms instead of activeUsers
     };
 
     console.log("[admin-dashboard] ✅ Dashboard stats fetched successfully");
