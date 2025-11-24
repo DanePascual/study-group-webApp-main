@@ -63,6 +63,9 @@ const PASSWORD_REQUIREMENTS = {
   specialChars: "!@#$%^&*()",
 };
 
+// ===== SECURITY: Allowed courses =====
+const ALLOWED_COURSES = ["BSIT", "CCS", "BSOA", "COA", "ABA"];
+
 // ===== SECURITY: Rate limiters =====
 const verifyOtpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -459,6 +462,15 @@ router.post("/signup", signupLimiter, async (req, res) => {
     logSecurityEvent("SIGNUP_INVALID_STUDENT_ID", { studentId });
     return res.status(400).json({
       error: "Student ID must be in format YYYY-NNNN (e.g., 2024-1234).",
+    });
+  }
+
+  // ===== SECURITY: Validate course value =====
+  if (!ALLOWED_COURSES.includes(sanitizedCourse)) {
+    console.warn(`[auth] Invalid course value: ${course}`);
+    logSecurityEvent("SIGNUP_INVALID_COURSE", { email, course });
+    return res.status(400).json({
+      error: "Invalid course selection. Please choose a valid course.",
     });
   }
 
