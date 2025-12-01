@@ -8,6 +8,71 @@ const admin = require("./config/firebase-admin");
 
 const app = express();
 
+// ===== CORS Configuration (must be BEFORE helmet) =====
+const rawOrigins = (
+  process.env.FRONTEND_ORIGIN ||
+  "http://127.0.0.1:5500,http://localhost:5500,https://studygroup.app,https://www.studygroup.app"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const extraProd = [];
+const frontDomain = (process.env.FRONTEND_DOMAIN || "studygroup.app").trim();
+if (frontDomain) {
+  const proto = (process.env.FRONTEND_PROTOCOL || "https").trim();
+  extraProd.push(`${proto}://${frontDomain}`);
+  extraProd.push(`${proto}://www.${frontDomain}`);
+}
+
+const explicitWhitelist = new Set([...rawOrigins, ...extraProd]);
+
+// ===== DEBUG: Log CORS whitelist =====
+console.log(`[CORS] Whitelist:`, Array.from(explicitWhitelist));
+
+function isLocalHost(origin) {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      console.log(`[CORS] Checking origin: ${origin}`);
+
+      if (!origin) {
+        console.log(`[CORS] No origin provided, allowing`);
+        return cb(null, true);
+      }
+
+      if (explicitWhitelist.has(origin)) {
+        console.log(`[CORS] Origin ${origin} is whitelisted`);
+        return cb(null, true);
+      }
+
+      if (isLocalHost(origin)) {
+        console.log(`[CORS] Origin ${origin} is localhost (dev), allowing`);
+        return cb(null, true);
+      }
+
+      console.log(`[CORS] Origin ${origin} is NOT allowed`);
+      return cb(new Error("CORS not allowed"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 // ===== SECURITY: Apply helmet.js security headers =====
 app.use(
   helmet({
@@ -70,73 +135,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-
-// ===== CORS Configuration =====
-const rawOrigins = (
-  process.env.FRONTEND_ORIGIN ||
-  "http://127.0.0.1:5500,http://localhost:5500,https://studygroup.app,https://www.studygroup.app"
-)
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const extraProd = [];
-const frontDomain = (process.env.FRONTEND_DOMAIN || "studygroup.app").trim();
-if (frontDomain) {
-  const proto = (process.env.FRONTEND_PROTOCOL || "https").trim();
-  extraProd.push(`${proto}://${frontDomain}`);
-  extraProd.push(`${proto}://www.${frontDomain}`);
-}
-
-const explicitWhitelist = new Set([...rawOrigins, ...extraProd]);
-
-// ===== DEBUG: Log CORS whitelist =====
-console.log(`[CORS] Whitelist:`, Array.from(explicitWhitelist));
-
-function isLocalHost(origin) {
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
-
-  try {
-    const u = new URL(origin);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-}
-
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      console.log(`[CORS] Checking origin: ${origin}`);
-
-      if (!origin) {
-        console.log(`[CORS] No origin provided, allowing`);
-        return cb(null, true);
-      }
-
-      if (explicitWhitelist.has(origin)) {
-        console.log(`[CORS] ✅ Origin allowed: ${origin}`);
-        return cb(null, true);
-      }
-
-      if (isLocalHost(origin)) {
-        console.log(`[CORS] ✅ Localhost allowed: ${origin}`);
-        return cb(null, true);
-      }
-
-      console.warn(`[CORS] ❌ Origin blocked: ${origin}`);
-      return cb(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200,
-    maxAge: 86400,
-  })
-);
 
 // ===== Body parsers =====
 app.use(express.json({ limit: "15mb" }));
