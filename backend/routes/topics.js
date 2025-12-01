@@ -447,11 +447,25 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Topic not found" });
     }
 
-    // Authorization: only author can delete
-    if (String(existingTopic.author_id) !== String(uid)) {
+    // ===== AUTHORIZATION: Check if user is topic author or admin =====
+    const isAuthor = String(existingTopic.author_id) === String(uid);
+    const isAdmin = req.user && req.user.isAdmin === true;
+
+    if (!isAuthor && !isAdmin) {
+      console.warn(`[topics.delete] Unauthorized delete attempt by ${uid}`);
       return res
         .status(403)
-        .json({ error: "You can only delete your own topics" });
+        .json({
+          error:
+            "You can only delete your own topics. Admins can delete any topic.",
+        });
+    }
+
+    // Log who is deleting
+    if (isAdmin && !isAuthor) {
+      console.log(
+        `[topics.delete] Admin ${uid} is deleting topic ${id} by author ${existingTopic.author_id}`
+      );
     }
 
     // Delete associated posts (cascade)
@@ -479,6 +493,7 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
       return res.status(500).json({ error: delErr.message || "DB error" });
     }
 
+    console.log(`[topics.delete] ✅ Topic ${id} deleted successfully`);
     res.status(204).send();
   } catch (err) {
     console.error(`Server error DELETE /api/topics/${id}:`, err);
