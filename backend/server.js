@@ -74,17 +74,10 @@ app.use(
 );
 
 // ===== SECURITY: Apply helmet.js security headers =====
+// Note: Disable CSP for API server (only needed for frontend)
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-        styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://www.gstatic.com"],
-      },
-    },
+    contentSecurityPolicy: false,
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
