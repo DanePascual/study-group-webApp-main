@@ -6,6 +6,11 @@ const admin = require("../config/firebase-admin");
 const db = admin.firestore();
 
 async function firebaseAuthMiddleware(req, res, next) {
+  // Skip authentication for OPTIONS (preflight) requests
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "No token provided" });
