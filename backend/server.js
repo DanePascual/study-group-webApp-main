@@ -3,9 +3,48 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const admin = require("./config/firebase-admin");
 
 const app = express();
+
+// ===== SECURITY: Apply helmet.js security headers =====
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://www.gstatic.com"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
+
+// ===== SECURITY: HTTPS Enforcement (production only) =====
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(301, `https://${req.header('host')}${req.originalUrl}`);
+    }
+    next();
+  });
+}
+
+// ===== SECURITY: Additional security headers =====
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
 
 // ===== Request logger =====
 app.use((req, res, next) => {
@@ -94,6 +133,45 @@ app.use(
 // ===== Body parsers =====
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+
+// ===== SECURITY: Rate limiters for admin endpoints =====
+const rateLimit = require("express-rate-limit");
+
+const adminBanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many user ban/unban actions. Please try again later (max 20 per minute).",
+  },
+  skip: (req) => process.env.NODE_ENV !== "production",
+});
+
+const adminPromoteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many admin promotion actions. Please try again later (max 10 per hour).",
+  },
+  skip: (req) => process.env.NODE_ENV !== "production",
+});
+
+const adminSuspendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many admin suspension actions. Please try again later (max 5 per hour).",
+  },
+  skip: (req) => process.env.NODE_ENV !== "production",
+});
 
 // ===== Health check =====
 app.get("/healthz", (req, res) =>
@@ -185,6 +263,11 @@ app.use(
 );
 
 console.log("[server] ✅ Admin routes mounted successfully");
+
+// ===== Export rate limiters for admin routes =====
+module.exports.adminBanLimiter = adminBanLimiter;
+module.exports.adminPromoteLimiter = adminPromoteLimiter;
+module.exports.adminSuspendLimiter = adminSuspendLimiter;
 
 // ===== 404 Handler =====
 app.use((req, res) => {

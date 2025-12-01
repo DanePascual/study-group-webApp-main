@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("../../config/firebase-admin");
 const adminAuthMiddleware = require("../../middleware/adminAuthMiddleware");
+const { adminPromoteLimiter, adminSuspendLimiter } = require("../../server");
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -179,6 +180,7 @@ router.post(
   "/promote-user",
   adminAuthMiddleware,
   superadminOnly,
+  adminPromoteLimiter,
   async (req, res) => {
     try {
       let { uid, email, role, permissions, reason } = req.body;
@@ -455,6 +457,7 @@ router.put(
   "/:uid/suspend",
   adminAuthMiddleware,
   superadminOnly,
+  adminSuspendLimiter,
   async (req, res) => {
     try {
       const adminId = req.params.uid;
@@ -522,6 +525,7 @@ router.put(
   "/:uid/unsuspend",
   adminAuthMiddleware,
   superadminOnly,
+  adminSuspendLimiter,
   async (req, res) => {
     try {
       const adminId = req.params.uid;

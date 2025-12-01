@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("../../config/firebase-admin");
 const adminAuthMiddleware = require("../../middleware/adminAuthMiddleware");
+const { adminBanLimiter } = require("../../server");
 
 const db = admin.firestore();
 
@@ -152,7 +153,7 @@ router.get("/:uid", adminAuthMiddleware, async (req, res) => {
 
 // PUT /api/admin/users/:uid/ban
 // Ban user
-router.put("/:uid/ban", adminAuthMiddleware, async (req, res) => {
+router.put("/:uid/ban", adminAuthMiddleware, adminBanLimiter, async (req, res) => {
   try {
     const userId = req.params.uid;
     const { reason, duration } = req.body;
@@ -221,7 +222,7 @@ router.put("/:uid/ban", adminAuthMiddleware, async (req, res) => {
 
 // PUT /api/admin/users/:uid/unban
 // Unban user
-router.put("/:uid/unban", adminAuthMiddleware, async (req, res) => {
+router.put("/:uid/unban", adminAuthMiddleware, adminBanLimiter, async (req, res) => {
   try {
     const userId = req.params.uid;
     const adminUid = req.user.uid;
