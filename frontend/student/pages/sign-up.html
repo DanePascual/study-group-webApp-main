@@ -18,194 +18,228 @@
   <body>
     <div class="main-container">
       <div class="signup-card">
-        <!-- Left side - Password Requirements -->
+        <!-- Left side - Password Requirements & Login -->
         <div class="left-section">
-          <div class="requirements-container">
-            <div class="requirements-title">
-              <i class="bi bi-lock-fill"></i> Password Requirements
+          <div class="left-content">
+            <div class="welcome-header">
+              <div class="logo-icon">
+                <i class="bi bi-mortarboard-fill"></i>
+              </div>
+              <h2>Study Group</h2>
+              <p>Join Our Learning Community</p>
             </div>
-            <div class="requirements-list">
-              <div class="requirement-item" id="req-length">
-                <span class="requirement-icon">
-                  <i class="bi bi-circle"></i>
-                </span>
-                <span class="requirement-text">At least 8 characters</span>
-              </div>
-              <div class="requirement-item" id="req-uppercase">
-                <span class="requirement-icon">
-                  <i class="bi bi-circle"></i>
-                </span>
-                <span class="requirement-text">1 uppercase letter (A-Z)</span>
-              </div>
-              <div class="requirement-item" id="req-lowercase">
-                <span class="requirement-icon">
-                  <i class="bi bi-circle"></i>
-                </span>
-                <span class="requirement-text">1 lowercase letter (a-z)</span>
-              </div>
-              <div class="requirement-item" id="req-number">
-                <span class="requirement-icon">
-                  <i class="bi bi-circle"></i>
-                </span>
-                <span class="requirement-text">1 number (0-9)</span>
-              </div>
-              <div class="requirement-item" id="req-special">
-                <span class="requirement-icon">
-                  <i class="bi bi-circle"></i>
-                </span>
-                <span class="requirement-text"
-                  >1 special character (!@#$...)</span
-                >
-              </div>
-            </div>
-          </div>
 
-          <div class="login-section">
-            <div class="login-text">Already have an account?</div>
-            <button class="login-btn" onclick="goToLogin()">Log in</button>
+            <div class="requirements-container">
+              <div class="requirements-title">
+                <i class="bi bi-lock-fill"></i> Password Requirements
+              </div>
+              <div class="requirements-list">
+                <div class="requirement-item" id="req-length">
+                  <span class="requirement-icon">
+                    <i class="bi bi-circle"></i>
+                  </span>
+                  <span class="requirement-text">At least 8 characters</span>
+                </div>
+                <div class="requirement-item" id="req-uppercase">
+                  <span class="requirement-icon">
+                    <i class="bi bi-circle"></i>
+                  </span>
+                  <span class="requirement-text">1 uppercase letter (A-Z)</span>
+                </div>
+                <div class="requirement-item" id="req-lowercase">
+                  <span class="requirement-icon">
+                    <i class="bi bi-circle"></i>
+                  </span>
+                  <span class="requirement-text">1 lowercase letter (a-z)</span>
+                </div>
+                <div class="requirement-item" id="req-number">
+                  <span class="requirement-icon">
+                    <i class="bi bi-circle"></i>
+                  </span>
+                  <span class="requirement-text">1 number (0-9)</span>
+                </div>
+                <div class="requirement-item" id="req-special">
+                  <span class="requirement-icon">
+                    <i class="bi bi-circle"></i>
+                  </span>
+                  <span class="requirement-text"
+                    >1 special character (!@#$...)</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="login-section">
+              <div class="login-text">Already have an account?</div>
+              <button class="login-btn" onclick="goToLogin()">Log in</button>
+            </div>
           </div>
         </div>
 
         <!-- Right side - Sign Up Form -->
         <div class="right-section">
-          <h1 class="signup-title">Create Your Account</h1>
+          <div class="form-container">
+            <div class="form-header">
+              <h1 class="signup-title">Create Your Account</h1>
+              <p class="form-subtitle">
+                Fill in the details below to get started
+              </p>
+            </div>
 
-          <form id="signupForm">
-            <!-- Name Fields -->
-            <div class="form-row">
+            <form id="signupForm">
+              <!-- Name Fields -->
+              <div class="form-row">
+                <div class="form-group input-icon-group">
+                  <i class="bi bi-person input-icon"></i>
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="firstName"
+                    placeholder="First Name"
+                    required
+                  />
+                </div>
+                <div class="form-group input-icon-group">
+                  <i class="bi bi-person input-icon"></i>
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="lastName"
+                    placeholder="Last Name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <!-- Email Field -->
               <div class="form-group input-icon-group">
-                <i class="bi bi-person input-icon"></i>
+                <i class="bi bi-envelope input-icon"></i>
                 <input
-                  type="text"
+                  type="email"
                   class="form-input"
-                  id="firstName"
-                  placeholder="First Name"
+                  id="email"
+                  placeholder="Enter your college email"
                   required
                 />
               </div>
+
+              <!-- OTP Request Button -->
+              <div class="form-group centered-btn-container">
+                <button
+                  type="button"
+                  class="request-otp-btn"
+                  id="requestOtpBtn"
+                >
+                  <i class="bi bi-shield-check"></i> Request OTP
+                </button>
+              </div>
+
+              <!-- Student ID Field -->
               <div class="form-group input-icon-group">
-                <i class="bi bi-person input-icon"></i>
+                <i class="bi bi-card-text input-icon"></i>
                 <input
                   type="text"
                   class="form-input"
-                  id="lastName"
-                  placeholder="Last Name"
+                  id="studentId"
+                  placeholder="Student ID Number"
                   required
                 />
               </div>
-            </div>
 
-            <!-- Email Field -->
-            <div class="form-group input-icon-group">
-              <i class="bi bi-envelope input-icon"></i>
-              <input
-                type="email"
-                class="form-input"
-                id="email"
-                placeholder="Enter your college email"
-                required
-              />
-            </div>
+              <!-- Course & Year -->
+              <div class="form-row">
+                <div class="form-group input-icon-group">
+                  <i class="bi bi-book input-icon"></i>
+                  <select class="form-input" id="course" required>
+                    <option value="">Select Course</option>
+                    <option value="BSIT">
+                      Bachelor of Science Information Technology (BSIT)
+                    </option>
+                    <option value="CCS">
+                      Certificate in Computer Sciences (CCS)
+                    </option>
+                    <option value="BSOA">
+                      Bachelor of Science in Office Administration (BSOA)
+                    </option>
+                    <option value="COA">
+                      Certificate in Office Administration (COA)
+                    </option>
+                    <option value="ABA">
+                      Associate in Business Administration (ABA)
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group input-icon-group">
+                  <i class="bi bi-calendar input-icon"></i>
+                  <select class="form-input" id="yearLevel" required>
+                    <option value="">Year Level</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                    <option value="5">5th Year</option>
+                  </select>
+                </div>
+              </div>
 
-            <!-- OTP Request Button -->
-            <div class="form-group centered-btn-container">
-              <button type="button" class="request-otp-btn" id="requestOtpBtn">
-                Request OTP
-              </button>
-            </div>
-
-            <!-- Student ID Field -->
-            <div class="form-group input-icon-group">
-              <i class="bi bi-card-text input-icon"></i>
-              <input
-                type="text"
-                class="form-input"
-                id="studentId"
-                placeholder="Student ID Number"
-                required
-              />
-            </div>
-
-            <!-- Course & Year -->
-            <div class="form-row">
+              <!-- Password Field -->
               <div class="form-group input-icon-group">
-                <i class="bi bi-book input-icon"></i>
-                <select class="form-input" id="course" required>
-                  <option value="">Select Course</option>
-                  <option value="BSIT">BS Information Technology</option>
-                  <option value="BSCS">BS Computer Science</option>
-                  <option value="BSCpE">BS Computer Engineering</option>
-                  <option value="BSECE">
-                    BS Electronics & Communications Engineering
-                  </option>
-                  <option value="BSEE">BS Electrical Engineering</option>
-                  <option value="BSME">BS Mechanical Engineering</option>
-                  <option value="BSCE">BS Civil Engineering</option>
-                  <option value="BSA">BS Architecture</option>
-                </select>
+                <i class="bi bi-lock input-icon"></i>
+                <input
+                  type="password"
+                  class="form-input"
+                  id="password"
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  onclick="togglePassword('password', 'passwordToggleIcon')"
+                >
+                  <i class="bi bi-eye" id="passwordToggleIcon"></i>
+                </button>
+                <div class="password-strength">
+                  <div
+                    class="password-strength-bar"
+                    id="passwordStrengthBar"
+                  ></div>
+                </div>
               </div>
+
+              <!-- Confirm Password Field -->
               <div class="form-group input-icon-group">
-                <i class="bi bi-calendar input-icon"></i>
-                <select class="form-input" id="yearLevel" required>
-                  <option value="">Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                  <option value="5">5th Year</option>
-                </select>
+                <i class="bi bi-lock input-icon"></i>
+                <input
+                  type="password"
+                  class="form-input"
+                  id="confirmPassword"
+                  placeholder="Confirm password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  onclick="togglePassword('confirmPassword', 'confirmPasswordToggleIcon')"
+                >
+                  <i class="bi bi-eye" id="confirmPasswordToggleIcon"></i>
+                </button>
               </div>
-            </div>
 
-            <!-- Password Field -->
-            <div class="form-group input-icon-group">
-              <i class="bi bi-lock input-icon"></i>
-              <input
-                type="password"
-                class="form-input"
-                id="password"
-                placeholder="Enter your password"
-                required
-              />
-              <button
-                type="button"
-                class="password-toggle"
-                onclick="togglePassword('password', 'passwordToggleIcon')"
-              >
-                <i class="bi bi-eye" id="passwordToggleIcon"></i>
+              <button type="submit" class="signup-btn" id="signupBtn">
+                <span class="loading-spinner" id="loadingSpinner"></span>
+                <span id="btnText">Create Account</span>
               </button>
-              <div class="password-strength">
-                <div
-                  class="password-strength-bar"
-                  id="passwordStrengthBar"
-                ></div>
-              </div>
-            </div>
+            </form>
 
-            <!-- Confirm Password Field -->
-            <div class="form-group input-icon-group">
-              <i class="bi bi-lock input-icon"></i>
-              <input
-                type="password"
-                class="form-input"
-                id="confirmPassword"
-                placeholder="Confirm password"
-                required
-              />
-              <button
-                type="button"
-                class="password-toggle"
-                onclick="togglePassword('confirmPassword', 'confirmPasswordToggleIcon')"
-              >
-                <i class="bi bi-eye" id="confirmPasswordToggleIcon"></i>
-              </button>
+            <div class="form-footer">
+              <p>
+                By signing up, you agree to our
+                <a href="#">Terms of Service</a> and
+                <a href="#">Privacy Policy</a>
+              </p>
             </div>
-
-            <button type="submit" class="signup-btn" id="signupBtn">
-              <span class="loading-spinner" id="loadingSpinner"></span>
-              <span id="btnText">Sign up</span>
-            </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -214,23 +248,31 @@
     <div id="otpModal" class="modal">
       <div class="modal-content">
         <span class="close-btn">&times;</span>
-        <h2>Email Verification</h2>
+        <div class="modal-header">
+          <i class="bi bi-shield-check"></i>
+          <h2>Email Verification</h2>
+        </div>
+        <p class="modal-description">
+          Enter the 6-digit code we sent to your email
+        </p>
         <div class="form-group input-icon-group">
           <i class="bi bi-shield-check input-icon"></i>
           <input
             type="text"
-            class="form-input"
+            class="form-input modal-input"
             id="otp"
-            placeholder="Enter OTP code"
+            placeholder="000000"
             maxlength="6"
             autocomplete="one-time-code"
+            inputmode="numeric"
           />
         </div>
-        <div id="otpHint" class="otp-hint" style="font-size: smaller">
-          We've sent a 6-digit code to your email. Check your inbox (and spam).
+        <div id="otpHint" class="otp-hint">
+          We've sent a 6-digit code to your email. Check your inbox (and spam
+          folder).
         </div>
         <button type="button" class="otp-btn-modal" id="verifyOtpBtn">
-          Verify OTP
+          <i class="bi bi-check-lg"></i> Verify OTP
         </button>
       </div>
     </div>

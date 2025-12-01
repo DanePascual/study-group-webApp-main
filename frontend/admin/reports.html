@@ -19,10 +19,11 @@
         </div>
 
         <nav class="sidebar-nav">
-          <a href="index.html" class="nav-item">Welcome</a>
           <a href="dashboard.html" class="nav-item">Dashboard</a>
           <a href="users.html" class="nav-item">Users</a>
           <a href="reports.html" class="nav-item active">Reports</a>
+          <a href="study-rooms.html" class="nav-item">Study Rooms</a>
+          <a href="discussions.html" class="nav-item">Discussions</a>
           <a href="admins.html" class="nav-item">Admins</a>
           <a href="audit-logs.html" class="nav-item">Audit Logs</a>
         </nav>
@@ -274,9 +275,6 @@
       <div class="modal-content modal-lg">
         <div class="modal-header">
           <h2>Report Details</h2>
-          <button class="modal-close" onclick="closeModal('viewReportModal')">
-            ×
-          </button>
         </div>
         <div class="modal-body">
           <div class="report-details">
@@ -362,6 +360,14 @@
             </div>
           </div>
         </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('viewReportModal')"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
 
@@ -370,9 +376,6 @@
       <div class="modal-content modal-md">
         <div class="modal-header">
           <h2>Update Report Status</h2>
-          <button class="modal-close" onclick="closeModal('updateReportModal')">
-            ×
-          </button>
         </div>
         <div class="modal-body">
           <div class="form-group">

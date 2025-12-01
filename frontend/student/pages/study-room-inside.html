@@ -534,6 +534,82 @@
       </div>
     </div>
 
+    <!-- ✅ NEW: ROOM LOCKED/DEACTIVATED MODAL -->
+    <div
+      class="modal fade"
+      id="roomLockedModal"
+      tabindex="-1"
+      aria-labelledby="roomLockedLabel"
+      aria-hidden="true"
+      data-bs-backdrop="static"
+      data-bs-keyboard="false"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div
+            class="modal-header"
+            style="
+              background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+              border: none;
+            "
+          >
+            <h5
+              class="modal-title"
+              id="roomLockedLabel"
+              style="
+                color: white;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              <i class="bi bi-lock-fill"></i> Room Locked
+            </h5>
+          </div>
+          <div class="modal-body" style="text-align: center; padding: 30px">
+            <div style="font-size: 48px; margin-bottom: 20px">🔒</div>
+            <h4
+              style="
+                color: var(--dark-text);
+                margin-bottom: 12px;
+                font-weight: 600;
+              "
+            >
+              Room Unavailable
+            </h4>
+            <p
+              style="
+                color: var(--medium-text);
+                line-height: 1.6;
+                margin-bottom: 20px;
+                font-size: 15px;
+              "
+            >
+              This room has been <strong>locked by an administrator</strong>.
+              You cannot interact with this room or send messages.
+            </p>
+            <p style="color: var(--light-text); font-size: 13px; margin: 0">
+              If you believe this is an error, please contact the room creator
+              or administrator.
+            </p>
+          </div>
+          <div
+            class="modal-footer"
+            style="border-top: 1px solid #e0e0e0; padding: 15px 20px"
+          >
+            <a
+              href="study-rooms.html"
+              class="btn btn-primary"
+              style="background: #4caf50; border-color: #4caf50"
+            >
+              <i class="bi bi-arrow-left"></i> Back to Study Rooms
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -571,5 +647,18 @@
     <!-- App Modules -->
     <script type="module" src="../scripts/study-group-inside/index.js"></script>
     <script type="module" src="../scripts/sidebar.js"></script>
+
+    <!-- ✅ NEW: Expose window functions for room lock modal -->
+    <script type="module">
+      import {
+        showToast,
+        closeToast,
+      } from "../scripts/study-group-inside/utils.js";
+      window.showToast = showToast;
+      window.closeToast = closeToast;
+      window.closeRoomLockedModal = function () {
+        window.location.href = "study-rooms.html";
+      };
+    </script>
   </body>
 </html>

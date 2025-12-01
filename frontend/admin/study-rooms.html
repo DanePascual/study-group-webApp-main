@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Rooms - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/study-rooms.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="study-rooms.html" class="nav-item active">Study Rooms</a>
+          <a href="discussions.html" class="nav-item">Discussions</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Study Rooms Management</h1>
+          <p>Manage study rooms and monitor activity</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Stats Cards -->
+          <div class="dashboard-section">
+            <h2 class="section-title">Room Statistics</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Rooms</div>
+                <div class="stat-number" id="totalRoomsCard">-</div>
+                <div class="stat-description">All study rooms</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Active Rooms</div>
+                <div class="stat-number" id="activeRoomsCard">-</div>
+                <div class="stat-description">Currently active</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Public Rooms</div>
+                <div class="stat-number" id="publicRoomsCard">-</div>
+                <div class="stat-description">Public sessions</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Private Rooms</div>
+                <div class="stat-number" id="privateRoomsCard">-</div>
+                <div class="stat-description">Private sessions</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters Section -->
+          <div class="filters-section">
+            <div class="filters-bar">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by room name or creator..."
+                class="search-input"
+              />
+
+              <!-- STATUS FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="statusTrigger"
+                  onclick="toggleCustomSelect('status')"
+                >
+                  <span class="custom-select-value" id="statusValue"
+                    >All Rooms</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="statusDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', '', 'All Rooms')"
+                  >
+                    All Rooms
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'active', 'Active')"
+                  >
+                    Active
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('status', 'inactive', 'Inactive')"
+                  >
+                    Inactive
+                  </div>
+                </div>
+              </div>
+
+              <!-- PRIVACY FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="privacyTrigger"
+                  onclick="toggleCustomSelect('privacy')"
+                >
+                  <span class="custom-select-value" id="privacyValue"
+                    >All Privacy</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="privacyDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('privacy', '', 'All Privacy')"
+                  >
+                    All Privacy
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('privacy', 'public', 'Public')"
+                  >
+                    Public
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('privacy', 'private', 'Private')"
+                  >
+                    Private
+                  </div>
+                </div>
+              </div>
+
+              <button
+                id="clearFiltersBtn"
+                class="clear-filters-btn"
+                onclick="clearAllFilters()"
+                title="Clear all filters"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Study Rooms Table -->
+          <div class="table-wrapper">
+            <div class="table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Room Name</th>
+                    <th>Creator</th>
+                    <th>Participants</th>
+                    <th>Privacy</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="roomsList">
+                  <tr>
+                    <td colspan="7" class="loading">
+                      <div class="spinner"></div>
+                      <span>Loading study rooms...</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none">
+              <div class="empty-state-content">
+                <div class="empty-icon">🏫</div>
+                <h3>No Study Rooms Found</h3>
+                <p>There are no study rooms matching your filters.</p>
+                <button onclick="clearAllFilters()" class="btn btn-primary">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-section">
+            <div class="pagination">
+              <button
+                id="prevBtn"
+                class="pagination-btn pagination-nav"
+                title="Previous page"
+              >
+                ←
+              </button>
+              <div class="page-info">
+                <span id="pageInfo">Page 1 of 1</span>
+                <span id="roomCount" class="room-count">(0 rooms)</span>
+              </div>
+              <button
+                id="nextBtn"
+                class="pagination-btn pagination-nav"
+                title="Next page"
+              >
+                →
+              </button>
+            </div>
+
+            <!-- Page Size Selector -->
+            <div class="page-size-selector">
+              <label for="limitSelect">Show:</label>
+              <select
+                id="limitSelect"
+                class="limit-select"
+                onchange="changePageSize()"
+              >
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal: View Room Details -->
+    <div id="viewRoomModal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2>Room Details</h2>
+        </div>
+        <div class="modal-body">
+          <div class="room-details">
+            <div class="details-row">
+              <div class="detail-section">
+                <h4>Room Information</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Room ID</label>
+                    <p id="detailRoomId" class="monospace">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Room Name</label>
+                    <p id="detailRoomName">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Description</label>
+                    <p id="detailDescription">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Privacy</label>
+                    <p id="detailPrivacy">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Status</label>
+                    <p id="detailStatus">-</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h4>Creator Information</h4>
+                <div class="detail-group">
+                  <div class="detail-item">
+                    <label>Creator Name</label>
+                    <p id="detailCreatorName">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Creator Email</label>
+                    <p id="detailCreatorEmail">-</p>
+                  </div>
+                  <div class="detail-item">
+                    <label>Created Date</label>
+                    <p id="detailCreatedAt">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section full-width">
+              <h4>Participants</h4>
+              <div class="detail-group">
+                <div class="detail-item">
+                  <label>Total Participants</label>
+                  <p id="detailParticipantCount">-</p>
+                </div>
+                <div
+                  id="detailParticipantsList"
+                  class="participants-list"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('viewRoomModal')"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Deactivate Room -->
+    <div id="deactivateRoomModal" class="modal">
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Deactivate Room</h2>
+          <button
+            class="modal-close"
+            onclick="closeModal('deactivateRoomModal')"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Are you sure you want to deactivate
+            <strong id="deactivateRoomName">this room</strong>?
+          </p>
+          <p
+            style="
+              color: var(--text-secondary);
+              font-size: 13px;
+              margin-top: 12px;
+            "
+          >
+            This room will be marked as inactive but not deleted.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('deactivateRoomModal')"
+          >
+            Cancel
+          </button>
+          <button class="btn btn-warning" onclick="confirmDeactivateRoom()">
+            Deactivate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Delete Room -->
+    <div id="deleteRoomModal" class="modal">
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Delete Room</h2>
+        </div>
+        <div class="modal-body">
+          <p>
+            Are you sure you want to delete
+            <strong id="deleteRoomName">this room</strong>?
+          </p>
+          <p
+            style="color: var(--text-danger); font-size: 13px; margin-top: 12px"
+          >
+            ⚠️ This action is permanent and cannot be undone.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="closeModal('deleteRoomModal')"
+          >
+            Cancel
+          </button>
+          <button class="btn btn-danger" onclick="confirmDeleteRoom()">
+            Delete Room
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script type="module" src="js/admin-study-rooms.js"></script>
+  </body>
+</html>

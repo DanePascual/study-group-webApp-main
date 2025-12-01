@@ -72,12 +72,26 @@ function toggleModalCustomSelect(type) {
   activeModalCustomSelect = dropdown.classList.contains("active") ? type : null;
 }
 
+// ✅ FIXED: Updated to correctly update both the display text and hidden input value
 function selectModalCustomOption(type, value, label) {
   if (type === "promoteRole") {
-    document.getElementById("promoteRoleValue").value = value;
-    document.getElementById("promoteRoleValue").textContent = label;
-    document.getElementById("promoteRoleDropdown").classList.remove("active");
-    document.getElementById("promoteRoleTrigger").classList.remove("active");
+    // Update hidden input with the actual value
+    const hiddenInput = document.getElementById("promoteRoleValue");
+    if (hiddenInput) {
+      hiddenInput.value = value;
+    }
+
+    // Update the display text in the span
+    const displaySpan = document.querySelector(".custom-select-value-modal");
+    if (displaySpan) {
+      displaySpan.textContent = label;
+    }
+
+    // Close the dropdown
+    const dropdown = document.getElementById("promoteRoleDropdown");
+    const trigger = document.getElementById("promoteRoleTrigger");
+    if (dropdown) dropdown.classList.remove("active");
+    if (trigger) trigger.classList.remove("active");
   }
 
   activeModalCustomSelect = null;
@@ -93,7 +107,17 @@ async function loadAdmins() {
     console.log("[admin-admins] ✅ Admins fetched:", response);
 
     allAdmins = response.admins || [];
-    displayAdmins(allAdmins);
+
+    // ✅ FIXED: Filter out removed admins before displaying
+    const activeAdmins = allAdmins.filter(
+      (admin) => admin.status !== "removed"
+    );
+
+    console.log(
+      `[admin-admins] Total admins: ${allAdmins.length}, Active admins: ${activeAdmins.length}`
+    );
+
+    displayAdmins(activeAdmins);
   } catch (err) {
     console.error("[admin-admins] Error:", err.message);
     if (window.showError) {
@@ -281,7 +305,8 @@ async function confirmPromoteUser() {
 function resetPromoteForm() {
   document.getElementById("promoteEmail").value = "";
   document.getElementById("promoteRoleValue").value = "";
-  document.getElementById("promoteRoleValue").textContent = "-- Select Role --";
+  document.querySelector(".custom-select-value-modal").textContent =
+    "-- Select Role --";
   document.getElementById("promoteReason").value = "";
 }
 
@@ -327,7 +352,7 @@ function confirmRemoveAdmin(uid) {
   document.getElementById("confirmTitle").textContent = "Remove Admin";
   document.getElementById("confirmMessage").textContent =
     "Are you sure you want to remove this admin? This action is irreversible.";
-  document.getElementById("confirmActionBtn").className = "btn btn-secondary";
+  document.getElementById("confirmActionBtn").className = "btn btn-danger";
   document.getElementById("confirmActionBtn").textContent = "Remove";
 
   openModal("confirmActionModal");

@@ -508,6 +508,9 @@ function scrollToTop() {
 }
 
 // ===== Make functions globally available =====
+// ✅ FIXED: Added closeModal and openModal to window global object
+window.openModal = openModal;
+window.closeModal = closeModal;
 window.openViewUserModal = openViewUserModal;
 window.openBanModal = openBanModal;
 window.confirmBanUser = confirmBanUser;

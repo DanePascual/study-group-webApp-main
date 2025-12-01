@@ -1582,6 +1582,54 @@ body.dark-mode .form-select:focus {
   color: #e0e0e0;
 }
 
+/* ✅ NEW: ROOM LOCKED/DEACTIVATED MODAL STYLES */
+
+/* Room Locked Modal - Dark Mode Support */
+body.dark-mode #roomLockedModal .modal-content {
+  background: #2a2a2a;
+  color: #e0e0e0;
+}
+
+body.dark-mode #roomLockedModal .modal-body {
+  background: #2a2a2a;
+  color: #e0e0e0;
+}
+
+body.dark-mode #roomLockedModal .modal-body h4 {
+  color: #e0e0e0;
+}
+
+body.dark-mode #roomLockedModal .modal-body p {
+  color: #bbb;
+}
+
+body.dark-mode #roomLockedModal .modal-footer {
+  background: #2a2a2a;
+  border-top-color: #333;
+}
+
+#roomLockedModal .modal-header {
+  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+  border: none;
+}
+
+body.dark-mode #roomLockedModal .modal-header {
+  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+}
+
+/* Room Locked Overlay */
+.room-locked-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ===== TOAST ===== */
 .toast-container {
   position: fixed;

@@ -551,5 +551,7 @@ window.clearAllFilters = clearAllFilters;
 window.changePageSize = changePageSize;
 window.toggleCustomSelect = toggleCustomSelect;
 window.selectCustomOption = selectCustomOption;
+window.closeModal = closeModal;
+window.openModal = openModal;
 
 console.log("[admin-audit-logs] Module loaded ✅");

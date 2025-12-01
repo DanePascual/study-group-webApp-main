@@ -410,6 +410,65 @@
       </div>
     </div>
 
+    <!-- Room Deactivated Modal -->
+    <div
+      class="modal fade"
+      id="roomDeactivatedModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div
+            class="modal-header"
+            style="
+              background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+            "
+          >
+            <h5 class="modal-title" style="color: white">
+              <i class="bi bi-lock-fill"></i> Room Deactivated
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+              style="filter: invert(1)"
+            ></button>
+          </div>
+          <div class="modal-body" style="text-align: center; padding: 30px">
+            <div style="font-size: 48px; margin-bottom: 20px">🔒</div>
+            <h4 style="color: var(--dark-text); margin-bottom: 12px">
+              Room Unavailable
+            </h4>
+            <p
+              style="
+                color: var(--medium-text);
+                line-height: 1.6;
+                margin-bottom: 20px;
+              "
+            >
+              This room has been deactivated by an administrator. You cannot
+              perform any actions in this room.
+            </p>
+            <p style="color: var(--light-text); font-size: 13px">
+              If you believe this is an error, please contact the room creator
+              or administrator.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="window.closeDeactivationModal()"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -426,12 +485,14 @@
         enterRoom,
         logout,
         handleRoomJoin,
+        closeDeactivationModal,
       } from "../scripts/study-rooms.js";
       window.showToast = showToast;
       window.closeToast = closeToast;
       window.enterRoom = enterRoom;
       window.logout = logout;
       window.handleRoomJoin = handleRoomJoin;
+      window.closeDeactivationModal = closeDeactivationModal;
     </script>
 
     <!-- Privacy Radio Change Listener -->

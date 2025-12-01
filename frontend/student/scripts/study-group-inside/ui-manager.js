@@ -3,6 +3,8 @@
 // ✅ UPDATED: Leave Room button handler
 // ✅ UPDATED: Password reset form with validation
 // ✅ UPDATED: Fixed Security tab visibility with proper initialization order
+// ✅ NEW: Room deactivation lock functionality
+
 import { showToast, closeToast } from "./utils.js";
 
 export class UiManager {
@@ -10,10 +12,18 @@ export class UiManager {
     this.userAuth = userAuth;
     this.roomManager = roomManager;
     this.autoSaveInterval = null;
+    this.roomLockedModal = null;
   }
 
   init() {
     // ✅ REMOVED: initializeTheme() - sidebar.js handles this globally
+
+    // ✅ NEW: Check room deactivation FIRST
+    if (this.roomManager.isRoomDeactivated) {
+      this.lockRoomUI();
+      return;
+    }
+
     this.initializeSettingsModal();
     this.initializeInviteSystem();
     this.initializeLeaveRoom();
@@ -31,10 +41,143 @@ export class UiManager {
     window.closeToast = closeToast;
   }
 
-  // ✅ DELETED: initializeTheme() method entirely
+  // ✅ NEW: Lock the entire room UI due to deactivation
+  lockRoomUI() {
+    console.warn("[ui-manager] 🔒 LOCKING ROOM UI - Room is deactivated");
+
+    // Disable all interactive elements
+    this.disableAllInteractiveElements();
+
+    // Show deactivation modal
+    this.showRoomDeactivatedModal();
+  }
+
+  // ✅ NEW: Disable all interactive elements
+  disableAllInteractiveElements() {
+    console.log("[ui-manager] Disabling all interactive elements");
+
+    // Disable chat input
+    const messageInput = document.getElementById("messageInput");
+    if (messageInput) {
+      messageInput.disabled = true;
+      messageInput.placeholder = "Room is locked - cannot send messages";
+      messageInput.style.opacity = "0.5";
+      messageInput.style.cursor = "not-allowed";
+    }
+
+    // Disable send button
+    const sendBtn = document.querySelector(".chat-send");
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = "0.5";
+      sendBtn.style.cursor = "not-allowed";
+    }
+
+    // Disable file upload/attach button
+    const attachBtn = document.querySelector(".chat-action-btn");
+    if (attachBtn) {
+      attachBtn.disabled = true;
+      attachBtn.style.opacity = "0.5";
+      attachBtn.style.cursor = "not-allowed";
+    }
+
+    // Disable video call button
+    const videoBtn =
+      document.getElementById("videoCallBtn") ||
+      document.querySelector(".video-call-btn");
+    if (videoBtn) {
+      videoBtn.disabled = true;
+      videoBtn.style.opacity = "0.5";
+      videoBtn.style.cursor = "not-allowed";
+    }
+
+    // Disable settings button
+    const settingsBtn = document.querySelector(".settings-btn");
+    if (settingsBtn) {
+      settingsBtn.disabled = true;
+      settingsBtn.style.opacity = "0.5";
+      settingsBtn.style.cursor = "not-allowed";
+    }
+
+    // Disable invite button
+    const inviteBtn = document.getElementById("inviteBtn");
+    if (inviteBtn) {
+      inviteBtn.disabled = true;
+      inviteBtn.style.opacity = "0.5";
+      inviteBtn.style.cursor = "not-allowed";
+    }
+
+    // Disable leave room button - they must use back button
+    const leaveBtn = document.getElementById("leaveRoomBtn");
+    if (leaveBtn) {
+      leaveBtn.disabled = true;
+      leaveBtn.style.opacity = "0.5";
+      leaveBtn.style.cursor = "not-allowed";
+    }
+
+    // Add overlay to chat area
+    const chatContainer = document.querySelector(".chat-container");
+    if (chatContainer) {
+      const overlay = document.createElement("div");
+      overlay.className = "room-locked-overlay";
+      overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        pointer-events: none;
+        z-index: 1;
+      `;
+      chatContainer.appendChild(overlay);
+    }
+
+    console.log("[ui-manager] ✅ All interactive elements disabled");
+  }
+
+  // ✅ NEW: Show room deactivated modal
+  showRoomDeactivatedModal() {
+    try {
+      const modalElement = document.getElementById("roomLockedModal");
+      if (!modalElement) {
+        console.error("[ui-manager] Room locked modal element not found");
+        showToast(
+          "This room has been deactivated. You cannot interact here.",
+          "error"
+        );
+        return;
+      }
+
+      if (!this.roomLockedModal) {
+        this.roomLockedModal = new bootstrap.Modal(modalElement, {
+          backdrop: "static",
+          keyboard: false,
+        });
+      }
+
+      this.roomLockedModal.show();
+      console.log("[ui-manager] ✅ Room deactivated modal shown");
+    } catch (err) {
+      console.error("[ui-manager] Error showing room locked modal:", err);
+      showToast(
+        "This room has been deactivated. You cannot interact here.",
+        "error"
+      );
+    }
+  }
+
+  // ✅ NEW: Close room locked modal and go back
+  closeRoomLockedModal() {
+    if (this.roomLockedModal) {
+      this.roomLockedModal.hide();
+    }
+    window.location.href = "study-rooms.html";
+  }
 
   initializeSettingsModal() {
-    const settingsBtn = document.getElementById("settingsBtn");
+    const settingsBtn = document.querySelector(".settings-btn");
     if (settingsBtn) {
       settingsBtn.style.display = "block";
       settingsBtn.addEventListener("click", () => this.openSettingsModal());
@@ -637,3 +780,15 @@ export class UiManager {
     if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
   }
 }
+
+// ✅ NEW: Expose lock functions globally
+window.closeRoomLockedModal = function () {
+  if (
+    window.uiModule &&
+    typeof window.uiModule.closeRoomLockedModal === "function"
+  ) {
+    window.uiModule.closeRoomLockedModal();
+  } else {
+    window.location.href = "study-rooms.html";
+  }
+};

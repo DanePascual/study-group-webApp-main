@@ -46,6 +46,9 @@ input::-ms-clear {
   --shadow-medium: rgba(0, 0, 0, 0.15);
   --border-radius: 12px;
   --transition: all 0.3s ease;
+  --card-bg: #ffffff;
+  --input-bg: #f9fafb;
+  --border-color: #e5e7eb;
 }
 
 * {
@@ -69,6 +72,9 @@ body.dark-mode {
   --light-text: #999;
   --background-light: #1a1a1a;
   --border-light: #333;
+  --card-bg: #2a2a2a;
+  --input-bg: #333;
+  --border-color: #444;
   background: #1a1a1a;
   color: var(--dark-text);
 }
@@ -80,20 +86,20 @@ body.dark-mode .sidebar {
 body.dark-mode .top-nav,
 body.dark-mode .study-rooms,
 body.dark-mode .todo-section {
-  background: #2a2a2a;
+  background: var(--card-bg);
   color: var(--dark-text);
 }
 
 body.dark-mode .room-card,
 body.dark-mode .todo-item {
-  background: #333;
+  background: var(--input-bg);
   color: var(--dark-text);
 }
 
 /* Fix search input in dark mode */
 body.dark-mode .search-input {
-  background: #333;
-  border-color: #444;
+  background: var(--input-bg);
+  border-color: var(--border-color);
   color: var(--dark-text);
 }
 
@@ -102,15 +108,15 @@ body.dark-mode .search-input::placeholder {
 }
 
 body.dark-mode .search-input:focus {
-  background: #3a3a3a;
+  background: var(--input-bg);
   border-color: var(--primary-color);
 }
 
 /* Fix form inputs in dark mode */
 body.dark-mode .form-input,
 body.dark-mode .form-textarea {
-  background: #333;
-  border-color: #444;
+  background: var(--input-bg);
+  border-color: var(--border-color);
   color: var(--dark-text);
 }
 
@@ -121,13 +127,13 @@ body.dark-mode .form-textarea::placeholder {
 
 body.dark-mode .form-input:focus,
 body.dark-mode .form-textarea:focus {
-  background: #3a3a3a;
+  background: var(--input-bg);
   border-color: var(--primary-color);
 }
 
 /* Fix modal in dark mode */
 body.dark-mode .todo-modal-content {
-  background: #2a2a2a;
+  background: var(--card-bg);
   color: var(--dark-text);
 }
 
@@ -165,13 +171,13 @@ body.dark-mode .participant-count {
 }
 
 body.dark-mode .modal-content {
-  background: #2a2a2a;
+  background: var(--card-bg);
   color: var(--dark-text);
 }
 
 body.dark-mode .modal-header {
   background: linear-gradient(135deg, #4caf50, #66bb6a);
-  border-color: #444;
+  border-color: var(--border-color);
 }
 
 body.dark-mode .btn-close {
@@ -179,7 +185,44 @@ body.dark-mode .btn-close {
 }
 
 body.dark-mode .modal-footer {
-  border-color: #444;
+  border-color: var(--border-color);
+}
+
+body.dark-mode .priority-selector {
+  gap: 8px;
+}
+
+body.dark-mode .priority-btn {
+  background: var(--input-bg);
+  border-color: var(--border-color);
+  color: var(--medium-text);
+}
+
+body.dark-mode .priority-btn.active {
+  border-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--primary-color);
+}
+
+body.dark-mode .reminder-options {
+  background: var(--input-bg);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .preset-btn {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--medium-text);
+}
+
+body.dark-mode .preset-btn.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+body.dark-mode .custom-reminder {
+  border-color: var(--border-color);
 }
 
 /* Sidebar Styles */
@@ -321,7 +364,7 @@ body.dark-mode .modal-footer {
 
 /* Top Navigation */
 .top-nav {
-  background: white;
+  background: var(--card-bg);
   padding: 15px 30px;
   box-shadow: 0 2px 20px var(--shadow-light);
   display: flex;
@@ -381,7 +424,7 @@ body.dark-mode .modal-footer {
   border-radius: 25px;
   font-size: 14px;
   transition: var(--transition);
-  background: var(--background-light);
+  background: var(--input-bg);
   color: var(--dark-text);
 }
 
@@ -450,10 +493,10 @@ body.dark-mode .modal-footer {
 
 /* Section Title */
 .section-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--dark-text);
-  margin-bottom: 20px;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -461,7 +504,7 @@ body.dark-mode .modal-footer {
 
 /* Study Rooms Section */
 .study-rooms {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--border-radius);
   padding: 25px;
   box-shadow: 0 5px 20px var(--shadow-light);
@@ -474,6 +517,11 @@ body.dark-mode .modal-footer {
   box-shadow: 0 8px 30px var(--shadow-medium);
 }
 
+/* ✅ FIXED: Add spacing only for study rooms title */
+.study-rooms .section-title {
+  margin-bottom: 20px;
+}
+
 .room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -482,7 +530,7 @@ body.dark-mode .modal-footer {
 
 /* ===== ROOM CARD - FIXED LAYOUT WITH VISIBLE TEXT ===== */
 .room-card {
-  background: var(--background-light);
+  background: var(--input-bg);
   border-radius: var(--border-radius);
   padding: 20px;
   transition: var(--transition);
@@ -697,7 +745,7 @@ body.dark-mode .privacy-badge.private:hover {
 
 /* To-Do Section */
 .todo-section {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--border-radius);
   padding: 25px;
   box-shadow: 0 5px 20px var(--shadow-light);
@@ -710,60 +758,76 @@ body.dark-mode .privacy-badge.private:hover {
   box-shadow: 0 8px 30px var(--shadow-medium);
 }
 
+/* ===== TODO HEADER WITH NEW TASK LINK ===== */
 .todo-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
+  gap: 15px;
 }
 
-.add-todo-btn {
-  background: var(--primary-color);
-  color: white;
+/* ✅ FIXED: Keep todo header title aligned */
+.todo-header .section-title {
+  margin-bottom: 0;
+}
+
+.add-task-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: none;
   border: none;
-  padding: 8px 15px;
-  border-radius: 20px;
-  font-size: 12px;
+  color: var(--primary-color);
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.add-todo-btn:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+.add-task-link:hover {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--primary-hover);
 }
 
-.todo-item {
-  background: var(--background-light);
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-  border-left: 4px solid var(--primary-color);
-  transition: var(--transition);
-  animation: slideInLeft 0.3s ease-out;
+.add-task-link i {
+  font-size: 18px;
 }
 
 /* Scrollable Study Notes & Tasks */
 #todoList,
 .scrollable-tasks {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
-  scrollbar-color: #4caf50 #f8f9fa;
+  scrollbar-color: #4caf50 var(--input-bg);
 }
 
 #todoList::-webkit-scrollbar,
 .scrollable-tasks::-webkit-scrollbar {
   width: 7px;
-  background: #f8f9fa;
+  background: var(--input-bg);
 }
 
 #todoList::-webkit-scrollbar-thumb,
 .scrollable-tasks::-webkit-scrollbar-thumb {
   background: #b2dfdb;
   border-radius: 8px;
+}
+
+.todo-item {
+  background: var(--input-bg);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-left: 4px solid var(--primary-color);
+  transition: var(--transition);
+  animation: slideInLeft 0.3s ease-out;
 }
 
 @keyframes slideInLeft {
@@ -842,7 +906,7 @@ body.dark-mode .privacy-badge.private:hover {
 }
 
 .todo-action-btn:hover {
-  background: var(--border-light);
+  background: var(--border-color);
   color: var(--dark-text);
   transform: scale(1.1);
 }
@@ -1008,7 +1072,7 @@ body.dark-mode .privacy-badge.private:hover {
   outline-offset: 2px;
 }
 
-/* Modal Styles */
+/* ===== IMPROVED TODO MODAL STYLES ===== */
 .todo-modal {
   display: none;
   position: fixed;
@@ -1020,41 +1084,47 @@ body.dark-mode .privacy-badge.private:hover {
   background-color: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
   animation: fadeIn 0.3s ease-out;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-modal.open {
+  display: flex;
 }
 
 .todo-modal-content {
-  background: white;
-  margin: 5% auto;
-  padding: 30px;
-  border-radius: var(--border-radius);
+  background: var(--card-bg);
+  border-radius: 12px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  animation: slideInDown 0.3s ease-out;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease;
 }
 
-@keyframes slideInDown {
+@keyframes slideUp {
   from {
-    transform: translateY(-50px);
     opacity: 0;
+    transform: translateY(20px);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.modal-header {
+.todo-modal-content .modal-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
 }
 
-.modal-title {
+.todo-modal-content .modal-title {
   font-size: 18px;
   font-weight: 600;
   color: var(--dark-text);
+  margin: 0;
 }
 
 .close-modal {
@@ -1063,70 +1133,233 @@ body.dark-mode .privacy-badge.private:hover {
   font-size: 24px;
   color: var(--medium-text);
   cursor: pointer;
-  padding: 5px;
-  border-radius: 50%;
-  transition: var(--transition);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .close-modal:hover {
-  background: var(--border-light);
-  transform: scale(1.1);
+  background-color: var(--input-bg);
+  color: var(--dark-text);
 }
 
+/* ===== FORM GROUPS ===== */
 .form-group {
+  padding: 0 24px;
   margin-bottom: 20px;
 }
 
 .form-label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--dark-text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.form-input,
 .form-textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
-  transition: var(--transition);
-  background: var(--background-light);
-  color: var(--dark-text);
-}
-
-.form-textarea {
+  font-family: inherit;
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
+  background: var(--input-bg);
+  color: var(--dark-text);
+  transition: all 0.2s ease;
 }
 
-.form-input:focus,
 .form-textarea:focus {
   outline: none;
   border-color: var(--primary-color);
+  background: var(--card-bg);
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
-.modal-actions {
+.form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--input-bg);
+  color: var(--dark-text);
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: var(--card-bg);
+}
+
+/* ===== PRIORITY SELECTOR ===== */
+.priority-selector {
   display: flex;
   gap: 10px;
+  margin-top: 8px;
+}
+
+.priority-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid var(--border-color);
+  background: var(--input-bg);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  color: var(--medium-text);
+}
+
+.priority-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.priority-btn.active {
+  border-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--primary-color);
+}
+
+.priority-low.active {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.priority-medium.active {
+  border-color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+}
+
+.priority-high.active {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+/* ===== REMINDER OPTIONS ===== */
+.form-check-input {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.reminder-options {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.reminder-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.preset-btn {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--medium-text);
+}
+
+.preset-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(76, 175, 80, 0.05);
+  color: var(--primary-color);
+}
+
+.preset-btn.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+.custom-reminder {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.reminder-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.reminder-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.reminder-input-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ===== MODAL ACTIONS ===== */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color);
   justify-content: flex-end;
 }
 
 .modal-btn {
-  padding: 10px 20px;
+  padding: 10px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: var(--transition);
-}
-
-.modal-btn-cancel {
-  background: var(--background-light);
-  color: var(--medium-text);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .modal-btn-save {
@@ -1134,141 +1367,19 @@ body.dark-mode .privacy-badge.private:hover {
   color: white;
 }
 
-.modal-btn:hover {
-  transform: translateY(-1px);
+.modal-btn-save:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.modal-btn-cancel {
+  background: var(--border-color);
+  color: var(--dark-text);
 }
 
 .modal-btn-cancel:hover {
-  background: var(--border-light);
-}
-
-.modal-btn-save:hover {
-  background: var(--primary-hover);
-}
-
-/* Logout Button Styles */
-.logout-btn {
-  margin-top: 15px;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.logout-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
-
-.logout-btn i {
-  font-size: 16px;
-}
-
-/* Logout Message Overlay */
-.logout-message {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(5px);
-  z-index: 2000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  animation: fadeIn 0.3s ease;
-}
-
-.logout-message-content {
-  background: white;
-  padding: 30px;
-  border-radius: 20px;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 400px;
-  width: 90%;
-  animation: slideUp 0.4s ease;
-}
-
-body.dark-mode .logout-message-content {
-  background: #2a2a2a;
-  color: #e0e0e0;
-}
-
-.logout-message-content i {
-  font-size: 60px;
-  color: var(--primary-color);
-  margin-bottom: 20px;
-  display: block;
-}
-
-.logout-message-content p {
-  margin-bottom: 10px;
-  font-size: 16px;
-}
-
-.logout-message-content .redirect-text {
-  font-size: 14px;
-  color: var(--medium-text);
-  margin-top: 15px;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* Responsive styles for logout button on small screens */
-@media (max-width: 768px) {
-  .logout-btn {
-    margin-bottom: 15px;
-  }
-}
-
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.pagination-controls button {
-  background: #4caf50;
-  color: #fff;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 8px;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.pagination-controls button:disabled {
-  background: #c8e6c9;
-  color: #888;
-  cursor: not-allowed;
-}
-
-.pagination-controls button:hover:not(:disabled) {
-  background: #388e3c;
+  background: #d1d5db;
 }
 
 /* ===== BOOTSTRAP MODAL OVERRIDES ===== */
@@ -1276,6 +1387,8 @@ body.dark-mode .logout-message-content {
   border-radius: 15px;
   border: none;
   overflow: hidden;
+  background: var(--card-bg);
+  color: var(--dark-text);
 }
 
 .modal-header {
@@ -1309,10 +1422,11 @@ body.dark-mode .logout-message-content {
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 12px;
+  color: var(--dark-text);
 }
 
 .modal-footer {
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--border-color);
   padding: 15px 25px 25px;
 }
 
@@ -1327,27 +1441,27 @@ body.dark-mode .logout-message-content {
 }
 
 .btn-secondary {
-  background: #f0f0f0;
-  border-color: #f0f0f0;
-  color: #333;
+  background: var(--input-bg);
+  border-color: var(--border-color);
+  color: var(--dark-text);
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
-  border-color: #e0e0e0;
-  color: #333;
+  background: var(--border-color);
+  border-color: var(--border-color);
+  color: var(--dark-text);
 }
 
 body.dark-mode .btn-secondary {
-  background: #333;
-  border-color: #333;
-  color: #e0e0e0;
+  background: var(--input-bg);
+  border-color: var(--border-color);
+  color: var(--dark-text);
 }
 
 body.dark-mode .btn-secondary:hover {
-  background: #444;
-  border-color: #444;
-  color: #e0e0e0;
+  background: var(--border-color);
+  border-color: var(--border-color);
+  color: var(--dark-text);
 }
 
 /* ===== PRIVATE ROOM PASSWORD MODAL - MATCH STUDY-ROOMS STYLE ===== */
@@ -1356,11 +1470,11 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .modal-content {
-  background: #2a2a2a;
+  background: var(--card-bg);
   border: none;
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
 #privateRoomPasswordModal .modal-header {
@@ -1389,12 +1503,12 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .modal-body {
-  background: #2a2a2a;
+  background: var(--card-bg);
   padding: 25px;
 }
 
 #privateRoomPasswordModal .modal-body p {
-  color: #e0e0e0 !important;
+  color: var(--dark-text) !important;
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 12px;
@@ -1405,7 +1519,7 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .form-label {
-  color: #e0e0e0 !important;
+  color: var(--dark-text) !important;
   font-weight: 600;
   margin-bottom: 10px;
   display: block;
@@ -1417,16 +1531,16 @@ body.dark-mode .btn-secondary:hover {
   position: relative;
   display: flex;
   align-items: center;
-  border: 2px solid #555;
+  border: 2px solid var(--border-color);
   border-radius: 10px;
-  background: #3a3a3a;
+  background: var(--input-bg);
   transition: all 0.3s ease;
   padding: 0;
 }
 
 #privateRoomPasswordModal .password-input-wrapper:focus-within {
   border-color: #4caf50;
-  background: #404040;
+  background: var(--card-bg);
   box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.2);
 }
 
@@ -1435,7 +1549,7 @@ body.dark-mode .btn-secondary:hover {
   padding: 12px 45px 12px 45px;
   flex: 1;
   background: transparent;
-  color: #e0e0e0;
+  color: var(--dark-text);
   font-size: 14px;
   font-family: inherit;
 }
@@ -1448,14 +1562,14 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .password-input-wrapper .form-control::placeholder {
-  color: #999;
+  color: var(--light-text);
 }
 
 /* Lock icon for password input */
 #privateRoomPasswordModal .input-icon {
   position: absolute;
   left: 15px;
-  color: #999;
+  color: var(--medium-text);
   font-size: 16px;
   pointer-events: none;
 }
@@ -1466,7 +1580,7 @@ body.dark-mode .btn-secondary:hover {
   right: 15px;
   background: none;
   border: none;
-  color: #999;
+  color: var(--medium-text);
   cursor: pointer;
   font-size: 16px;
   padding: 5px 8px;
@@ -1487,15 +1601,15 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .modal-body small {
-  color: #bbb !important;
+  color: var(--medium-text) !important;
   display: block;
   margin-top: 10px;
   font-size: 12px;
 }
 
 #privateRoomPasswordModal .modal-footer {
-  background: #2a2a2a;
-  border-top: 1px solid #444;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
   padding: 15px 25px 25px;
   display: flex;
   gap: 12px;
@@ -1504,8 +1618,8 @@ body.dark-mode .btn-secondary:hover {
 
 #privateRoomPasswordModal .btn-secondary {
   background: transparent;
-  border: 1px solid #555;
-  color: #bbb;
+  border: 1px solid var(--border-color);
+  color: var(--medium-text);
   font-weight: 500;
   padding: 10px 20px;
   border-radius: 8px;
@@ -1515,9 +1629,9 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .btn-secondary:hover {
-  background: #333;
-  border-color: #777;
-  color: #e0e0e0;
+  background: var(--input-bg);
+  border-color: var(--primary-color);
+  color: var(--dark-text);
 }
 
 #privateRoomPasswordModal .btn-primary {
@@ -1542,7 +1656,7 @@ body.dark-mode .btn-secondary:hover {
 }
 
 #privateRoomPasswordModal .btn-primary:disabled {
-  background: #666;
+  background: #999;
   cursor: not-allowed;
   transform: none;
 }
@@ -1623,4 +1737,119 @@ body.dark-mode .btn-secondary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
   background: linear-gradient(135deg, #5558e3, #7c3aed);
+}
+
+/* Logout Button Styles */
+.logout-btn {
+  margin-top: 15px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.logout-btn i {
+  font-size: 16px;
+}
+
+/* Logout Message Overlay */
+.logout-message {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.logout-message-content {
+  background: var(--card-bg);
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+  animation: slideUp 0.4s ease;
+}
+
+body.dark-mode .logout-message-content {
+  background: var(--card-bg);
+  color: var(--dark-text);
+}
+
+.logout-message-content i {
+  font-size: 60px;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  display: block;
+}
+
+.logout-message-content p {
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: var(--dark-text);
+}
+
+.logout-message-content .redirect-text {
+  font-size: 14px;
+  color: var(--medium-text);
+  margin-top: 15px;
+}
+
+/* Responsive styles for logout button on small screens */
+@media (max-width: 768px) {
+  .logout-btn {
+    margin-bottom: 15px;
+  }
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.pagination-controls button {
+  background: #4caf50;
+  color: #fff;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pagination-controls button:disabled {
+  background: #c8e6c9;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background: #388e3c;
 }

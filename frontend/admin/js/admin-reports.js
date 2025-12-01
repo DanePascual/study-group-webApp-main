@@ -723,5 +723,7 @@ window.toggleCustomSelect = toggleCustomSelect;
 window.selectCustomOption = selectCustomOption;
 window.toggleModalCustomSelect = toggleModalCustomSelect;
 window.selectModalCustomOption = selectModalCustomOption;
+window.closeModal = closeModal;
+window.openModal = openModal;
 
 console.log("[admin-reports] Module loaded ✅");

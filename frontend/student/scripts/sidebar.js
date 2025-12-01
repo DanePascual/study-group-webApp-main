@@ -151,6 +151,9 @@ async function checkAndShowAdminLink(user) {
     if (response.ok) {
       console.log("[sidebar] ✅ User is admin - showing admin panel link");
       adminLink.style.display = "block";
+      // ✅ FIXED: Corrected path to admin dashboard
+      // From student pages, go up one level to /frontend/ then into /admin/
+      adminLink.href = "../../admin/dashboard.html";
     } else if (response.status === 403) {
       console.log("[sidebar] ℹ️ User is not an admin (403 Forbidden)");
       adminLink.style.display = "none";

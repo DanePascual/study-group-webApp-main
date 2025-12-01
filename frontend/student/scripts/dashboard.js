@@ -1,6 +1,11 @@
 // frontend/student/scripts/dashboard.js
 // ✅ CLEANED: Removed admin panel check (moved to sidebar.js)
 // ✅ UPDATED: Active Study Rooms now match study-rooms.js design
+// ✅ FIXED: Use fetchJsonWithAuth instead of plain fetch for study rooms
+// ✅ IMPROVED: New todo modal with priority, presets, and smart reminder options
+// ✅ IMPLEMENTED: Full search experience with real-time filtering
+// ✅ REMOVED: All console.log statements (production-safe)
+// ✅ REMOVED: Keyboard shortcuts (simplified UX)
 
 import { auth, db, onAuthStateChanged } from "../../config/firebase.js";
 import {
@@ -24,18 +29,12 @@ onAuthStateChanged(async (user) => {
   if (user) {
     // ===== Check if user is banned =====
     try {
-      console.log("[dashboard] Checking ban status for user:", user.uid);
-
       const userDoc = await getDoc(doc(db, "users", user.uid));
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
 
         if (userData.isBanned === true) {
-          console.warn("[dashboard] ❌ User is banned!");
-          console.warn("[dashboard] Ban reason:", userData.bannedReason);
-          console.warn("[dashboard] Banned at:", userData.bannedAt);
-
           // Show error message
           const errorDiv = document.createElement("div");
           errorDiv.style.cssText = `
@@ -72,8 +71,6 @@ onAuthStateChanged(async (user) => {
           return;
         }
       }
-
-      console.log("[dashboard] ✅ User is not banned - access allowed");
     } catch (err) {
       console.error("[dashboard] Error checking ban status:", err);
       // Continue anyway on error
@@ -108,9 +105,7 @@ onAuthStateChanged(async (user) => {
     updateSidebarUserInfo();
     validateUserSession();
     scheduleUIInit();
-    console.log(`Dashboard ready for ${CURRENT_SESSION.user}`);
   } else {
-    console.log("No user is signed in.");
     window.location.href = "login.html";
   }
 });
@@ -162,6 +157,7 @@ function updateSidebarUserInfo() {
 let allRooms = [];
 let currentRoomPage = 1;
 let roomsPerPage = 9;
+let searchActive = false;
 
 const STUDY_GROUPS_API = apiUrl("/api/study-groups");
 
@@ -196,16 +192,24 @@ function initDashboardUI() {
     });
   }
 
+  // ===== SEARCH FUNCTIONALITY =====
   const searchInput = document.querySelector(".search-input");
   let searchTimeout;
   if (searchInput) {
     searchInput.addEventListener("input", function (e) {
       clearTimeout(searchTimeout);
       const query = e.target.value.trim();
-      if (query.length > 1) {
-        searchTimeout = setTimeout(() => {
-          performSearch(query);
-        }, 300);
+
+      // Search with debounce (300ms delay)
+      searchTimeout = setTimeout(() => {
+        performSearch(query);
+      }, 300);
+    });
+
+    // Clear search on ESC key
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        clearSearch();
       }
     });
   }
@@ -232,6 +236,11 @@ function initDashboardUI() {
   // Initialize password toggle
   initializePasswordToggles();
 
+  // Initialize new todo features
+  initPrioritySelector();
+  initPresetReminders();
+  initReminderToggle();
+
   initUIEvents();
   fetchAndRenderRooms();
   fetchTodos();
@@ -256,27 +265,67 @@ function getRoomsPerPage() {
   return sidebarEl && sidebarEl.classList.contains("open") ? 9 : 12;
 }
 
+// ===== SEARCH FUNCTIONALITY =====
 function performSearch(query) {
-  const mockResults = [
-    {
-      type: "room",
-      name: "CS Study Room",
-      description: "Algorithms and data structures",
-    },
-    { type: "user", name: "John Doe", description: "BSIT Student" },
-    {
-      type: "resource",
-      name: "React Tutorial",
-      description: "Frontend development guide",
-    },
-  ];
-  const filtered = mockResults.filter(
-    (item) =>
-      item.name.toLowerCase().includes(query.toLowerCase()) ||
-      (item.description &&
-        item.description.toLowerCase().includes(query.toLowerCase()))
+  const trimmedQuery = query.trim();
+
+  // If empty, reset to all rooms
+  if (!trimmedQuery) {
+    searchActive = false;
+    renderRoomPage(); // Show all rooms again
+    return;
+  }
+
+  // Search in study rooms
+  const matchedRooms = allRooms.filter(
+    (room) =>
+      room.name.toLowerCase().includes(trimmedQuery.toLowerCase()) ||
+      (room.description &&
+        room.description.toLowerCase().includes(trimmedQuery.toLowerCase()))
   );
-  console.log("Search results for:", query, filtered);
+
+  searchActive = true;
+  renderSearchResults(trimmedQuery, matchedRooms);
+}
+
+function renderSearchResults(query, matchedRooms) {
+  const roomGrid = document.getElementById("roomGrid");
+  if (!roomGrid) return;
+
+  if (matchedRooms.length === 0) {
+    roomGrid.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: var(--medium-text);">
+        <i class="bi bi-search" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+        <p>No rooms found matching "<strong>${escapeHtml(query)}</strong>"</p>
+        <p style="font-size: 12px; margin-top: 10px;">Try searching for different keywords</p>
+      </div>
+    `;
+    return;
+  }
+
+  roomGrid.innerHTML = "";
+  matchedRooms.forEach((room) => {
+    const card = createRoomCardElement(room);
+    roomGrid.appendChild(card);
+  });
+
+  // Show result count
+  const resultText =
+    matchedRooms.length === 1
+      ? "1 room found"
+      : `${matchedRooms.length} rooms found`;
+  showToast(`Search: ${resultText}`, "info");
+
+  animateRoomCards();
+}
+
+function clearSearch() {
+  const searchInput = document.querySelector(".search-input");
+  if (searchInput) {
+    searchInput.value = "";
+  }
+  searchActive = false;
+  renderRoomPage(); // Reset to all rooms
 }
 
 // ===== PASSWORD VISIBILITY TOGGLE =====
@@ -327,7 +376,6 @@ function sanitizeString(str, maxLength = 255) {
 }
 
 function showToast(message, type = "success") {
-  console.log(`${type}: ${message}`);
   showNotification(message, type);
 }
 
@@ -490,11 +538,8 @@ function createRoomCardElement(room) {
 
 // ===== HANDLE ROOM JOIN (with privacy check) =====
 export function handleDashboardRoomJoin(roomId, roomName, privacy) {
-  console.log(`Join attempt | Room: ${roomName} | Privacy: ${privacy}`);
-
   const room = allRooms.find((r) => String(r.id) === String(roomId));
   if (!room) {
-    console.log(`Room not found: ${roomId}`);
     showToast("Room not found", "error");
     return;
   }
@@ -526,8 +571,6 @@ export function handleDashboardRoomJoin(roomId, roomName, privacy) {
 
 async function attemptJoinPublicRoom(roomId) {
   try {
-    console.log(`Attempting to join public room: ${roomId}`);
-
     const submitBtn = document.querySelector(
       `[data-room-id="${roomId}"] .join-btn`
     );
@@ -583,44 +626,142 @@ function enterRoom(roomId) {
 }
 
 function showNotification(message, type = "info") {
-  console.log(`${type}: ${message}`);
+  // Silently log errors for debugging, but don't spam console
+  if (type === "error") {
+    console.error(message);
+  }
 }
 
-// ===== To-Do Management =====
+// ===== TO-DO MANAGEMENT - IMPROVED =====
 let editingTodoIndex = -1;
 let todos = [];
 
+// ===== IMPROVED TODO MODAL HANDLING =====
 function openTodoModal() {
   const modal = document.getElementById("todoModal");
   if (modal) {
-    modal.style.display = "block";
+    modal.classList.add("open");
     const todoText = document.getElementById("todoText");
-    if (todoText) todoText.value = "";
+    if (todoText) {
+      todoText.value = "";
+      setTimeout(() => todoText.focus(), 100);
+    }
     const todoReminder = document.getElementById("todoReminder");
     if (todoReminder) todoReminder.value = "";
+    const todoPriority = document.getElementById("todoPriority");
+    if (todoPriority) todoPriority.value = "low";
+    const enableReminder = document.getElementById("enableReminder");
+    if (enableReminder) enableReminder.checked = false;
+    resetReminderOptions();
     editingTodoIndex = -1;
     const title = document.querySelector(".modal-title");
-    if (title) title.textContent = "Add Study Task & Reminder";
-    if (todoText) todoText.focus();
+    if (title) title.textContent = "New Study Task";
   }
 }
 
 function closeTodoModal() {
   const modal = document.getElementById("todoModal");
-  if (modal) modal.style.display = "none";
+  if (modal) modal.classList.remove("open");
 }
 
+function resetReminderOptions() {
+  const reminderOptions = document.getElementById("reminderOptions");
+  const enableReminder = document.getElementById("enableReminder");
+  const reminderDate = document.getElementById("reminderDate");
+  const reminderTime = document.getElementById("reminderTime");
+
+  if (enableReminder) enableReminder.checked = false;
+  if (reminderOptions) reminderOptions.style.display = "none";
+  if (reminderDate) reminderDate.value = "";
+  if (reminderTime) reminderTime.value = "09:00";
+}
+
+// Initialize priority selector
+function initPrioritySelector() {
+  document.querySelectorAll(".priority-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      document
+        .querySelectorAll(".priority-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const priority = btn.getAttribute("data-priority");
+      document.getElementById("todoPriority").value = priority;
+    });
+  });
+}
+
+// Initialize preset buttons
+function initPresetReminders() {
+  document.querySelectorAll(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const preset = btn.getAttribute("data-preset");
+      applyPreset(preset);
+
+      document
+        .querySelectorAll(".preset-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+}
+
+function applyPreset(preset) {
+  const reminderDate = document.getElementById("reminderDate");
+  const reminderTime = document.getElementById("reminderTime");
+  const now = new Date();
+
+  if (preset === "today") {
+    reminderDate.value = now.toISOString().split("T")[0];
+    reminderTime.value = "17:00"; // 5 PM
+  } else if (preset === "tomorrow") {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    reminderDate.value = tomorrow.toISOString().split("T")[0];
+    reminderTime.value = "09:00"; // 9 AM
+  } else if (preset === "week") {
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    reminderDate.value = nextWeek.toISOString().split("T")[0];
+    reminderTime.value = "09:00"; // 9 AM
+  }
+}
+
+// Initialize reminder toggle
+function initReminderToggle() {
+  const enableReminder = document.getElementById("enableReminder");
+  const reminderOptions = document.getElementById("reminderOptions");
+
+  if (enableReminder) {
+    enableReminder.addEventListener("change", () => {
+      if (enableReminder.checked) {
+        reminderOptions.style.display = "block";
+      } else {
+        reminderOptions.style.display = "none";
+        document.getElementById("todoReminder").value = "";
+      }
+    });
+  }
+}
+
+// Edit todo
 async function editTodo(index) {
   editingTodoIndex = index;
   const todo = todos[index];
   const todoText = document.getElementById("todoText");
   const todoReminder = document.getElementById("todoReminder");
+  const todoPriority = document.getElementById("todoPriority");
+
   if (todoText) todoText.value = todo.text;
   if (todoReminder) todoReminder.value = todo.reminder || "";
+  if (todoPriority) todoPriority.value = todo.priority || "medium";
+
   const title = document.querySelector(".modal-title");
   if (title) title.textContent = "Edit Study Task";
+
   const modal = document.getElementById("todoModal");
-  if (modal) modal.style.display = "block";
+  if (modal) modal.classList.add("open");
   if (todoText) todoText.focus();
 }
 
@@ -632,7 +773,7 @@ function renderTodos() {
       <div style="text-align: center; padding: 30px; color: var(--medium-text);">
         <i class="bi bi-journal-text" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
         <p>No study tasks yet.</p>
-        <p style="font-size: 12px;">Click "Add Task" to create your first reminder!</p>
+        <p style="font-size: 12px;">Click "New Task" to create your first reminder!</p>
       </div>
     `;
     return;
@@ -710,26 +851,6 @@ function formatReminderDate(dateString) {
 }
 
 function initUIEvents() {
-  document.addEventListener("keydown", function (e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-      e.preventDefault();
-      openTodoModal();
-    }
-    if (e.key === "Escape") {
-      closeTodoModal();
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-      e.preventDefault();
-      const searchInput = document.querySelector(".search-input");
-      if (searchInput) searchInput.focus();
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === "t") {
-      e.preventDefault();
-      const themeToggle = document.getElementById("themeToggle");
-      if (themeToggle) themeToggle.click();
-    }
-  });
-
   // Password modal submit handler
   const submitPasswordBtn = document.getElementById(
     "submitPrivateRoomPassword"
@@ -752,13 +873,15 @@ function initUIEvents() {
 }
 
 function validateUserSession() {
-  if (CURRENT_SESSION)
-    console.log(`Dashboard session validated for ${CURRENT_SESSION.user}`);
+  if (CURRENT_SESSION) {
+    // Session validation successful
+  }
 }
 
 // ====================
 // Room Pagination Logic
 // ====================
+// ✅ FIXED: Use fetchJsonWithAuth instead of plain fetch for authenticated requests
 async function fetchAndRenderRooms() {
   const roomGrid = document.getElementById("roomGrid");
   const paginationDivId = "roomPagination";
@@ -768,9 +891,8 @@ async function fetchAndRenderRooms() {
   if (!roomGrid) return;
   roomGrid.innerHTML = `<div style="text-align:center;">Loading rooms...</div>`;
   try {
-    const response = await fetch(STUDY_GROUPS_API);
-    if (!response.ok) throw new Error("Failed to fetch study rooms.");
-    allRooms = await response.json();
+    // ✅ FIXED: Changed from fetch() to fetchJsonWithAuth() to include auth token
+    allRooms = await fetchJsonWithAuth(STUDY_GROUPS_API);
 
     if (!Array.isArray(allRooms) || allRooms.length === 0) {
       roomGrid.innerHTML = `<div style="text-align:center; color:var(--medium-text);">No active study rooms yet.</div>`;
@@ -865,7 +987,6 @@ async function fetchTodos() {
     renderTodos();
   } catch (err) {
     if (err && err.status === 401) {
-      console.warn("fetchTodos: unauthenticated");
       todos = [];
       renderTodos();
       return;
@@ -875,23 +996,38 @@ async function fetchTodos() {
   }
 }
 
+// Update saveTodo to handle new reminder format
 async function saveTodo() {
   const textEl = document.getElementById("todoText");
-  const reminderEl = document.getElementById("todoReminder");
+  const priorityEl = document.getElementById("todoPriority");
+  const enableReminder = document.getElementById("enableReminder");
+  const reminderDate = document.getElementById("reminderDate");
+  const reminderTime = document.getElementById("reminderTime");
+
   const text = textEl ? textEl.value.trim() : "";
-  const reminder = reminderEl ? reminderEl.value : "";
+  const priority = priorityEl ? priorityEl.value : "medium";
 
   if (!text) {
     showNotification("Please enter a task description!", "error");
     return;
   }
 
+  let reminder = null;
+  if (enableReminder && enableReminder.checked) {
+    if (!reminderDate.value) {
+      showNotification("Please select a reminder date!", "error");
+      return;
+    }
+    const dateTimeString = `${reminderDate.value}T${reminderTime.value}`;
+    reminder = new Date(dateTimeString).toISOString();
+  }
+
   const todo = {
     text,
     completed: false,
-    reminder: reminder || null,
+    reminder: reminder,
     created: new Date().toISOString(),
-    priority: "medium",
+    priority: priority,
   };
 
   try {
@@ -900,26 +1036,24 @@ async function saveTodo() {
       const updatedTodo = {
         ...todos[editingTodoIndex],
         text,
-        reminder: reminder || null,
+        reminder,
+        priority,
       };
-
       await putJsonWithAuth(
         `/api/todos/${encodeURIComponent(id)}`,
         updatedTodo
       );
       todos[editingTodoIndex] = updatedTodo;
-      console.log(`[dashboard] ✅ Todo updated: ${id}`);
-      showNotification("Task updated successfully!", "success");
+      showNotification("Task updated!", "success");
     } else {
       const response = await postJsonWithAuth("/api/todos", todo);
       todos.push(response);
-      console.log("[dashboard] ✅ New todo created");
-      showNotification("New task added!", "success");
+      showNotification("Task added!", "success");
     }
     closeTodoModal();
     renderTodos();
   } catch (err) {
-    console.error("Error: Could not save task.", err);
+    console.error("Error saving task:", err);
     showNotification("Could not save task.", "error");
   }
 }
@@ -933,7 +1067,6 @@ async function toggleTodo(index) {
 
   try {
     await putJsonWithAuth(`/api/todos/${encodeURIComponent(todo.id)}`, todo);
-    console.log(`[dashboard] ✅ Todo toggled: ${todo.id} = ${todo.completed}`);
     showNotification(
       `Task ${todo.completed ? "completed" : "reopened"}!`,
       "success"
@@ -957,7 +1090,6 @@ async function deleteTodo(index) {
 
   try {
     await deleteWithAuth(`/api/todos/${encodeURIComponent(removedTodo.id)}`);
-    console.log(`[dashboard] ✅ Todo deleted: ${removedTodo.id}`);
     showNotification("Task deleted!", "info");
   } catch (err) {
     console.error("Error: Could not delete task.", err);

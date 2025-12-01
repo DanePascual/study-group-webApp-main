@@ -144,8 +144,8 @@
                   <i class="bi bi-check2-square"></i>
                   Study Notes & Tasks
                 </h3>
-                <button class="add-todo-btn" onclick="window.openTodoModal()">
-                  Add Task
+                <button class="add-task-link" onclick="window.openTodoModal()">
+                  <i class="bi bi-plus-circle"></i> New Task
                 </button>
               </div>
 
@@ -158,7 +158,7 @@
       </div>
     </div>
 
-    <!-- Todo Modal -->
+    <!-- ===== IMPROVED TODO MODAL ===== -->
     <div
       id="todoModal"
       class="todo-modal"
@@ -168,7 +168,7 @@
     >
       <div class="todo-modal-content">
         <div class="modal-header">
-          <h3 class="modal-title" id="modalTitle">Add Study Task & Reminder</h3>
+          <h3 class="modal-title" id="modalTitle">New Study Task</h3>
           <button
             class="close-modal"
             onclick="window.closeTodoModal()"
@@ -177,23 +177,121 @@
         </div>
 
         <form id="todoForm">
+          <!-- Task Text (Primary) -->
           <div class="form-group">
-            <label class="form-label" for="todoText">Task/Note</label>
+            <label class="form-label" for="todoText"
+              >What do you need to do?</label
+            >
             <textarea
               class="form-textarea"
               id="todoText"
-              placeholder="Enter your study task or note..."
+              placeholder="e.g., Review Chapter 5, Complete assignment..."
               required
             ></textarea>
           </div>
 
+          <!-- Priority (Optional but visible) -->
           <div class="form-group">
-            <label class="form-label" for="todoReminder"
-              >Reminder Date & Time (Optional)</label
-            >
-            <input type="datetime-local" class="form-input" id="todoReminder" />
+            <label class="form-label">Priority</label>
+            <div class="priority-selector">
+              <button
+                type="button"
+                class="priority-btn priority-low active"
+                data-priority="low"
+                title="Low priority"
+              >
+                <i class="bi bi-dash-circle"></i> Low
+              </button>
+              <button
+                type="button"
+                class="priority-btn priority-medium"
+                data-priority="medium"
+                title="Medium priority"
+              >
+                <i class="bi bi-circle"></i> Medium
+              </button>
+              <button
+                type="button"
+                class="priority-btn priority-high"
+                data-priority="high"
+                title="High priority"
+              >
+                <i class="bi bi-exclamation-circle"></i> High
+              </button>
+            </div>
+            <input type="hidden" id="todoPriority" value="low" />
           </div>
 
+          <!-- Reminder Section (Collapsible/Optional) -->
+          <div class="form-group">
+            <label class="form-label">
+              <input
+                type="checkbox"
+                id="enableReminder"
+                class="form-check-input"
+              />
+              <span>Set a reminder</span>
+            </label>
+          </div>
+
+          <!-- Reminder Options (Hidden by default) -->
+          <div
+            id="reminderOptions"
+            class="reminder-options"
+            style="display: none"
+          >
+            <!-- Quick Presets -->
+            <div class="reminder-presets">
+              <button
+                type="button"
+                class="preset-btn"
+                data-preset="today"
+                title="Today at 5 PM"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                class="preset-btn"
+                data-preset="tomorrow"
+                title="Tomorrow at 9 AM"
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                class="preset-btn"
+                data-preset="week"
+                title="In 1 week"
+              >
+                1 Week
+              </button>
+            </div>
+
+            <!-- Custom Date/Time -->
+            <div class="custom-reminder">
+              <div class="reminder-row">
+                <div class="reminder-input-group">
+                  <label for="reminderDate">Date</label>
+                  <input type="date" id="reminderDate" class="form-input" />
+                </div>
+                <div class="reminder-input-group">
+                  <label for="reminderTime">Time</label>
+                  <input
+                    type="time"
+                    id="reminderTime"
+                    class="form-input"
+                    value="09:00"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden input to store final reminder value -->
+          <input type="hidden" id="todoReminder" value="" />
+
+          <!-- Action Buttons -->
           <div class="modal-actions">
             <button
               type="button"
@@ -203,7 +301,7 @@
               Cancel
             </button>
             <button type="submit" class="modal-btn modal-btn-save">
-              Save Task
+              <i class="bi bi-check-lg"></i> Save Task
             </button>
           </div>
         </form>

@@ -196,6 +196,8 @@ body.dark-mode .text-center.text-muted,
 body.dark-mode .small,
 body.dark-mode p,
 body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
 body.dark-mode .empty-state h3,
 body.dark-mode .empty-state p,
 body.dark-mode .section-title,
@@ -1678,6 +1680,7 @@ body.dark-mode .privacy-badge.private:hover {
   align-items: center;
   gap: 10px;
   font-weight: 600;
+  color: white;
 }
 
 #privateRoomPasswordModal .modal-body {
@@ -1974,5 +1977,168 @@ body.dark-mode #privateRoomPasswordModal .btn-outline-secondary:hover {
   #submitPrivateRoomPassword {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ===== ROOM DEACTIVATION MODAL STYLES ===== */
+#roomDeactivatedModal .modal-header {
+  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+  color: white;
+  padding: 20px 25px;
+  border-bottom: none;
+}
+
+#roomDeactivatedModal .modal-header .btn-close {
+  filter: invert(1);
+}
+
+#roomDeactivatedModal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: white;
+  font-size: 18px;
+}
+
+#roomDeactivatedModal .modal-title i {
+  font-size: 20px;
+}
+
+#roomDeactivatedModal .modal-body {
+  text-align: center;
+  padding: 30px 25px;
+}
+
+#roomDeactivatedModal .modal-body > div:first-child {
+  font-size: 48px;
+  margin-bottom: 20px;
+  line-height: 1;
+}
+
+#roomDeactivatedModal .modal-body h4 {
+  color: var(--dark-text);
+  margin-bottom: 12px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+body.dark-mode #roomDeactivatedModal .modal-body h4 {
+  color: #e0e0e0;
+}
+
+#roomDeactivatedModal .modal-body p {
+  color: var(--medium-text);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+body.dark-mode #roomDeactivatedModal .modal-body p {
+  color: #bbb;
+}
+
+#roomDeactivatedModal .modal-body p:last-of-type {
+  color: var(--light-text);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+body.dark-mode #roomDeactivatedModal .modal-body p:last-of-type {
+  color: #999;
+}
+
+#roomDeactivatedModal .modal-footer {
+  border-top: 1px solid var(--border-light);
+  padding: 15px 25px 25px;
+  background: var(--white);
+  display: flex;
+  justify-content: center;
+}
+
+body.dark-mode #roomDeactivatedModal .modal-footer {
+  background: #2a2a2a;
+  border-top-color: #333;
+}
+
+#roomDeactivatedModal .btn-primary {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: white;
+  padding: 10px 32px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+#roomDeactivatedModal .btn-primary:hover {
+  background: #388e3c;
+  border-color: #388e3c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+body.dark-mode #roomDeactivatedModal .btn-primary {
+  background: #4caf50;
+}
+
+body.dark-mode #roomDeactivatedModal .btn-primary:hover {
+  background: #66bb6a;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
+}
+
+@media (max-width: 480px) {
+  #roomDeactivatedModal .modal-dialog {
+    margin: 12px;
+  }
+
+  #roomDeactivatedModal .modal-content {
+    border-radius: 12px;
+  }
+
+  #roomDeactivatedModal .modal-header {
+    padding: 18px 20px;
+  }
+
+  #roomDeactivatedModal .modal-title {
+    font-size: 16px;
+  }
+
+  #roomDeactivatedModal .modal-title i {
+    font-size: 18px;
+  }
+
+  #roomDeactivatedModal .modal-body {
+    padding: 20px;
+  }
+
+  #roomDeactivatedModal .modal-body > div:first-child {
+    font-size: 42px;
+    margin-bottom: 15px;
+  }
+
+  #roomDeactivatedModal .modal-body h4 {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  #roomDeactivatedModal .modal-body p {
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+
+  #roomDeactivatedModal .modal-body p:last-of-type {
+    font-size: 12px;
+  }
+
+  #roomDeactivatedModal .modal-footer {
+    padding: 12px 20px 20px;
+  }
+
+  #roomDeactivatedModal .btn-primary {
+    padding: 9px 24px;
+    font-size: 13px;
+    width: 100%;
   }
 }

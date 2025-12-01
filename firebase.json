@@ -10,12 +10,64 @@
     ],
     "rewrites": [
       {
-        "source": "/profile/**",
+        "source": "/student/pages/login",
+        "destination": "/student/pages/login.html"
+      },
+      {
+        "source": "/student/pages/sign-up",
+        "destination": "/student/pages/sign-up.html"
+      },
+      {
+        "source": "/student/pages/reset-password",
+        "destination": "/student/pages/reset-password.html"
+      },
+      {
+        "source": "/student/pages/landing-page",
+        "destination": "/student/pages/landing-page.html"
+      },
+      {
+        "source": "/student/pages/dashboard",
+        "destination": "/student/pages/dashboard.html"
+      },
+      {
+        "source": "/student/pages/profile",
         "destination": "/student/pages/profile.html"
       },
       {
-        "source": "/student/pages/**",
-        "destination": "/student/pages/login.html"
+        "source": "/student/pages/discussion",
+        "destination": "/student/pages/discussion.html"
+      },
+      {
+        "source": "/student/pages/topic",
+        "destination": "/student/pages/topic.html"
+      },
+      {
+        "source": "/student/pages/post",
+        "destination": "/student/pages/post.html"
+      },
+      {
+        "source": "/student/pages/resources",
+        "destination": "/student/pages/resources.html"
+      },
+      {
+        "source": "/student/pages/study-rooms",
+        "destination": "/student/pages/study-rooms.html"
+      },
+      {
+        "source": "/student/pages/study-room-inside",
+        "destination": "/student/pages/study-room-inside.html"
+      },
+      {
+        "source": "/student/pages/report",
+        "destination": "/student/pages/report.html"
+      },
+      {
+        "source": "/admin/**",
+        "destination": "/admin/index.html"
+      },
+      {
+        "source": "/**",
+        "destination": "/student/pages/landing-page.html"
       }
     ]
   }

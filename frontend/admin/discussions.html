@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discussions - Admin Panel</title>
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="css/discussions.css" />
+  </head>
+  <body>
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-header">
+          <h2>Admin Panel</h2>
+          <p id="adminName" class="admin-name">Loading...</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="dashboard.html" class="nav-item">Dashboard</a>
+          <a href="users.html" class="nav-item">Users</a>
+          <a href="reports.html" class="nav-item">Reports</a>
+          <a href="study-rooms.html" class="nav-item">Study Rooms</a>
+          <a href="discussions.html" class="nav-item active">Discussions</a>
+          <a href="admins.html" class="nav-item">Admins</a>
+          <a href="audit-logs.html" class="nav-item">Audit Logs</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="leaveAdminBtn" class="leave-admin-btn">
+            Leave Admin Panel
+          </button>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1>Discussions Management</h1>
+          <p>Manage discussion topics, posts, and moderate content</p>
+        </header>
+
+        <section class="admin-content">
+          <!-- Stats Cards -->
+          <div class="dashboard-section">
+            <h2 class="section-title">Discussion Statistics</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Topics</div>
+                <div class="stat-number" id="totalTopicsCard">-</div>
+                <div class="stat-description">All discussion topics</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Total Posts</div>
+                <div class="stat-number" id="totalPostsCard">-</div>
+                <div class="stat-description">All forum posts</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Total Comments</div>
+                <div class="stat-number" id="totalCommentsCard">-</div>
+                <div class="stat-description">All comments</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Active Topics</div>
+                <div class="stat-number" id="activeTopicsCard">-</div>
+                <div class="stat-description">Last 7 days activity</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters Section -->
+          <div class="filters-section">
+            <div class="filters-bar">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by topic title or author..."
+                class="search-input"
+              />
+
+              <!-- CATEGORY FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="categoryTrigger"
+                  onclick="toggleCustomSelect('category')"
+                >
+                  <span class="custom-select-value" id="categoryValue"
+                    >All Categories</span
+                  >
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="categoryDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('category', '', 'All Categories')"
+                  >
+                    All Categories
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('category', 'discussion', 'Discussion')"
+                  >
+                    Discussion
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('category', 'announcement', 'Announcement')"
+                  >
+                    Announcement
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('category', 'question', 'Question')"
+                  >
+                    Question
+                  </div>
+                </div>
+              </div>
+
+              <!-- SORT FILTER - CUSTOM DROPDOWN -->
+              <div class="custom-select-wrapper">
+                <button
+                  class="custom-select-trigger"
+                  id="sortTrigger"
+                  onclick="toggleCustomSelect('sort')"
+                >
+                  <span class="custom-select-value" id="sortValue">Newest</span>
+                  <svg
+                    class="custom-select-arrow"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M7 8l6 6 6-6"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="custom-select-dropdown" id="sortDropdown">
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('sort', 'newest', 'Newest')"
+                  >
+                    Newest
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('sort', 'oldest', 'Oldest')"
+                  >
+                    Oldest
+                  </div>
+                  <div
+                    class="custom-select-option"
+                    onclick="selectCustomOption('sort', 'activity', 'Most Activity')"
+                  >
+                    Most Activity
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Topics List -->
+          <div class="topics-container">
+            <div id="topicsList" class="topics-list">
+              <!-- Topics will be loaded here -->
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none">
+              <div class="empty-state-content">
+                <h3>No Topics Found</h3>
+                <p>No discussion topics match your filters.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination">
+            <button id="prevBtn" class="pagination-btn">Previous</button>
+            <span id="pageInfo" class="page-info">Page 1</span>
+            <button id="nextBtn" class="pagination-btn">Next</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Topic Detail Modal -->
+    <div id="topicModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTopicTitle">Topic Details</h2>
+        </div>
+        <div class="modal-body">
+          <!-- Topic info will be loaded here -->
+          <div id="topicInfo"></div>
+
+          <!-- Posts list -->
+          <div class="posts-section">
+            <h3>Posts</h3>
+            <div id="postsList" class="posts-list">
+              <!-- Posts will be loaded here -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+          <button id="deleteTopicBtn" class="btn-danger">Delete Topic</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2>Confirm Delete</h2>
+        </div>
+        <div class="modal-body">
+          <p id="deleteMessage">Are you sure you want to delete this item?</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeDeleteModal()">
+            Cancel
+          </button>
+          <button id="confirmDeleteBtn" class="btn-danger">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth, onAuthStateChanged } from "../config/firebase.js";
+      window.firebase = { auth, onAuthStateChanged };
+    </script>
+    <script type="module" src="js/admin-auth.js"></script>
+    <script src="js/admin-discussions.js"></script>
+  </body>
+</html>

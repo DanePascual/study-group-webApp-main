@@ -1,4 +1,4 @@
-// ===== study-rooms.js (COMPLETE CORRECTED - Full Visible Text) =====
+// ===== study-rooms.js (COMPLETE CORRECTED - With Room Deactivation) =====
 // - Input sanitization on all user inputs (XSS prevention)
 // - Smart tab-based filtering with proper state management
 // - Privacy indicators and password protection for private rooms
@@ -10,6 +10,7 @@
 // - FIXED: Footer (participant count + Enter Now button) at bottom of card
 // - ADDED: Password visibility toggle with eye icon
 // - ADDED: Real-time password requirements validation
+// - ADDED: Room deactivation check - prevents actions on deactivated rooms
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -33,6 +34,7 @@ const MAX_DESCRIPTION_LENGTH = 500;
 let CURRENT_SESSION = null;
 let createRoomModal;
 let passwordModal;
+let deactivationModal;
 let allRooms = [];
 let filteredRooms = [];
 let displayedRooms = [];
@@ -76,9 +78,37 @@ function debugLog(msg, data = null) {
   );
 }
 
+/* ===== ROOM DEACTIVATION MODAL ===== */
+function showRoomDeactivatedModal() {
+  try {
+    const modalElement = document.getElementById("roomDeactivatedModal");
+    if (!modalElement) {
+      console.error("Deactivation modal not found");
+      showToast("This room has been deactivated by an admin", "error");
+      return;
+    }
+
+    if (!deactivationModal) {
+      deactivationModal = new bootstrap.Modal(modalElement);
+    }
+
+    deactivationModal.show();
+  } catch (err) {
+    console.error("Failed to show deactivation modal:", err);
+    showToast("This room has been deactivated by an admin", "error");
+  }
+}
+
+function closeDeactivationModal() {
+  if (deactivationModal) {
+    deactivationModal.hide();
+  }
+  // Redirect back to study rooms
+  window.location.href = "study-rooms.html";
+}
+
 /* ===== PASSWORD VISIBILITY TOGGLE ===== */
 function initializePasswordToggles() {
-  // Toggle for creation modal password field
   const passwordToggleBtn = document.getElementById("passwordToggleBtn");
   const roomPassword = document.getElementById("roomPassword");
 
@@ -89,7 +119,6 @@ function initializePasswordToggles() {
     });
   }
 
-  // Toggle for access modal password field
   const accessPasswordToggleBtn = document.getElementById(
     "accessPasswordToggleBtn"
   );
@@ -128,22 +157,18 @@ function initializePasswordRequirements() {
 }
 
 function validatePasswordRequirements(password) {
-  // Requirement 1: Minimum 8 characters
   const lengthReq = document.getElementById("req-length");
   const hasLength = password.length >= 8;
   updateRequirementStatus(lengthReq, hasLength);
 
-  // Requirement 2: At least one uppercase letter
   const uppercaseReq = document.getElementById("req-uppercase");
   const hasUppercase = /[A-Z]/.test(password);
   updateRequirementStatus(uppercaseReq, hasUppercase);
 
-  // Requirement 3: At least one lowercase letter
   const lowercaseReq = document.getElementById("req-lowercase");
   const hasLowercase = /[a-z]/.test(password);
   updateRequirementStatus(lowercaseReq, hasLowercase);
 
-  // Requirement 4: At least one number
   const numberReq = document.getElementById("req-number");
   const hasNumber = /[0-9]/.test(password);
   updateRequirementStatus(numberReq, hasNumber);
@@ -200,7 +225,6 @@ function openPrivateRoomPasswordModal(roomId, roomName) {
       passwordInput.type = "password";
     }
 
-    // Reset toggle button to show eye icon
     const toggleBtn = document.getElementById("accessPasswordToggleBtn");
     if (toggleBtn) {
       const icon = toggleBtn.querySelector("i");
@@ -258,7 +282,6 @@ async function handlePrivateRoomPasswordSubmit() {
       if (passwordModal) passwordModal.hide();
       passwordInput.value = "";
 
-      // Refresh room list to update participant count
       await fetchAndRenderStudyRooms();
 
       setTimeout(() => {
@@ -297,7 +320,6 @@ function createRoomCardElement(room) {
       ? `<span class="privacy-badge private"><i class="bi bi-lock-fill"></i> Private</span>`
       : `<span class="privacy-badge public"><i class="bi bi-globe"></i> Public</span>`;
 
-  // Escape HTML for display
   const roomNameEscaped = escapeHtml(room.name);
   const roomDescEscaped = escapeHtml(
     room.description || "No description provided."
@@ -306,6 +328,7 @@ function createRoomCardElement(room) {
   const newRoom = document.createElement("div");
   newRoom.className = "room-card";
   newRoom.setAttribute("data-room-id", room.id);
+  newRoom.setAttribute("data-is-active", room.isActive);
   newRoom.innerHTML = `
     <div class="room-header">
       <div class="room-header-content">
@@ -328,17 +351,30 @@ function createRoomCardElement(room) {
   }</span>
       <button class="join-btn" onclick="window.handleRoomJoin('${escapeHtml(
         room.id
-      )}', '${escapeHtml(room.name)}', '${room.privacy}')">Enter Now</button>
+      )}', '${escapeHtml(room.name)}', '${room.privacy}', ${
+    room.isActive
+  })">Enter Now</button>
     </div>
   `;
   return newRoom;
 }
 
-/* ===== HANDLE ROOM JOIN (with privacy check and membership check) ===== */
-export function handleRoomJoin(roomId, roomName, privacy) {
-  debugLog(`Join attempt | Room: ${roomName} | Privacy: ${privacy}`);
+/* ===== HANDLE ROOM JOIN (with privacy check, membership check, and deactivation check) ===== */
+export function handleRoomJoin(roomId, roomName, privacy, isActive) {
+  debugLog(
+    `Join attempt | Room: ${roomName} | Privacy: ${privacy} | Active: ${isActive}`
+  );
 
-  // Find the room in allRooms
+  // ===== CHECK IF ROOM IS DEACTIVATED =====
+  if (!isActive) {
+    logSecurityEvent("DEACTIVATED_ROOM_JOIN_ATTEMPT", {
+      roomId,
+      roomName,
+    });
+    showRoomDeactivatedModal();
+    return;
+  }
+
   const room = allRooms.find((r) => String(r.id) === String(roomId));
   if (!room) {
     debugLog(`Room not found in allRooms: ${roomId}`);
@@ -358,7 +394,6 @@ export function handleRoomJoin(roomId, roomName, privacy) {
     `User ${currentUserId} | Already member: ${isAlreadyMember} | Privacy: ${privacy}`
   );
 
-  // If private room AND user is NOT already a member → require password
   if (privacy === "private" && !isAlreadyMember) {
     logSecurityEvent("PRIVATE_ROOM_JOIN_ATTEMPT", {
       roomId,
@@ -367,7 +402,6 @@ export function handleRoomJoin(roomId, roomName, privacy) {
     });
     openPrivateRoomPasswordModal(roomId, roomName);
   } else if (privacy === "private" && isAlreadyMember) {
-    // Already a member of private room → enter directly
     debugLog(`User is already member of private room ${roomId}`);
     logSecurityEvent("PRIVATE_ROOM_REENTRY", {
       roomId,
@@ -375,13 +409,10 @@ export function handleRoomJoin(roomId, roomName, privacy) {
     });
     enterRoom(roomId);
   } else if (privacy === "public") {
-    // Public room → check if already member
     if (isAlreadyMember) {
-      // Already a member → enter directly
       debugLog(`User is already member of public room ${roomId}`);
       enterRoom(roomId);
     } else {
-      // Not a member yet → attempt to join public room
       attemptJoinPublicRoom(roomId);
     }
   }
@@ -410,7 +441,6 @@ async function attemptJoinPublicRoom(roomId) {
       showToast("Joined room successfully!", "success");
       logSecurityEvent("PUBLIC_ROOM_JOINED", { roomId });
 
-      // Refresh room list to update participant count
       await fetchAndRenderStudyRooms();
 
       setTimeout(() => {
@@ -542,7 +572,6 @@ function renderAllRooms() {
 
   debugLog(`Rendering ${filteredRooms.length} rooms`);
 
-  // Render all filtered rooms at once
   filteredRooms.forEach((room) => {
     const cardElement = createRoomCardElement(room);
     roomGrid.appendChild(cardElement);
@@ -686,12 +715,18 @@ document.addEventListener("DOMContentLoaded", function () {
       passwordModal = new bootstrap.Modal(passwordModalElement);
     }
 
+    const deactivationModalElement = document.getElementById(
+      "roomDeactivatedModal"
+    );
+    if (deactivationModalElement) {
+      deactivationModal = new bootstrap.Modal(deactivationModalElement);
+    }
+
     initializeTooltips();
   } catch (err) {
     console.error("Error initializing Bootstrap components:", err);
   }
 
-  // Initialize password toggles and requirements validation
   initializePasswordToggles();
   initializePasswordRequirements();
 
@@ -975,7 +1010,6 @@ async function handleCreateRoom() {
       return;
     }
 
-    // Validate all password requirements
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
@@ -1070,7 +1104,6 @@ function resetCreateRoomForm() {
     passwordField.style.display = "none";
   }
 
-  // Reset password toggle button icon
   const toggleBtn = document.getElementById("passwordToggleBtn");
   if (toggleBtn) {
     const icon = toggleBtn.querySelector("i");
@@ -1080,7 +1113,6 @@ function resetCreateRoomForm() {
     }
   }
 
-  // Reset all requirement indicators
   const reqElements = document.querySelectorAll(".requirement-item");
   reqElements.forEach((req) => {
     req.classList.remove("met");
@@ -1216,3 +1248,4 @@ window.showToast = showToast;
 window.closeToast = closeToast;
 window.logout = logout;
 window.handleRoomJoin = handleRoomJoin;
+window.closeDeactivationModal = closeDeactivationModal;

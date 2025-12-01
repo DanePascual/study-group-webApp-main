@@ -1,10 +1,12 @@
-// RoomManager class (ES module) — FIXED: Auto-join + proper participant loading + RACE CONDITION FIX
+// RoomManager class (ES module) — FIXED: Auto-join + proper participant loading + RACE CONDITION FIX + DEACTIVATION CHECK
 // ✅ CRITICAL: Synchronous map instead of Promise.all to prevent re-render conflicts
 // ✅ UPDATED: Changed "Online" to "Member" status
 // ✅ UPDATED: Added leaveRoom functionality
 // ✅ UPDATED: Added resetRoomPassword functionality for Option A
 // ✅ UPDATED: Fixed privacy check to use fallback logic for isPrivate
 // ✅ UPDATED: Bulletproof URL construction for password reset
+// ✅ NEW: Room deactivation check with UI lockdown
+
 import { db } from "./firebase-init.js";
 import { fetchJsonWithAuth, postJsonWithAuth } from "../apiClient.js";
 
@@ -15,6 +17,7 @@ export class RoomManager {
     this.isOwner = false;
     this.participants = [];
     this.isLoading = true;
+    this.isRoomDeactivated = false;
     this._isUpdatingParticipants = false; // ✅ NEW: Prevent concurrent updates
   }
 
@@ -52,6 +55,7 @@ export class RoomManager {
         isPrivate: data.isPrivate,
         hasPasswordHash: !!data.passwordHash,
         hasPassword: !!data.hasPassword,
+        isActive: data.isActive,
         creator: data.creator,
         currentUser: this.userAuth.currentUser?.uid,
       });
@@ -60,11 +64,23 @@ export class RoomManager {
       this.isOwner =
         this.currentRoomData.creator === this.userAuth.currentUser.uid;
 
+      // ✅ NEW: Check if room is deactivated
+      this.isRoomDeactivated = this.currentRoomData.isActive === false;
+
       console.log("[room-manager] After assignment - currentRoomData:", {
         privacy: this.currentRoomData.privacy,
         isPrivate: this.currentRoomData.isPrivate,
+        isActive: this.currentRoomData.isActive,
+        isDeactivated: this.isRoomDeactivated,
         isOwner: this.isOwner,
       });
+
+      // ✅ NEW: If room is deactivated, show lock and return early
+      if (this.isRoomDeactivated) {
+        console.warn("[room-manager] ⚠️ ROOM IS DEACTIVATED - Locking UI");
+        this.isLoading = false;
+        return this.currentRoomData;
+      }
 
       // ✅ AUTO-JOIN: Add user to participants if not already
       await this.autoJoinRoom();

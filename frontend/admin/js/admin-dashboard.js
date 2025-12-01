@@ -46,8 +46,10 @@ async function loadDashboardData() {
       response.stats.pendingReports || "0";
     document.getElementById("totalAdmins").textContent =
       response.stats.totalAdmins || "0";
-    document.getElementById("activeUsers").textContent =
-      response.stats.activeUsers || "0";
+
+    // ✅ UPDATED: Changed from activeUsers to totalRooms
+    document.getElementById("totalRooms").textContent =
+      response.stats.totalRooms || "0";
 
     // Update recent actions
     displayRecentActions(response.recentActions || []);
