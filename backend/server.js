@@ -9,28 +9,33 @@ const admin = require("./config/firebase-admin");
 const app = express();
 
 // ===== SECURITY: Apply helmet.js security headers =====
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-      styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://www.gstatic.com"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+        styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "https://www.gstatic.com"],
+      },
     },
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
-}));
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 
 // ===== SECURITY: HTTPS Enforcement (production only) =====
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (req.header('x-forwarded-proto') !== 'https') {
-      return res.redirect(301, `https://${req.header('host')}${req.originalUrl}`);
+    if (req.header("x-forwarded-proto") !== "https") {
+      return res.redirect(
+        301,
+        `https://${req.header("host")}${req.originalUrl}`
+      );
     }
     next();
   });
@@ -38,11 +43,14 @@ if (process.env.NODE_ENV === "production") {
 
 // ===== SECURITY: Additional security headers =====
 app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=()"
+  );
   next();
 });
 
@@ -144,7 +152,8 @@ const adminBanLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many user ban/unban actions. Please try again later (max 20 per minute).",
+    error:
+      "Too many user ban/unban actions. Please try again later (max 20 per minute).",
   },
   skip: (req) => process.env.NODE_ENV !== "production",
 });
@@ -156,7 +165,8 @@ const adminPromoteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many admin promotion actions. Please try again later (max 10 per hour).",
+    error:
+      "Too many admin promotion actions. Please try again later (max 10 per hour).",
   },
   skip: (req) => process.env.NODE_ENV !== "production",
 });
@@ -168,7 +178,8 @@ const adminSuspendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many admin suspension actions. Please try again later (max 5 per hour).",
+    error:
+      "Too many admin suspension actions. Please try again later (max 5 per hour).",
   },
   skip: (req) => process.env.NODE_ENV !== "production",
 });

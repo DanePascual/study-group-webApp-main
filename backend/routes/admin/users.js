@@ -153,121 +153,131 @@ router.get("/:uid", adminAuthMiddleware, async (req, res) => {
 
 // PUT /api/admin/users/:uid/ban
 // Ban user
-router.put("/:uid/ban", adminAuthMiddleware, adminBanLimiter, async (req, res) => {
-  try {
-    const userId = req.params.uid;
-    const { reason, duration } = req.body;
-    const adminUid = req.user.uid;
-    const adminName = req.user.name || "Unknown";
+router.put(
+  "/:uid/ban",
+  adminAuthMiddleware,
+  adminBanLimiter,
+  async (req, res) => {
+    try {
+      const userId = req.params.uid;
+      const { reason, duration } = req.body;
+      const adminUid = req.user.uid;
+      const adminName = req.user.name || "Unknown";
 
-    console.log(`[admin-users] Banning user ${userId}...`);
+      console.log(`[admin-users] Banning user ${userId}...`);
 
-    if (!reason) {
-      return res.status(400).json({ error: "Reason is required" });
-    }
+      if (!reason) {
+        return res.status(400).json({ error: "Reason is required" });
+      }
 
-    const bannedAt = new Date();
+      const bannedAt = new Date();
 
-    // ===== Update user =====
-    await db.collection("users").doc(userId).update({
-      isBanned: true,
-      bannedAt,
-      bannedReason: reason,
-      bannedBy: adminUid,
-    });
-
-    // ===== Create bannedUsers entry =====
-    await db
-      .collection("bannedUsers")
-      .doc(userId)
-      .set({
-        uid: userId,
+      // ===== Update user =====
+      await db.collection("users").doc(userId).update({
+        isBanned: true,
         bannedAt,
         bannedReason: reason,
         bannedBy: adminUid,
-        status: "active",
-        duration: duration || "permanent",
       });
 
-    // ===== Log to audit logs =====
-    await db.collection("auditLogs").add({
-      timestamp: bannedAt,
-      adminUid,
-      adminName,
-      action: "ban_user",
-      targetUid: userId,
-      targetName: "User",
-      changes: {
-        field: "isBanned",
-        from: false,
-        to: true,
-      },
-      reason,
-      duration: duration || "permanent",
-      status: "completed",
-    });
+      // ===== Create bannedUsers entry =====
+      await db
+        .collection("bannedUsers")
+        .doc(userId)
+        .set({
+          uid: userId,
+          bannedAt,
+          bannedReason: reason,
+          bannedBy: adminUid,
+          status: "active",
+          duration: duration || "permanent",
+        });
 
-    console.log(`[admin-users] ✅ User ${userId} banned successfully`);
+      // ===== Log to audit logs =====
+      await db.collection("auditLogs").add({
+        timestamp: bannedAt,
+        adminUid,
+        adminName,
+        action: "ban_user",
+        targetUid: userId,
+        targetName: "User",
+        changes: {
+          field: "isBanned",
+          from: false,
+          to: true,
+        },
+        reason,
+        duration: duration || "permanent",
+        status: "completed",
+      });
 
-    res.json({
-      success: true,
-      message: `User ${userId} has been banned`,
-      bannedAt,
-    });
-  } catch (err) {
-    console.error("[admin-users] Error:", err.message);
-    res.status(500).json({ error: "Failed to ban user" });
+      console.log(`[admin-users] ✅ User ${userId} banned successfully`);
+
+      res.json({
+        success: true,
+        message: `User ${userId} has been banned`,
+        bannedAt,
+      });
+    } catch (err) {
+      console.error("[admin-users] Error:", err.message);
+      res.status(500).json({ error: "Failed to ban user" });
+    }
   }
-});
+);
 
 // PUT /api/admin/users/:uid/unban
 // Unban user
-router.put("/:uid/unban", adminAuthMiddleware, adminBanLimiter, async (req, res) => {
-  try {
-    const userId = req.params.uid;
-    const adminUid = req.user.uid;
-    const adminName = req.user.name || "Unknown";
+router.put(
+  "/:uid/unban",
+  adminAuthMiddleware,
+  adminBanLimiter,
+  async (req, res) => {
+    try {
+      const userId = req.params.uid;
+      const adminUid = req.user.uid;
+      const adminName = req.user.name || "Unknown";
 
-    console.log(`[admin-users] Unbanning user ${userId}...`);
+      console.log(`[admin-users] Unbanning user ${userId}...`);
 
-    // ===== Update user =====
-    await db.collection("users").doc(userId).update({
-      isBanned: false,
-      bannedAt: null,
-      bannedReason: null,
-      bannedBy: null,
-    });
+      // ===== Update user =====
+      await db.collection("users").doc(userId).update({
+        isBanned: false,
+        bannedAt: null,
+        bannedReason: null,
+        bannedBy: null,
+      });
 
-    // ===== Delete bannedUsers entry =====
-    await db.collection("bannedUsers").doc(userId).delete();
+      // ===== Delete bannedUsers entry =====
+      await db.collection("bannedUsers").doc(userId).delete();
 
-    // ===== Log to audit logs =====
-    await db.collection("auditLogs").add({
-      timestamp: new Date(),
-      adminUid,
-      adminName,
-      action: "unban_user",
-      targetUid: userId,
-      targetName: "User",
-      changes: {
-        field: "isBanned",
-        from: true,
-        to: false,
-      },
-      reason: "Admin unbanned user",
-      status: "completed",
-    });
+      // ===== Log to audit logs =====
+      await db.collection("auditLogs").add({
+        timestamp: new Date(),
+        adminUid,
+        adminName,
+        action: "unban_user",
+        targetUid: userId,
+        targetName: "User",
+        changes: {
+          field: "isBanned",
+          from: true,
+          to: false,
+        },
+        reason: "Admin unbanned user",
+        status: "completed",
+      });
 
-    console.log(`[admin-users] ✅ User ${userId} unbanned successfully`);
+      console.log(`[admin-users] ✅ User ${userId} unbanned successfully`);
 
-    res.json({
-      success: true,
-      message: `User ${userId} has been unbanned`,
-    });
-  } catch (err) {
-    console.error("[admin-users] Error:", err.message);
-    res.status(500).json({ error: "Failed to unban user" });
+      res.json({
+        success: true,
+        message: `User ${userId} has been unbanned`,
+      });
+    } catch (err) {
+      console.error("[admin-users] Error:", err.message);
+      res.status(500).json({ error: "Failed to unban user" });
+    }
   }
-});
+);
 
 module.exports = router;
