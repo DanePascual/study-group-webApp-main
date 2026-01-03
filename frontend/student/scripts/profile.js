@@ -183,19 +183,7 @@ function updateProfileCompletion(profile) {
     fillEl.style.width = `${percentage}%`;
   }
 
-  const itemsContainer = document.getElementById("completionItems");
-  if (itemsContainer) {
-    itemsContainer.innerHTML = items
-      .map(
-        (item) => `
-      <div class="completion-item ${item.done ? "done" : ""}">
-        <i class="bi bi-${item.done ? "check-circle-fill" : "circle"}"></i>
-        <span>${item.label}</span>
-      </div>
-    `
-      )
-      .join("");
-  }
+  // Completion items list removed - only showing percentage bar now
 }
 
 function updateProfileUI(profile) {
@@ -949,33 +937,16 @@ function updateLastUpdatedTime() {
   lastUpdated.textContent = `Last updated: ${date} ${time} UTC`;
 }
 
-// ===== TAB FUNCTIONALITY =====
+// ===== TAB FUNCTIONALITY (Deprecated - using single scrollable container now) =====
 function setupTabs() {
-  const tabBtns = document.querySelectorAll(".tab-btn");
-  const tabContents = document.querySelectorAll(".tab-content");
-
-  tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tabName = btn.getAttribute("data-tab");
-
-      // Remove active class from all buttons and contents
-      tabBtns.forEach((b) => b.classList.remove("active"));
-      tabContents.forEach((content) => content.classList.remove("active"));
-
-      // Add active class to clicked button and corresponding content
-      btn.classList.add("active");
-      const activeContent = document.getElementById(`tab-${tabName}`);
-      if (activeContent) {
-        activeContent.classList.add("active");
-      }
-    });
-  });
+  // Tabs removed - all sections now visible in single scrollable container
+  // Keeping function for backward compatibility
 }
 
 // -------------------- Page animation --------------------
 function animateOnLoad() {
   try {
-    const sections = document.querySelectorAll(".tab-section");
+    const sections = document.querySelectorAll(".profile-section-group");
     sections.forEach((section, idx) => {
       section.style.opacity = "0";
       section.style.transform = "translateY(12px)";
