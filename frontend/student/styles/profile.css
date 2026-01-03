@@ -60,14 +60,17 @@ body.dark-mode .modal-content {
 body.dark-mode .info-card,
 body.dark-mode .security-card,
 body.dark-mode .bio-section {
-  background: #333;
+  background: transparent;
   color: #e0e0e0;
   border-color: #444;
+  box-shadow: none;
 }
 
 body.dark-mode .info-card:hover,
 body.dark-mode .security-card:hover {
-  background: #3a3a3a;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 body.dark-mode .form-input,
@@ -925,7 +928,7 @@ body.dark-mode .info-card:hover {
 }
 
 body.dark-mode .bio-section:hover {
-  background: #3a3a3a;
+  background: transparent;
 }
 
 /* Security Cards */
@@ -1042,13 +1045,13 @@ body.dark-mode .security-card:hover {
   background: white;
   margin: 3% auto;
   padding: 0;
-  border-radius: 20px;
+  border-radius: 16px;
   width: 90%;
   max-width: 600px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
   max-height: 90vh;
   overflow: hidden;
-  animation: slideIn 0.3s ease;
+  animation: none;
 }
 
 .modal-content.password-modal {
@@ -1070,18 +1073,21 @@ body.dark-mode .security-card:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 25px 30px;
-  background: linear-gradient(
-    135deg,
-    var(--primary-color),
-    var(--secondary-color)
-  );
-  color: white;
+  padding: 20px 24px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--dark-text);
+}
+
+body.dark-mode .modal-header {
+  background: transparent;
+  border-bottom-color: #444;
+  color: #e0e0e0;
 }
 
 .modal-title {
-  font-size: 22px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1091,17 +1097,25 @@ body.dark-mode .security-card:hover {
 .close-modal {
   background: none;
   border: none;
-  font-size: 28px;
-  color: white;
+  font-size: 22px;
+  color: var(--medium-text);
   cursor: pointer;
-  padding: 5px;
-  border-radius: 50%;
+  padding: 4px;
+  border-radius: 6px;
   transition: var(--transition);
 }
 
 .close-modal:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
+  background: rgba(0, 0, 0, 0.06);
+  transform: none;
+}
+
+body.dark-mode .close-modal {
+  color: #bbb;
+}
+
+body.dark-mode .close-modal:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .modal-body {
