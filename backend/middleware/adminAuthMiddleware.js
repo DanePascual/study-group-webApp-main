@@ -5,6 +5,11 @@ const admin = require("../config/firebase-admin");
 
 async function adminAuthMiddleware(req, res, next) {
   try {
+    // Skip authentication for OPTIONS (preflight) requests
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     // ===== STEP 1: Extract Bearer token from Authorization header =====
     const authHeader = req.headers.authorization;
 

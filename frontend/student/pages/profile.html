@@ -231,160 +231,108 @@
 
       <!-- Profile Content -->
       <div class="profile-content">
-        <!-- Profile Header with Completion Tracker -->
-        <div class="profile-header">
-          <div class="profile-avatar-section">
-            <div class="profile-avatar" id="profileAvatar">
-              <i class="bi bi-person-circle avatar-icon"></i>
-            </div>
-            <button class="edit-profile-btn" id="editProfileBtn">
-              <i class="bi bi-pencil"></i>
-              Edit Profile
-            </button>
-          </div>
-          <div class="profile-info">
-            <!-- Name Section (Without Icon) -->
-            <div class="profile-header-top">
-              <h1 class="profile-name" id="displayName">
-                <span id="displayNameText">Loading...</span>
-              </h1>
-            </div>
-
-            <!-- Profile Completion Tracker -->
-            <div class="completion-tracker">
-              <div class="completion-header">
-                <span class="completion-label">Profile Completion</span>
-                <span class="completion-percentage" id="completionPercentage"
-                  >0%</span
-                >
+        <!-- Single Unified Profile Container -->
+        <div class="profile-container">
+          <!-- Container Header: Avatar + Completion + Edit Button -->
+          <div class="container-header">
+            <div class="header-left">
+              <div class="profile-avatar-small" id="profileAvatar">
+                <i class="bi bi-person-circle avatar-icon"></i>
               </div>
-              <div class="completion-bar">
-                <div
-                  class="completion-fill"
-                  id="completionFill"
-                  style="width: 0%"
-                ></div>
-              </div>
-              <div class="completion-items" id="completionItems"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabs Navigation -->
-        <div class="profile-tabs">
-          <div class="tabs-container">
-            <button class="tab-btn active" data-tab="personal">
-              <i class="bi bi-person"></i> Personal
-            </button>
-            <button class="tab-btn" data-tab="academic">
-              <i class="bi bi-mortarboard"></i> Academic
-            </button>
-            <button class="tab-btn" data-tab="security">
-              <i class="bi bi-shield-lock"></i> Security & Settings
-            </button>
-          </div>
-        </div>
-
-        <!-- Tab Contents -->
-        <div class="tabs-content">
-          <!-- Personal Tab -->
-          <div class="tab-content active" id="tab-personal">
-            <div class="tab-section">
-              <h2 class="section-title">Personal Information</h2>
-              <div class="info-grid">
-                <div class="info-card">
-                  <div class="info-label">Full Name</div>
-                  <div class="info-value" id="infoName">Loading...</div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Email Address</div>
-                  <div class="info-value email" id="infoEmail">Loading...</div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Student Number</div>
-                  <div class="info-value" id="infoStudentNumber">
-                    Loading...
-                  </div>
-                </div>
-                <div class="info-card full-width">
-                  <div class="info-label">About Me</div>
-                  <div class="bio-section" id="infoBio">Loading...</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Academic Tab -->
-          <div class="tab-content" id="tab-academic">
-            <div class="tab-section">
-              <h2 class="section-title">Academic Information</h2>
-              <div class="info-grid">
-                <div class="info-card">
-                  <div class="info-label">Program</div>
-                  <div class="info-value" id="infoProgram">Loading...</div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Institution</div>
-                  <div class="info-value" id="infoInstitution">Loading...</div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Year Level</div>
-                  <div class="info-value" id="infoYearLevel">Loading...</div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Specialization</div>
-                  <div class="info-value" id="infoSpecialization">
-                    Loading...
-                  </div>
-                </div>
-                <div class="info-card">
-                  <div class="info-label">Expected Graduation</div>
-                  <div class="info-value" id="infoGraduation">Loading...</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Security & Settings Tab -->
-          <div class="tab-content" id="tab-security">
-            <div class="tab-section">
-              <h2 class="section-title">Security & Settings</h2>
-              <div class="security-cards">
-                <!-- Change Password Card -->
-                <div class="security-card">
-                  <div class="security-icon">
-                    <i class="bi bi-shield-check"></i>
-                  </div>
-                  <div class="security-content">
-                    <h3>Change Password</h3>
-                    <p>Update your password to keep your account secure</p>
-                  </div>
-                  <button
-                    class="security-action-btn"
-                    id="openChangePasswordBtn"
+              <div class="completion-tracker">
+                <div class="completion-header">
+                  <span class="completion-label">Profile Completion</span>
+                  <span class="completion-percentage" id="completionPercentage"
+                    >0%</span
                   >
-                    <i class="bi bi-arrow-right"></i>
-                  </button>
                 </div>
+                <div class="completion-bar">
+                  <div
+                    class="completion-fill"
+                    id="completionFill"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <button class="edit-profile-btn-small" id="editProfileBtn">
+              <i class="bi bi-pencil"></i>
+              Edit
+            </button>
+          </div>
 
-                <!-- Two-Factor Authentication Card - Coming Soon -->
-                <div
-                  class="security-card"
-                  style="opacity: 0.6; cursor: not-allowed"
-                >
-                  <div class="security-icon">
-                    <i class="bi bi-shield-lock"></i>
-                  </div>
-                  <div class="security-content">
-                    <h3>Two-Factor Authentication (2FA)</h3>
-                    <p>
-                      Coming soon - Extra layer of security for your account
-                    </p>
-                  </div>
-                  <div class="coming-soon-badge">
-                    <span>Coming Soon</span>
-                  </div>
+          <!-- Personal Information Section -->
+          <div class="profile-section-group">
+            <h2 class="section-title">
+              <i class="bi bi-person"></i> Personal Information
+            </h2>
+            <div class="info-grid">
+              <div class="info-card">
+                <div class="info-label">Full Name</div>
+                <div class="info-value" id="infoName">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Email Address</div>
+                <div class="info-value email" id="infoEmail">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Student Number</div>
+                <div class="info-value" id="infoStudentNumber">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">About Me</div>
+                <div class="info-value" id="infoBio">Loading...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Information Section -->
+          <div class="profile-section-group">
+            <h2 class="section-title">
+              <i class="bi bi-mortarboard"></i> Academic Information
+            </h2>
+            <div class="info-grid">
+              <div class="info-card">
+                <div class="info-label">Program</div>
+                <div class="info-value" id="infoProgram">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Institution</div>
+                <div class="info-value" id="infoInstitution">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Year Level</div>
+                <div class="info-value" id="infoYearLevel">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Specialization</div>
+                <div class="info-value" id="infoSpecialization">Loading...</div>
+              </div>
+              <div class="info-card">
+                <div class="info-label">Expected Graduation</div>
+                <div class="info-value" id="infoGraduation">Loading...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security & Settings Section -->
+          <div class="profile-section-group">
+            <h2 class="section-title">
+              <i class="bi bi-shield-lock"></i> Security & Settings
+            </h2>
+            <div class="security-cards">
+              <!-- Change Password Card -->
+              <div class="security-card">
+                <div class="security-icon">
+                  <i class="bi bi-shield-check"></i>
                 </div>
+                <div class="security-content">
+                  <h3>Change Password</h3>
+                  <p>Update your password to keep your account secure</p>
+                </div>
+                <button class="security-action-btn" id="openChangePasswordBtn">
+                  <i class="bi bi-arrow-right"></i>
+                </button>
               </div>
             </div>
           </div>

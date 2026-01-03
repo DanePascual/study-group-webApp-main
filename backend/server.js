@@ -8,18 +8,60 @@ const admin = require("./config/firebase-admin");
 
 const app = express();
 
+// ===== CORS Configuration (must be BEFORE helmet) =====
+const corsOptions = {
+  origin: [
+    "https://studygroup.app",
+    "https://www.studygroup.app",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200,
+};
+
+// Allow all origins in development
+if (process.env.NODE_ENV !== "production") {
+  corsOptions.origin = function (origin, callback) {
+    console.log(`[CORS-DEBUG] DEV MODE: Allowing origin: ${origin}`);
+    callback(null, true);
+  };
+} else {
+  // Add debug logging for production
+  const originalOrigin = corsOptions.origin;
+  corsOptions.origin = function (origin, callback) {
+    console.log(`[CORS-DEBUG] PROD MODE: Checking origin: ${origin}`);
+
+    // Allow requests with no origin (e.g., mobile apps, Postman, direct browser access)
+    if (!origin) {
+      console.log(`[CORS-DEBUG] No origin header - allowing`);
+      return callback(null, true);
+    }
+
+    if (originalOrigin.includes(origin)) {
+      console.log(`[CORS-DEBUG] Origin allowed: ${origin}`);
+      callback(null, true);
+    } else {
+      console.log(`[CORS-DEBUG] Origin rejected: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  };
+}
+
+console.log(
+  `[CORS] Mode: ${process.env.NODE_ENV}, Origins:`,
+  corsOptions.origin
+);
+
+app.use(cors(corsOptions));
+
 // ===== SECURITY: Apply helmet.js security headers =====
+// Note: Disable CSP for API server (only needed for frontend)
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-        styleSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://www.gstatic.com"],
-      },
-    },
+    contentSecurityPolicy: false,
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
@@ -71,123 +113,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// ===== CORS Configuration =====
-const rawOrigins = (
-  process.env.FRONTEND_ORIGIN ||
-  "http://127.0.0.1:5500,http://localhost:5500,https://studygroup.app,https://www.studygroup.app"
-)
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const extraProd = [];
-const frontDomain = (process.env.FRONTEND_DOMAIN || "studygroup.app").trim();
-if (frontDomain) {
-  const proto = (process.env.FRONTEND_PROTOCOL || "https").trim();
-  extraProd.push(`${proto}://${frontDomain}`);
-  extraProd.push(`${proto}://www.${frontDomain}`);
-}
-
-const explicitWhitelist = new Set([...rawOrigins, ...extraProd]);
-
-// ===== DEBUG: Log CORS whitelist =====
-console.log(`[CORS] Whitelist:`, Array.from(explicitWhitelist));
-
-function isLocalHost(origin) {
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
-
-  try {
-    const u = new URL(origin);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-}
-
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      console.log(`[CORS] Checking origin: ${origin}`);
-
-      if (!origin) {
-        console.log(`[CORS] No origin provided, allowing`);
-        return cb(null, true);
-      }
-
-      if (explicitWhitelist.has(origin)) {
-        console.log(`[CORS] ✅ Origin allowed: ${origin}`);
-        return cb(null, true);
-      }
-
-      if (isLocalHost(origin)) {
-        console.log(`[CORS] ✅ Localhost allowed: ${origin}`);
-        return cb(null, true);
-      }
-
-      console.warn(`[CORS] ❌ Origin blocked: ${origin}`);
-      return cb(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200,
-    maxAge: 86400,
-  })
-);
-
 // ===== Body parsers =====
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
-
-// ===== SECURITY: Rate limiters for admin endpoints =====
-const rateLimit = require("express-rate-limit");
-
-const adminBanLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  keyGenerator: (req) => req.user?.uid || req.ip,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error:
-      "Too many user ban/unban actions. Please try again later (max 20 per minute).",
-  },
-  skip: (req) => process.env.NODE_ENV !== "production",
-});
-
-const adminPromoteLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  keyGenerator: (req) => req.user?.uid || req.ip,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error:
-      "Too many admin promotion actions. Please try again later (max 10 per hour).",
-  },
-  skip: (req) => process.env.NODE_ENV !== "production",
-});
-
-const adminSuspendLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => req.user?.uid || req.ip,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error:
-      "Too many admin suspension actions. Please try again later (max 5 per hour).",
-  },
-  skip: (req) => process.env.NODE_ENV !== "production",
-});
 
 // ===== Health check =====
 app.get("/healthz", (req, res) =>
   res.json({ status: "ok", now: new Date().toISOString() })
 );
+
+// ===== CORS Test endpoint =====
+app.get("/api/cors-test", (req, res) => {
+  res.json({
+    message: "CORS test successful",
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ===== FIREBASE AUTH MIDDLEWARE =====
 const firebaseAuthMiddleware = require("./middleware/firebaseAuthMiddleware");
@@ -274,11 +216,6 @@ app.use(
 );
 
 console.log("[server] ✅ Admin routes mounted successfully");
-
-// ===== Export rate limiters for admin routes =====
-module.exports.adminBanLimiter = adminBanLimiter;
-module.exports.adminPromoteLimiter = adminPromoteLimiter;
-module.exports.adminSuspendLimiter = adminSuspendLimiter;
 
 // ===== 404 Handler =====
 app.use((req, res) => {

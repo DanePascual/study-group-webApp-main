@@ -3,7 +3,11 @@ const express = require("express");
 const router = express.Router();
 const admin = require("../../config/firebase-admin");
 const adminAuthMiddleware = require("../../middleware/adminAuthMiddleware");
-const { adminPromoteLimiter, adminSuspendLimiter } = require("../../server");
+
+const {
+  adminPromoteLimiter,
+  adminSuspendLimiter,
+} = require("../../config/rateLimiters");
 
 const db = admin.firestore();
 const auth = admin.auth();

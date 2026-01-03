@@ -88,9 +88,12 @@ async function parseResponseBody(res) {
  * Helper to build a full URL from a path or pass-through a full URL.
  */
 function resolveUrl(urlOrPath) {
-  return urlOrPath && urlOrPath.startsWith("http")
-    ? urlOrPath
-    : apiUrl(urlOrPath);
+  let url =
+    urlOrPath && urlOrPath.startsWith("http") ? urlOrPath : apiUrl(urlOrPath);
+  if (url && (url.includes("127.0.0.1") || url.includes("localhost"))) {
+    url = url.replace("https://", "http://");
+  }
+  return url;
 }
 
 /**

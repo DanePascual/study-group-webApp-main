@@ -8,8 +8,8 @@ const DEFAULT_API_BASE =
 // For local development (comment out to use production):
 //const DEFAULT_API_BASE = "http://localhost:5000";
 
-export const API_BASE =
-  (typeof window !== "undefined" && window.API_BASE) || DEFAULT_API_BASE;
+// Force use DEFAULT_API_BASE for local development (ignore cached window.API_BASE)
+export const API_BASE = DEFAULT_API_BASE;
 
 // Admin API uses same base as student API
 export const ADMIN_API_BASE = API_BASE;
