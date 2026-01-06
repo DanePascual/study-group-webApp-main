@@ -5,7 +5,11 @@
 // - Removed all hardcoded http://localhost:5000 URLs
 // - Now uses dynamic API_BASE from appConfig.js
 
-import { apiUrl } from "../../config/appConfig.js";
+import {
+  apiUrl,
+  INSTITUTION_EMAIL_DOMAIN,
+  isInstitutionEmail,
+} from "../../config/appConfig.js";
 
 // Wait for the DOM to be fully loaded before attaching event listeners
 document.addEventListener("DOMContentLoaded", function () {
@@ -76,15 +80,11 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   // =========================
-  // OTP Email Verification Logic
+  // Simplified OTP Flow
   // =========================
 
-  let otpVerified = false;
   let otpEmail = "";
-
-  // Elements for OTP
   const emailInput = document.getElementById("email");
-  const requestOtpBtn = document.getElementById("requestOtpBtn");
   const otpModal = document.getElementById("otpModal");
   const verifyOtpBtn = document.getElementById("verifyOtpBtn");
   const otpInput = document.getElementById("otp");
@@ -92,110 +92,36 @@ document.addEventListener("DOMContentLoaded", function () {
   const signupBtn = document.getElementById("signupBtn");
   const closeBtn = document.querySelector(".close-btn");
 
-  // Modal control
   if (closeBtn) {
     closeBtn.addEventListener("click", function () {
       otpModal.style.display = "none";
     });
   }
 
-  // Close modal if clicked outside
   window.addEventListener("click", function (event) {
     if (event.target === otpModal) {
       otpModal.style.display = "none";
     }
   });
 
-  // Step 1: Request OTP
-  if (requestOtpBtn) {
-    requestOtpBtn.addEventListener("click", function () {
-      const email = emailInput.value.trim();
-      if (!validateEmail(email)) {
-        showAlert("Please enter a valid college email.", "error");
-        return;
-      }
-
-      requestOtpBtn.disabled = true;
-      requestOtpBtn.textContent = "Sending...";
-
-      // Use apiUrl() helper instead of hardcoded URL
-      fetch(apiUrl("/api/auth/request-otp"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (res.ok) {
-            otpModal.style.display = "block";
-            otpHint.textContent =
-              "We've sent a 6-digit code to your email. Check your inbox (and spam).";
-            otpEmail = email;
-            showAlert("OTP sent to your email.", "success");
-          } else {
-            showAlert(data.error || "Failed to send OTP.", "error");
-          }
-        })
-        .catch(() => {
-          showAlert("Network error. Try again later.", "error");
-        })
-        .finally(() => {
-          requestOtpBtn.disabled = false;
-          requestOtpBtn.textContent = "Request OTP";
-        });
-    });
+  // Enable Create Account only when all inputs are present and valid
+  const confirmPasswordInput = document.getElementById("confirmPassword");
+  function canEnableSubmit() {
+    const email = emailInput.value.trim();
+    const pass = passwordInput.value;
+    const confirm = confirmPasswordInput.value;
+    const strong = checkPasswordStrength(pass);
+    return (
+      validateEmail(email) && pass && confirm && pass === confirm && strong
+    );
   }
-
-  // Step 2: Verify OTP
-  if (verifyOtpBtn) {
-    verifyOtpBtn.addEventListener("click", function () {
-      const otp = otpInput.value.trim();
-      if (!otp || otp.length !== 6) {
-        showAlert("Enter the 6-digit code sent to your email.", "error");
-        return;
-      }
-      verifyOtpBtn.disabled = true;
-      verifyOtpBtn.textContent = "Verifying...";
-
-      // Use apiUrl() helper instead of hardcoded URL
-      fetch(apiUrl("/api/auth/verify-otp"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: otpEmail || emailInput.value.trim(),
-          otp,
-        }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (res.ok) {
-            otpVerified = true;
-            emailInput.readOnly = true;
-            requestOtpBtn.disabled = true;
-            showAlert("Email verified. You may now sign up.", "success");
-            signupBtn.disabled = false;
-            otpModal.style.display = "none";
-            requestOtpBtn.textContent = "Email Verified";
-            requestOtpBtn.style.backgroundColor = "#3d9940";
-          } else {
-            showAlert(data.error || "OTP verification failed.", "error");
-            otpHint.textContent = "Check your code and try again.";
-          }
-        })
-        .catch(() => {
-          showAlert("Network error. Try again.", "error");
-        })
-        .finally(() => {
-          verifyOtpBtn.disabled = false;
-          verifyOtpBtn.textContent = "Verify OTP";
-        });
-    });
+  function refreshSubmitState() {
+    signupBtn.disabled = !canEnableSubmit();
   }
-
-  // Step 3: Disable signup until OTP is verified
-  if (signupBtn) {
-    signupBtn.disabled = true; // Prevent signup until email is verified
-  }
+  [emailInput, passwordInput, confirmPasswordInput].forEach((el) => {
+    if (el) el.addEventListener("input", refreshSubmitState);
+  });
+  refreshSubmitState();
 
   // =========================
   // Form Validation & Submission
@@ -203,8 +129,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Email validation - ONLY ALLOW COLLEGE EMAIL
   function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/;
-    return emailRegex.test(email);
+    return isInstitutionEmail(email);
   }
 
   // Student ID validation
@@ -286,7 +211,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (email && !validateEmail(email)) {
         showFieldError(
           emailInput,
-          "Please use your college email (@paterostechnologicalcollege.edu.ph)"
+          `Please use your college email (@${INSTITUTION_EMAIL_DOMAIN})`
         );
       } else if (email) {
         showFieldSuccess(emailInput);
@@ -296,23 +221,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const studentIdInput = document.getElementById("studentId");
-  if (studentIdInput) {
-    studentIdInput.addEventListener("input", function (e) {
-      const studentId = e.target.value;
-      const studentIdInput = e.target;
+  // removed studentId listeners (not used)
 
-      if (studentId && !validateStudentId(studentId)) {
-        showFieldError(studentIdInput, "Format: YYYY-NNNN (e.g., 2024-1234)");
-      } else if (studentId) {
-        showFieldSuccess(studentIdInput);
-      } else {
-        clearFieldState(studentIdInput);
-      }
-    });
-  }
-
-  const confirmPasswordInput = document.getElementById("confirmPassword");
   if (confirmPasswordInput) {
     confirmPasswordInput.addEventListener("input", checkPasswordMatch);
   }
@@ -336,58 +246,111 @@ document.addEventListener("DOMContentLoaded", function () {
   // Form submission (calls backend API)
   const signupForm = document.getElementById("signupForm");
   if (signupForm) {
-    signupForm.addEventListener("submit", function (e) {
+    signupForm.addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const formData = {
-        firstName: document.getElementById("firstName").value.trim(),
-        lastName: document.getElementById("lastName").value.trim(),
-        email: document.getElementById("email").value.trim(),
-        studentId: document.getElementById("studentId").value.trim(),
-        course: document.getElementById("course").value,
-        yearLevel: document.getElementById("yearLevel").value,
-        password: document.getElementById("password").value,
-        confirmPassword: document.getElementById("confirmPassword").value,
+      const email = emailInput.value.trim();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+
+      // Basic validations
+      if (!validateEmail(email)) {
+        showAlert(
+          `Please use your institutional email (@${INSTITUTION_EMAIL_DOMAIN})`,
+          "error"
+        );
+        return;
+      }
+      if (!checkPasswordStrength(password)) {
+        showAlert("Password does not meet security requirements", "error");
+        return;
+      }
+      if (password !== confirmPassword) {
+        showAlert("Passwords do not match", "error");
+        return;
+      }
+
+      // Step 1: send OTP automatically, then show modal
+      try {
+        signupBtn.disabled = true;
+        signupBtn.querySelector("#btnText").textContent = "Sending OTP...";
+        const r = await fetch(apiUrl("/api/auth/request-otp"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok)
+          throw new Error(
+            data && data.error ? data.error : "Failed to send OTP"
+          );
+        otpEmail = email;
+        otpHint.textContent =
+          "We've sent a 6-digit code to your email. Check your inbox (and spam).";
+        otpModal.style.display = "block";
+        signupBtn.querySelector("#btnText").textContent = "Create Account";
+      } catch (err) {
+        showAlert(err.message || "Failed to send OTP.", "error");
+        signupBtn.disabled = false;
+        signupBtn.querySelector("#btnText").textContent = "Create Account";
+        return;
+      }
+
+      // Wire one-time OTP verification handler to complete signup
+      const handleVerify = async () => {
+        const otp = otpInput.value.trim();
+        if (!otp || otp.length !== 6) {
+          showAlert("Enter the 6-digit code sent to your email.", "error");
+          return;
+        }
+        verifyOtpBtn.disabled = true;
+        verifyOtpBtn.textContent = "Verifying...";
+
+        try {
+          const vr = await fetch(apiUrl("/api/auth/verify-otp"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: otpEmail, otp }),
+          });
+          const vdata = await vr.json().catch(() => ({}));
+          if (!vr.ok)
+            throw new Error(
+              vdata && vdata.error ? vdata.error : "OTP verification failed"
+            );
+
+          // Proceed to simplified signup
+          showLoadingState();
+          const sr = await fetch(apiUrl("/api/auth/signup"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, confirmPassword }),
+          });
+          const sdata = await sr.json().catch(() => ({}));
+          hideLoadingState();
+          if (!sr.ok)
+            throw new Error(
+              sdata && sdata.error ? sdata.error : "Signup failed"
+            );
+
+          otpModal.style.display = "none";
+          showAlert(
+            "Account created successfully! Welcome to Study Group!",
+            "success"
+          );
+          setTimeout(() => {
+            goToLogin();
+          }, 1600);
+        } catch (err) {
+          showAlert(err.message || "Signup failed.", "error");
+        } finally {
+          verifyOtpBtn.disabled = false;
+          verifyOtpBtn.textContent = "Verify OTP";
+        }
       };
 
-      if (!validateForm(formData)) {
-        return;
-      }
-
-      // Only allow submission if OTP is verified
-      if (!otpVerified) {
-        showAlert("Please verify your email first.", "error");
-        return;
-      }
-
-      showLoadingState();
-
-      // Use apiUrl() helper instead of hardcoded URL
-      fetch(apiUrl("/api/auth/signup"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (res.ok) {
-            hideLoadingState();
-            showAlert(
-              "Account created successfully! Welcome to Study Group!",
-              "success"
-            );
-            setTimeout(() => {
-              goToLogin();
-            }, 2000);
-          } else {
-            hideLoadingState();
-            showAlert(data.error, "error");
-          }
-        })
-        .catch((error) => {
-          hideLoadingState();
-          showAlert("Network error. Please try again.", "error");
-        });
+      // Ensure single binding per attempt
+      verifyOtpBtn.removeEventListener("click", handleVerify);
+      verifyOtpBtn.addEventListener("click", handleVerify, { once: true });
     });
   }
 
@@ -522,16 +485,5 @@ document.addEventListener("DOMContentLoaded", function () {
   document.head.appendChild(style);
 
   // Reset OTP verification if email changes
-  if (emailInput) {
-    emailInput.addEventListener("input", function () {
-      if (otpVerified) {
-        otpVerified = false;
-        emailInput.readOnly = false;
-        requestOtpBtn.disabled = false;
-        requestOtpBtn.textContent = "Request OTP";
-        requestOtpBtn.style.backgroundColor = "";
-        signupBtn.disabled = true;
-      }
-    });
-  }
+  // reset is automatic via refreshSubmitState; nothing else needed
 });

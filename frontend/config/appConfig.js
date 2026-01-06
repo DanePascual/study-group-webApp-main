@@ -14,6 +14,19 @@ export const API_BASE = DEFAULT_API_BASE;
 // Admin API uses same base as student API
 export const ADMIN_API_BASE = API_BASE;
 
+// Institutional email domain used across the client
+export const INSTITUTION_EMAIL_DOMAIN = "paterostechnologicalcollege.edu.ph";
+
+export function isInstitutionEmail(email) {
+  if (typeof email !== "string") return false;
+  const domain = INSTITUTION_EMAIL_DOMAIN.replace(
+    /[-/\\^$*+?.()|[\]{}]/g,
+    "\\$&"
+  );
+  const re = new RegExp(`^[^\\s@]+@${domain}$`);
+  return re.test(email.trim());
+}
+
 export function apiUrl(path = "") {
   if (!path) return API_BASE;
   const normalized = path.startsWith("/") ? path : `/${path}`;
@@ -33,4 +46,6 @@ if (typeof window !== "undefined") {
   window.ADMIN_API_BASE = ADMIN_API_BASE;
   window.apiUrl = apiUrl;
   window.adminApiUrl = adminApiUrl;
+  window.INSTITUTION_EMAIL_DOMAIN = INSTITUTION_EMAIL_DOMAIN;
+  window.isInstitutionEmail = isInstitutionEmail;
 }

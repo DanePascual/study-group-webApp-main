@@ -4,6 +4,7 @@ const admin = require("../config/firebase-admin");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
+const { INSTITUTION_EMAIL_DOMAIN } = require("../config/constants");
 
 // ===== NODEMAILER CONFIGURATION =====
 // ✅ FIXED: Better error handling and validation
@@ -229,7 +230,11 @@ router.post("/request-otp", requestOtpLimiter, async (req, res) => {
   console.log(`[auth] Received OTP request for email: ${email}`);
 
   // ===== SECURITY: Validate email format =====
-  if (!email || !/^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/.test(email)) {
+  const escapeRegex = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const domainRe = new RegExp(
+    `^[^\\s@]+@${escapeRegex(INSTITUTION_EMAIL_DOMAIN)}$`
+  );
+  if (!email || !domainRe.test(email)) {
     console.warn(`[auth] Invalid email format: ${email}`);
     logSecurityEvent("REQUEST_OTP_INVALID_EMAIL", { email });
     return res.status(400).json({ error: "Invalid email format." });
@@ -435,43 +440,65 @@ router.post("/verify-otp", verifyOtpLimiter, async (req, res) => {
 
 // ===== 3. Signup endpoint =====
 router.post("/signup", signupLimiter, async (req, res) => {
-  const { firstName, lastName, email, studentId, course, yearLevel, password } =
-    req.body;
+  const {
+    firstName = "",
+    lastName = "",
+    email,
+    studentId = "",
+    course = "",
+    yearLevel = "",
+    password,
+  } = req.body;
 
   console.log(`[auth] Received signup request for email: ${email}`);
 
   // ===== SECURITY: Sanitize inputs =====
-  const sanitizedFirstName = sanitizeString(firstName, 100);
-  const sanitizedLastName = sanitizeString(lastName, 100);
-  const sanitizedCourse = sanitizeString(course, 100);
-  const sanitizedYearLevel = sanitizeString(yearLevel, 50);
+  const sanitizedFirstName = sanitizeString(firstName || "", 100);
+  const sanitizedLastName = sanitizeString(lastName || "", 100);
+  const sanitizedCourse = sanitizeString(course || "", 100);
+  const sanitizedYearLevel = sanitizeString(yearLevel || "", 50);
+
+  // Support simplified signup (email + password only)
+  const isSimpleSignup =
+    !studentId &&
+    !sanitizedCourse &&
+    !sanitizedYearLevel &&
+    !sanitizedFirstName &&
+    !sanitizedLastName;
 
   // ===== SECURITY: Validate institutional email =====
-  if (!/^[^\s@]+@paterostechnologicalcollege\.edu\.ph$/.test(email)) {
+  const escapeRegex2 = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const domainRe2 = new RegExp(
+    `^[^\\s@]+@${escapeRegex2(INSTITUTION_EMAIL_DOMAIN)}$`
+  );
+  if (!domainRe2.test(email)) {
     console.warn(`[auth] Invalid institutional email: ${email}`);
     logSecurityEvent("SIGNUP_INVALID_EMAIL", { email });
     return res.status(400).json({
-      error:
-        "Email must be a valid @paterostechnologicalcollege.edu.ph address.",
+      error: `Email must be a valid @${INSTITUTION_EMAIL_DOMAIN} address.`,
     });
   }
 
-  // ===== SECURITY: Validate Student ID format =====
-  if (!/^\d{4}-\d{4}$/.test(studentId)) {
-    console.warn(`[auth] Invalid student ID format: ${studentId}`);
-    logSecurityEvent("SIGNUP_INVALID_STUDENT_ID", { studentId });
-    return res.status(400).json({
-      error: "Student ID must be in format YYYY-NNNN (e.g., 2024-1234).",
-    });
+  // ===== SECURITY: Validate Student ID format (skip for simple signup) =====
+  if (!isSimpleSignup) {
+    if (!/^\d{4}-\d{4}$/.test(studentId)) {
+      console.warn(`[auth] Invalid student ID format: ${studentId}`);
+      logSecurityEvent("SIGNUP_INVALID_STUDENT_ID", { studentId });
+      return res.status(400).json({
+        error: "Student ID must be in format YYYY-NNNN (e.g., 2024-1234).",
+      });
+    }
   }
 
-  // ===== SECURITY: Validate course value =====
-  if (!ALLOWED_COURSES.includes(sanitizedCourse)) {
-    console.warn(`[auth] Invalid course value: ${course}`);
-    logSecurityEvent("SIGNUP_INVALID_COURSE", { email, course });
-    return res.status(400).json({
-      error: "Invalid course selection. Please choose a valid course.",
-    });
+  // ===== SECURITY: Validate course value (skip for simple signup) =====
+  if (!isSimpleSignup) {
+    if (!ALLOWED_COURSES.includes(sanitizedCourse)) {
+      console.warn(`[auth] Invalid course value: ${course}`);
+      logSecurityEvent("SIGNUP_INVALID_COURSE", { email, course });
+      return res.status(400).json({
+        error: "Invalid course selection. Please choose a valid course.",
+      });
+    }
   }
 
   // ===== SECURITY: Validate password strength =====
@@ -503,10 +530,15 @@ router.post("/signup", signupLimiter, async (req, res) => {
     // ===== Create user in Firebase Auth =====
     console.log(`[auth] Creating Firebase Auth user for ${email}`);
 
+    const displayName =
+      sanitizedFirstName || sanitizedLastName
+        ? `${sanitizedFirstName} ${sanitizedLastName}`.trim()
+        : "";
+
     const userRecord = await admin.auth().createUser({
       email,
       password,
-      displayName: `${sanitizedFirstName} ${sanitizedLastName}`,
+      ...(displayName ? { displayName } : {}),
       emailVerified: true,
     });
 
@@ -520,12 +552,17 @@ router.post("/signup", signupLimiter, async (req, res) => {
       .collection("users")
       .doc(userRecord.uid)
       .set({
-        name: `${sanitizedFirstName} ${sanitizedLastName}`,
+        name:
+          sanitizedFirstName || sanitizedLastName
+            ? `${sanitizedFirstName} ${sanitizedLastName}`.trim()
+            : "",
         email,
-        studentNumber: studentId,
-        program: sanitizedCourse,
-        yearLevel: sanitizedYearLevel,
-        avatar: sanitizedFirstName.charAt(0).toUpperCase(),
+        studentNumber: isSimpleSignup ? "" : studentId,
+        program: isSimpleSignup ? "" : sanitizedCourse,
+        yearLevel: isSimpleSignup ? "" : sanitizedYearLevel,
+        avatar: sanitizedFirstName
+          ? sanitizedFirstName.charAt(0).toUpperCase()
+          : "",
         isBanned: false,
         bannedAt: null,
         bannedReason: null,

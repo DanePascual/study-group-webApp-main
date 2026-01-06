@@ -175,10 +175,20 @@ function updateSidebar(profile = {}) {
     const courseNode = el("sidebarCourse");
     const avatarNode = el("sidebarAvatar");
 
-    if (nameNode && typeof profile.name === "string")
-      nameNode.textContent = profile.name;
-    if (courseNode && typeof profile.program === "string")
-      courseNode.textContent = profile.program;
+    if (nameNode) {
+      if (typeof profile.name === "string" && profile.name.trim()) {
+        nameNode.textContent = profile.name;
+      } else {
+        nameNode.textContent = ""; // no name if only email exists
+      }
+    }
+    if (courseNode) {
+      if (typeof profile.program === "string" && profile.program.trim()) {
+        courseNode.textContent = profile.program;
+      } else {
+        courseNode.textContent = "";
+      }
+    }
 
     if (avatarNode) {
       // defensive sizing: ensures avatar stays circular even if CSS hasn't loaded yet
@@ -254,6 +264,11 @@ async function fetchAndUpdateSidebarProfile(user) {
     try {
       localStorage.setItem("userProfile", JSON.stringify(profile));
     } catch {}
+
+    // Enforce completion gate after profile is available
+    try {
+      enforceCompletionGate(profile);
+    } catch {}
   } catch (err) {
     console.warn(
       "fetchAndUpdateSidebarProfile failed:",
@@ -270,6 +285,9 @@ function setupProfileUpdatedListener() {
         updateSidebar(profile);
         try {
           localStorage.setItem("userProfile", JSON.stringify(profile));
+        } catch {}
+        try {
+          enforceCompletionGate(profile);
         } catch {}
       }
     } catch (err) {
@@ -314,6 +332,11 @@ function setupAuthListener() {
 
       try {
         localStorage.removeItem("userProfile");
+      } catch {}
+
+      // Remove feature lock when signed out
+      try {
+        deactivateFeatureLock();
       } catch {}
     }
   });
@@ -482,3 +505,123 @@ if (!window.__sidebarInitialized) {
 }
 
 export { initSidebar, fetchAndUpdateSidebarProfile, logout };
+
+/* ----------------------- Completion Gate ----------------------- */
+function computeProfileCompletionPercent(p = {}) {
+  const required = [
+    Boolean(p && typeof p.name === "string" && p.name.trim()),
+    Boolean(p && typeof p.studentNumber === "string" && p.studentNumber.trim()),
+    Boolean(p && typeof p.program === "string" && p.program.trim()),
+  ];
+  const total = required.length;
+  const done = required.filter(Boolean).length;
+  const optionalKeys = [
+    "institution",
+    "yearLevel",
+    "specialization",
+    "graduation",
+    "photo",
+    "bio",
+  ];
+  const optionalTotal = optionalKeys.length;
+  const optionalDone = optionalKeys.reduce(
+    (acc, k) => acc + (p && p[k] ? 1 : 0),
+    0
+  );
+  const pct = Math.round(
+    (done / total) * 80 +
+      (optionalTotal ? (optionalDone / optionalTotal) * 20 : 0)
+  );
+  return Math.max(0, Math.min(100, pct));
+}
+
+function enforceCompletionGate(profile) {
+  const percent = computeProfileCompletionPercent(profile || {});
+  if (percent >= 100) {
+    deactivateFeatureLock();
+    return;
+  }
+
+  // Allow access only to dashboard and profile pages
+  const path = (location.pathname || "").toLowerCase();
+  const isDashboard =
+    path.endsWith("/dashboard.html") || path.includes("/dashboard.html");
+  const isProfile =
+    path.endsWith("/profile.html") || path.includes("/profile.html");
+  if (!isDashboard && !isProfile) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  // Only lock interactions on Dashboard; keep Profile fully interactive
+  if (isDashboard) {
+    activateFeatureLock();
+  } else if (isProfile) {
+    deactivateFeatureLock();
+  }
+}
+
+function activateFeatureLock() {
+  if (window.__featureLockActive) return;
+  window.__featureLockActive = true;
+
+  // Banner at top encouraging profile completion
+  let banner = document.getElementById("featureLockBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "featureLockBanner";
+    banner.style.cssText = `position: fixed; top: 16px; left: 50%; transform: translateX(-50%); width: min(840px, 94%); background: var(--primary-light,#f3fbf4); color: var(--dark-text,#1b1b1b); border: 1px solid var(--border-light,#e0e0e0); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.08); z-index: 3000; padding: 10px 14px; display:flex; align-items:center; gap:12px;`;
+    const icon = document.createElement("i");
+    icon.className = "bi bi-shield-lock";
+    icon.style.cssText = "font-size:18px;color:var(--primary-color,#2e7d32);";
+    const text = document.createElement("div");
+    text.style.cssText = "flex:1; font-size:14px;";
+    text.textContent = "Complete your profile to unlock all features.";
+    const go = document.createElement("button");
+    go.textContent = "Go to Profile";
+    go.id = "featureLockGoProfile";
+    go.style.cssText = `border: 0; background: var(--primary-color,#2e7d32); color:#fff; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight:700;`;
+    go.onclick = () => {
+      window.location.href = "profile.html";
+    };
+    banner.appendChild(icon);
+    banner.appendChild(text);
+    banner.appendChild(go);
+    document.body.appendChild(banner);
+  }
+
+  // Click-blocker: prevent interactions except profile/dashboard links and logout
+  function clickBlocker(e) {
+    const target = e.target.closest
+      ? e.target.closest("a, button, input, textarea, select")
+      : null;
+    if (!target) return;
+    const href = target.getAttribute && target.getAttribute("href");
+    const id = target.id || "";
+    const allow =
+      (href &&
+        (href.includes("profile.html") || href.includes("dashboard.html"))) ||
+      id === "logoutBtn" ||
+      (target.closest && target.closest(".sidebar-footer .user-info")) ||
+      id === "profileLink" ||
+      id === "featureLockGoProfile" ||
+      (target.closest && target.closest("#featureLockBanner"));
+    if (!allow) {
+      e.preventDefault();
+      e.stopPropagation();
+      target.blur && target.blur();
+    }
+  }
+  window.__featureLockClickBlocker = clickBlocker;
+  document.addEventListener("click", clickBlocker, true);
+}
+
+function deactivateFeatureLock() {
+  if (!window.__featureLockActive) return;
+  window.__featureLockActive = false;
+  const banner = document.getElementById("featureLockBanner");
+  if (banner) banner.remove();
+  const cb = window.__featureLockClickBlocker;
+  if (cb) document.removeEventListener("click", cb, true);
+  window.__featureLockClickBlocker = null;
+}

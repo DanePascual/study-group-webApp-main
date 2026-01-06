@@ -105,10 +105,117 @@ onAuthStateChanged(async (user) => {
     updateSidebarUserInfo();
     validateUserSession();
     scheduleUIInit();
+
+    // After login, show a small banner reminder once per login
+    try {
+      const userDocSnap = await getDoc(doc(db, "users", user.uid));
+      const profile = userDocSnap.exists() ? userDocSnap.data() : {};
+      const completion = computeProfileCompletionPercent(profile);
+      if (completion < 100) {
+        showProfileCompletionBanner(completion);
+      }
+    } catch (e) {
+      // ignore reminder errors
+    }
   } else {
     window.location.href = "login.html";
   }
 });
+
+function computeProfileCompletionPercent(p = {}) {
+  // Required fields for completion: name, studentNumber, program
+  const required = [
+    Boolean(p && typeof p.name === "string" && p.name.trim()),
+    Boolean(p && typeof p.studentNumber === "string" && p.studentNumber.trim()),
+    Boolean(p && typeof p.program === "string" && p.program.trim()),
+  ];
+  const total = required.length;
+  const done = required.filter(Boolean).length;
+  // optional bonus (kept simple): institution, yearLevel, specialization, graduation, photo, bio
+  const optionalKeys = [
+    "institution",
+    "yearLevel",
+    "specialization",
+    "graduation",
+    "photo",
+    "bio",
+  ];
+  const optionalTotal = optionalKeys.length;
+  const optionalDone = optionalKeys.reduce(
+    (acc, k) => acc + (p && p[k] ? 1 : 0),
+    0
+  );
+  const pct = Math.round(
+    (done / total) * 80 +
+      (optionalTotal ? (optionalDone / optionalTotal) * 20 : 0)
+  );
+  return Math.max(0, Math.min(100, pct));
+}
+
+function showProfileCompletionBanner(percent) {
+  if (document.getElementById("profileCompletionBanner")) return;
+
+  const banner = document.createElement("div");
+  banner.id = "profileCompletionBanner";
+  banner.style.cssText = `
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    width: min(840px, 94%);
+    background: var(--primary-light, #f3fbf4);
+    color: var(--dark-text, #1b1b1b);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+    z-index: 2000;
+    padding: 10px 14px; display:flex; align-items:center; gap:12px;`;
+
+  const icon = document.createElement("i");
+  icon.className = "bi bi-person-check";
+  icon.style.cssText = "font-size:18px;color:var(--primary-color,#2e7d32);";
+
+  const text = document.createElement("div");
+  text.style.cssText = "flex:1; font-size:14px;";
+  text.innerHTML = `Your profile is <strong>${percent}%</strong> complete. Finish your profile to unlock all features.`;
+
+  const later = document.createElement("button");
+  later.textContent = "Later";
+  later.style.cssText = `
+    border: 1px solid var(--border-light, #d0d0d0);
+    background: #fff; color: var(--dark-text, #1b1b1b);
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight:600;`;
+  later.onclick = () => banner.remove();
+
+  const ok = document.createElement("button");
+  ok.textContent = "Okay";
+  ok.style.cssText = `
+    border: 0; background: var(--primary-color,#2e7d32); color:#fff;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight:700;`;
+  ok.onclick = () => {
+    window.location.href = "profile.html";
+  };
+
+  banner.appendChild(icon);
+  banner.appendChild(text);
+  banner.appendChild(later);
+  banner.appendChild(ok);
+  document.body.appendChild(banner);
+}
+
+async function ensureProfileReminderOnce() {
+  try {
+    const existingBanner = document.getElementById("profileCompletionBanner");
+    if (existingBanner) return;
+    const user = auth && auth.currentUser;
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const profile = snap.exists() ? snap.data() : {};
+    const percent = computeProfileCompletionPercent(profile);
+    if (percent < 100) {
+      showProfileCompletionBanner(percent);
+    }
+  } catch (err) {
+    // Silent fail
+  }
+}
 
 function updateSidebarUserInfo() {
   try {
@@ -244,6 +351,9 @@ function initDashboardUI() {
   initUIEvents();
   fetchAndRenderRooms();
   fetchTodos();
+
+  // Fallback: ensure reminder appears if still logged in and banner missing
+  ensureProfileReminderOnce();
 }
 
 function watchSidebarToggle() {
