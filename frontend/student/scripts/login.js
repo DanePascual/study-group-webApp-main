@@ -264,11 +264,11 @@ async function handleLoginError(err, email) {
   ) {
     // This is the tricky one - Firebase doesn't tell us if email doesn't exist or password is wrong
     // So we ask the user to check BOTH, but lean towards "wrong credentials"
-    message = `❌ <strong>Invalid email or password</strong><br/>The email or password you entered doesn't match our records.<br/><br/>💡 <strong>What to do:</strong><br/>✓ Double-check your email and password<br/>✓ Make sure caps lock is off<br/>✓ <a href="#" onclick="openForgotPasswordModal(); return false;" style="color: #4caf50; font-weight: 600; text-decoration: none;">Forgot your password?</a><br/>✓ <a href="#" onclick="goToSignup(); return false;" style="color: #4caf50; font-weight: 600; text-decoration: none;">Create a new account</a>`;
+    message = `❌ <strong>Invalid email or password</strong><br/>The email or password you entered doesn't match our records.<br/><br/>💡 <strong>What to do:</strong><br/>✓ Double-check your email and password<br/>✓ Make sure caps lock is off<br/>✓ Forgot your password?<br/>✓ Create a new account`;
     inputToHighlight = "both";
   } else if (errorCode === "auth/user-not-found") {
     // Email doesn't exist
-    message = `📧 <strong>Account not found</strong><br/>There is no account registered with "<strong>${email}</strong>".<br/><br/>💡 <strong>What to do:</strong><br/>✓ Check if you typed the email correctly<br/>✓ <a href="#" onclick="goToSignup(); return false;" style="color: #4caf50; font-weight: 600; text-decoration: none;">Create a new account</a><br/>✓ Contact <a href="mailto:support@paterostechnologicalcollege.edu.ph" style="color: #4caf50; font-weight: 600; text-decoration: none;">support</a> if you need help`;
+    message = `📧 <strong>Account not found</strong><br/>There is no account registered with "<strong>${email}</strong>".<br/><br/>💡 <strong>What to do:</strong><br/>✓ Check if you typed the email correctly<br/>✓ Create a new account<br/>✓ Contact <a href="mailto:support@paterostechnologicalcollege.edu.ph" style="color: #4caf50; font-weight: 600; text-decoration: none;">support</a> if you need help`;
     inputToHighlight = "email";
   } else if (errorCode === "auth/wrong-password") {
     // Password is wrong
