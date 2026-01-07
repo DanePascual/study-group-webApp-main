@@ -38,8 +38,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.adminUser && window.adminUser.token) {
       clearInterval(checkAdminInterval);
       console.log("[admin-discussions] Admin user ready, loading topics...");
-      loadTopics();
-      loadStatistics();
+      loadTopics().then(() => {
+        loadStatistics();
+      });
     } else if (attempts > 50) {
       clearInterval(checkAdminInterval);
       console.error("[admin-discussions] Admin user not loaded");

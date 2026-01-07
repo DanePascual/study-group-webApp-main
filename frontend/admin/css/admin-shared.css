@@ -45,11 +45,17 @@ body {
   display: flex;
   flex-direction: column;
   position: fixed;
-  left: 0;
+  left: -260px;
   top: 0;
   height: 100vh;
   overflow-y: auto;
   box-shadow: var(--shadow);
+  transition: left 0.3s ease;
+  z-index: 1000;
+}
+
+.admin-sidebar.open {
+  left: 0;
 }
 
 .sidebar-header {
@@ -157,11 +163,75 @@ body {
 /* ===== Main Content ===== */
 .admin-main {
   flex: 1;
-  margin-left: 260px;
-  padding: 40px;
+  margin-left: 0;
+  padding: 0;
   background-color: var(--dark-bg);
   overflow-y: auto;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+.admin-main.shifted {
+  margin-left: 260px;
+}
+
+/* ===== Top Navigation Bar ===== */
+.admin-top-nav {
+  background-color: var(--card-bg);
+  padding: 15px 30px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* ===== Admin Content Wrapper ===== */
+.admin-header,
+.admin-content {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.admin-header {
+  padding-top: 40px;
+}
+
+.admin-content {
+  padding-bottom: 40px;
+}
+
+.menu-toggle {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-toggle:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary-color);
+}
+
+.menu-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+
+.nav-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 /* ===== Admin Header ===== */
@@ -538,52 +608,62 @@ body {
 /* ===== Responsive - Tablet ===== */
 @media (max-width: 768px) {
   .admin-sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 20px;
-    padding: 16px;
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    left: -260px;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .admin-sidebar.open {
+    left: 0;
   }
 
   .admin-main {
-    margin-left: 0;
-    padding: 20px;
+    margin-left: 0 !important;
+    padding: 0;
+  }
+
+  .admin-main.shifted {
+    margin-left: 0 !important;
+  }
+
+  .admin-top-nav {
+    padding: 12px 20px;
+  }
+
+  .admin-header,
+  .admin-content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .admin-header {
+    padding-top: 20px;
   }
 
   .admin-header h1 {
     font-size: 24px;
   }
 
-  .sidebar-nav {
-    flex-direction: row;
-    gap: 12px;
-    flex-wrap: wrap;
+  /* Sidebar overlay for mobile */
+  .admin-sidebar::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 260px;
+    width: calc(100vw - 260px);
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
   }
 
-  .nav-item {
-    flex: 1;
-    min-width: 120px;
-    text-align: center;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-  }
-
-  .nav-item:hover,
-  .nav-item.active {
-    border-left: none;
-    border-bottom-color: var(--primary-color);
-  }
-
-  .sidebar-footer {
-    flex-direction: row;
-    gap: 12px;
-  }
-
-  .leave-admin-btn,
-  .logout-btn {
-    flex: 1;
+  .admin-sidebar.open::before {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .modal {

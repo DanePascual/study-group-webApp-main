@@ -280,23 +280,34 @@
 /* ===== Severity Badges ===== */
 .severity-badge {
   display: inline-block;
-  padding: 0;
-  border-radius: 0;
-  font-size: 13px;
-  font-weight: 400;
-  text-transform: none;
-  background-color: transparent !important;
-  color: var(--text-primary) !important;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
   white-space: nowrap;
 }
 
-/* Remove all color variations - keep plain text only */
-.severity-low,
-.severity-medium,
-.severity-high,
-.severity-critical {
-  background-color: transparent !important;
-  color: var(--text-primary) !important;
+/* Severity color variations */
+.severity-badge.severity-low {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+.severity-badge.severity-medium {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.severity-badge.severity-high {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.severity-badge.severity-critical {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  animation: pulse-critical 2s ease-in-out infinite;
 }
 
 @keyframes pulse-critical {
@@ -377,6 +388,17 @@
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.action-link.disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.action-link.disabled:hover {
+  text-decoration: none;
 }
 
 /* ===== Old Button Styles - Hidden ===== */
