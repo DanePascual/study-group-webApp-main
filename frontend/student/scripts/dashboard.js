@@ -489,6 +489,54 @@ function showToast(message, type = "success") {
   showNotification(message, type);
 }
 
+/* ===== Show password error hint ===== */
+function showPasswordError(inputElement, message) {
+  if (!inputElement) return;
+
+  // Find the container (mb-3 div that contains the password-input-wrapper)
+  const container =
+    inputElement.closest(".mb-3") || inputElement.parentElement?.parentElement;
+  if (!container) return;
+
+  // Remove any existing error message
+  const existingError = container.querySelector(".password-error-hint");
+  if (existingError) {
+    existingError.remove();
+  }
+
+  // Add error class to input
+  inputElement.classList.add("is-invalid");
+  inputElement.style.borderColor = "#dc3545";
+
+  // Create error message element
+  const errorHint = document.createElement("div");
+  errorHint.className = "password-error-hint";
+  errorHint.style.cssText =
+    "color: #dc3545; font-size: 13px; margin-top: 8px; display: flex; align-items: center; gap: 5px;";
+  errorHint.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> ${escapeHtml(
+    message
+  )}`;
+
+  // Insert after the password-input-wrapper
+  const wrapper = container.querySelector(".password-input-wrapper");
+  if (wrapper) {
+    wrapper.insertAdjacentElement("afterend", errorHint);
+  } else {
+    container.appendChild(errorHint);
+  }
+
+  // Remove error when user starts typing
+  const clearError = function () {
+    inputElement.classList.remove("is-invalid");
+    inputElement.style.borderColor = "";
+    const hint = container.querySelector(".password-error-hint");
+    if (hint) hint.remove();
+    inputElement.removeEventListener("input", clearError);
+  };
+
+  inputElement.addEventListener("input", clearError);
+}
+
 // ===== PRIVATE ROOM PASSWORD MODAL =====
 function initPasswordModal() {
   try {
@@ -589,15 +637,26 @@ async function handlePrivateRoomPasswordSubmit() {
       }, 500);
     } else {
       showToast("Incorrect password", "error");
+      // Show error hint near password field BEFORE clearing input
+      showPasswordError(passwordInput, "Incorrect password. Please try again.");
       passwordInput.value = "";
     }
   } catch (err) {
     console.error("Error verifying password:", err);
-    let msg = "Password verification failed";
-    if (err && err.body && err.body.error) {
+    let msg = "Incorrect password. Please try again.";
+    // Check for specific error messages from API
+    if (err && err.message) {
+      msg = err.message;
+    } else if (err && err.body && err.body.error) {
       msg = err.body.error;
     }
     showToast(msg, "error");
+    // Show error hint near password field
+    const passwordInput = document.getElementById("privateRoomPassword");
+    if (passwordInput) {
+      showPasswordError(passwordInput, msg);
+      passwordInput.value = "";
+    }
   } finally {
     const submitBtn = document.getElementById("submitPrivateRoomPassword");
     if (submitBtn) {

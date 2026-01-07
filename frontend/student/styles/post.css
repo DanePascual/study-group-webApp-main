@@ -732,7 +732,8 @@ body.dark-mode .reply-path {
 /* Text-based small action buttons resembling social UI */
 .btn-reply,
 .btn-edit,
-.btn-delete {
+.btn-delete,
+.btn-report {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -768,6 +769,14 @@ body.dark-mode .reply-path {
 }
 .btn-delete:hover {
   color: #b71c1c;
+  background: rgba(244, 67, 54, 0.06);
+}
+
+.btn-report {
+  color: var(--medium-text);
+}
+.btn-report:hover {
+  color: var(--danger-color);
   background: rgba(244, 67, 54, 0.06);
 }
 

@@ -1,45 +1,17 @@
 // frontend/student/scripts/report.js
-// SECURITY HARDENED VERSION:
-// - Fetches real users for suggestions (from backend /api/users/list)
-// - Confirmation dialog before submitting report
-// - Stronger self-report prevention (case-insensitive, normalized)
-// - XSS prevention on all user inputs
-// - Input sanitization for descriptions
-// - Rate limit feedback to user
-// - Security logging
-// ✅ FIXED: Anonymous option removed
+// MY REPORTS HISTORY PAGE
+// This page displays the user's submitted reports history with filtering and details.
+// Report submission is now handled contextually via the reportModal.js component.
 
 import { auth } from "../../config/firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { apiUrl } from "../../config/appConfig.js";
-import { postFormWithAuth, fetchJsonWithAuth } from "./apiClient.js";
-
-const ALLOWED_MIME = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "application/pdf",
-  "text/plain",
-]);
+import { fetchJsonWithAuth } from "./apiClient.js";
 
 let CURRENT_SESSION = null;
-let ALL_USERS = []; // ← Cache of all users for suggestions
+let allReports = [];
+let filteredReports = [];
 
-// ===== SECURITY: Logging helper =====
-function logSecurityEvent(eventType, details) {
-  const timestamp = new Date().toISOString();
-  console.warn(
-    `[SECURITY] ${timestamp} | Event: ${eventType} | Details:`,
-    details
-  );
-}
-
-// ===== SECURITY: Sanitization helpers =====
-function sanitizeString(str, maxLength = 255) {
-  if (typeof str !== "string") return "";
-  return str.trim().substring(0, maxLength);
-}
-
+// ===== Helpers =====
 function escapeHtml(str) {
   if (typeof str !== "string") return "";
   return str
@@ -50,11 +22,6 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-function normalizeEmail(email) {
-  return (email || "").toLowerCase().trim();
-}
-
-// ===== Notification helper =====
 function showNotification(message, type = "info") {
   const existing = document.querySelectorAll(".notification");
   existing.forEach((n) => n.remove());
@@ -81,6 +48,80 @@ function showNotification(message, type = "info") {
     n.style.opacity = "0";
     setTimeout(() => n.remove(), 400);
   }, 4000);
+}
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+}
+
+function formatFullDate(dateStr) {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  return date.toLocaleString();
+}
+
+function getStatusLabel(status) {
+  const statusMap = {
+    pending: "Pending Review",
+    in_review: "In Review",
+    resolved: "Resolved",
+    dismissed: "Dismissed",
+  };
+  return statusMap[status] || "Pending Review";
+}
+
+function getStatusClass(status) {
+  const classMap = {
+    pending: "status-pending",
+    in_review: "status-review",
+    resolved: "status-resolved",
+    dismissed: "status-dismissed",
+  };
+  return classMap[status] || "status-pending";
+}
+
+function getStatusIcon(status) {
+  const iconMap = {
+    pending: "bi-clock",
+    in_review: "bi-search",
+    resolved: "bi-check-circle",
+    dismissed: "bi-x-circle",
+  };
+  return iconMap[status] || "bi-clock";
+}
+
+function getReportTypeLabel(type) {
+  const typeMap = {
+    harassment: "Harassment/Bullying",
+    inappropriate: "Inappropriate Content",
+    cheating: "Academic Dishonesty",
+    spam: "Spam/Off-topic",
+    privacy: "Privacy Violation",
+    threat: "Threats/Violence",
+    impersonation: "Impersonation",
+    other: "Other Violation",
+  };
+  return typeMap[type] || type || "Unknown";
+}
+
+function getContextTypeLabel(contextType) {
+  const contextMap = {
+    study_room: "Study Room",
+    topic: "Discussion Topic",
+    post: "Discussion Post",
+    comment: "Comment",
+    user_profile: "User Profile",
+    other: "Other",
+  };
+  return contextMap[contextType] || contextType || "—";
 }
 
 // ===== Update sidebar =====
@@ -142,32 +183,315 @@ async function fetchBackendProfile() {
   return fetchJsonWithAuth("/api/users/profile", { method: "GET" });
 }
 
-// ===== Fetch all users for suggestions (from /api/users/list) =====
-async function fetchAllUsers() {
+// ===== Fetch my reports =====
+async function fetchMyReports() {
   try {
-    console.log("[report] Fetching users list from /api/users/list");
-    const data = await fetchJsonWithAuth("/api/users/list", { method: "GET" });
-
-    if (Array.isArray(data)) {
-      ALL_USERS = data.map((u) => ({
-        email: normalizeEmail(u.email || ""),
-        name: sanitizeString(u.name || "", 100),
-      }));
-      console.log(
-        `[report] ✅ Loaded ${ALL_USERS.length} users for suggestions`
-      );
-    } else {
-      console.warn("[report] Users list response is not an array:", data);
-      ALL_USERS = [];
-    }
+    const data = await fetchJsonWithAuth("/api/reports?mine=true", {
+      method: "GET",
+    });
+    return Array.isArray(data) ? data : [];
   } catch (err) {
-    console.warn("[report] Could not fetch users list:", err && err.message);
-    showNotification(
-      "Could not load user suggestions. You can still submit a report.",
-      "info"
-    );
-    ALL_USERS = [];
+    console.warn("fetchMyReports: failed", err);
+    return [];
   }
+}
+
+// ===== Render reports list =====
+function renderReportsList() {
+  const reportsList = document.getElementById("reportsList");
+  const reportsEmpty = document.getElementById("reportsEmpty");
+
+  if (!reportsList) return;
+
+  if (!filteredReports || filteredReports.length === 0) {
+    reportsList.innerHTML = "";
+    if (reportsEmpty) reportsEmpty.style.display = "block";
+    return;
+  }
+
+  if (reportsEmpty) reportsEmpty.style.display = "none";
+
+  const html = filteredReports
+    .map(
+      (rep) => `
+    <div class="report-card" data-report-id="${escapeHtml(
+      rep.id || rep.reportId || ""
+    )}">
+      <div class="report-card-header">
+        <div class="report-id">
+          <i class="bi bi-flag"></i>
+          Report #${escapeHtml(rep.id || rep.reportId || "—")}
+        </div>
+        <div class="report-status ${getStatusClass(rep.status)}">
+          <i class="bi ${getStatusIcon(rep.status)}"></i>
+          ${escapeHtml(getStatusLabel(rep.status))}
+        </div>
+      </div>
+      <div class="report-card-body">
+        <div class="report-info-row">
+          <span class="report-label">Type:</span>
+          <span class="report-value">${escapeHtml(
+            getReportTypeLabel(rep.type)
+          )}</span>
+        </div>
+        <div class="report-info-row">
+          <span class="report-label">Reported User:</span>
+          <span class="report-value">${escapeHtml(
+            rep.reportedUser || rep.targetName || "—"
+          )}</span>
+        </div>
+        <div class="report-info-row">
+          <span class="report-label">Location:</span>
+          <span class="report-value">${escapeHtml(
+            rep.location || rep.contextName || "—"
+          )}</span>
+        </div>
+        <div class="report-info-row">
+          <span class="report-label">Submitted:</span>
+          <span class="report-value">${escapeHtml(
+            formatRelativeTime(rep.timestamp || rep.createdAt)
+          )}</span>
+        </div>
+        ${
+          rep.description
+            ? `
+        <div class="report-description">
+          <span class="report-label">Description:</span>
+          <p>${escapeHtml(rep.description).substring(0, 150)}${
+                rep.description.length > 150 ? "..." : ""
+              }</p>
+        </div>
+        `
+            : ""
+        }
+      </div>
+      <div class="report-card-footer">
+        <button class="view-details-btn" data-report-id="${escapeHtml(
+          rep.id || rep.reportId || ""
+        )}">
+          <i class="bi bi-eye"></i> View Details
+        </button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+
+  reportsList.innerHTML = html;
+
+  // Bind click events for view details
+  reportsList.querySelectorAll(".view-details-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const reportId = btn.dataset.reportId;
+      showReportDetail(reportId);
+    });
+  });
+}
+
+// ===== Update summary stats =====
+function updateSummaryStats() {
+  const totalEl = document.getElementById("totalReports");
+  const pendingEl = document.getElementById("pendingReports");
+  const resolvedEl = document.getElementById("resolvedReports");
+
+  if (totalEl) totalEl.textContent = allReports.length;
+
+  if (pendingEl) {
+    const pendingCount = allReports.filter(
+      (r) => r.status === "pending" || r.status === "in_review" || !r.status
+    ).length;
+    pendingEl.textContent = pendingCount;
+  }
+
+  if (resolvedEl) {
+    const resolvedCount = allReports.filter(
+      (r) => r.status === "resolved"
+    ).length;
+    resolvedEl.textContent = resolvedCount;
+  }
+}
+
+// ===== Apply filters =====
+function applyFilters() {
+  const statusFilter = document.getElementById("statusFilter");
+  const sortOrder = document.getElementById("sortOrder");
+
+  const status = statusFilter ? statusFilter.value : "all";
+  const sort = sortOrder ? sortOrder.value : "newest";
+
+  // Filter by status
+  if (status === "all") {
+    filteredReports = [...allReports];
+  } else {
+    filteredReports = allReports.filter((r) => {
+      if (status === "pending") return r.status === "pending" || !r.status;
+      return r.status === status;
+    });
+  }
+
+  // Sort
+  filteredReports.sort((a, b) => {
+    const dateA = new Date(a.timestamp || a.createdAt || 0);
+    const dateB = new Date(b.timestamp || b.createdAt || 0);
+    return sort === "newest" ? dateB - dateA : dateA - dateB;
+  });
+
+  renderReportsList();
+}
+
+// ===== Show report detail modal =====
+function showReportDetail(reportId) {
+  const report = allReports.find((r) => (r.id || r.reportId) === reportId);
+  if (!report) return;
+
+  const modal = document.getElementById("reportDetailModal");
+  const content = document.getElementById("reportDetailContent");
+
+  if (!modal || !content) return;
+
+  const html = `
+    <div class="detail-section">
+      <div class="detail-status ${getStatusClass(report.status)}">
+        <i class="bi ${getStatusIcon(report.status)}"></i>
+        ${escapeHtml(getStatusLabel(report.status))}
+      </div>
+    </div>
+    
+    <div class="detail-section">
+      <h4>Report Information</h4>
+      <div class="detail-row">
+        <span class="detail-label">Report ID:</span>
+        <span class="detail-value">#${escapeHtml(
+          report.id || report.reportId || "—"
+        )}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Type:</span>
+        <span class="detail-value">${escapeHtml(
+          getReportTypeLabel(report.type)
+        )}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Severity:</span>
+        <span class="detail-value severity-${escapeHtml(
+          report.severity || "low"
+        )}">${escapeHtml((report.severity || "low").toUpperCase())}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Submitted:</span>
+        <span class="detail-value">${escapeHtml(
+          formatFullDate(report.timestamp || report.createdAt)
+        )}</span>
+      </div>
+    </div>
+    
+    <div class="detail-section">
+      <h4>Reported User</h4>
+      <div class="detail-row">
+        <span class="detail-label">Name:</span>
+        <span class="detail-value">${escapeHtml(
+          report.targetName || report.reportedUser || "—"
+        )}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Email:</span>
+        <span class="detail-value">${escapeHtml(
+          report.targetEmail || report.reportedUser || "—"
+        )}</span>
+      </div>
+    </div>
+    
+    <div class="detail-section">
+      <h4>Context</h4>
+      <div class="detail-row">
+        <span class="detail-label">Location Type:</span>
+        <span class="detail-value">${escapeHtml(
+          getContextTypeLabel(report.contextType)
+        )}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Location:</span>
+        <span class="detail-value">${escapeHtml(
+          report.location || report.contextName || "—"
+        )}</span>
+      </div>
+      ${
+        report.contentType
+          ? `
+      <div class="detail-row">
+        <span class="detail-label">Content Type:</span>
+        <span class="detail-value">${escapeHtml(report.contentType)}</span>
+      </div>
+      `
+          : ""
+      }
+    </div>
+    
+    <div class="detail-section">
+      <h4>Description</h4>
+      <p class="detail-description">${escapeHtml(
+        report.description || "No description provided."
+      )}</p>
+    </div>
+    
+    ${
+      report.evidenceUrls && report.evidenceUrls.length > 0
+        ? `
+    <div class="detail-section">
+      <h4>Evidence</h4>
+      <div class="evidence-list">
+        ${report.evidenceUrls
+          .map(
+            (url, i) => `
+          <a href="${escapeHtml(url)}" target="_blank" class="evidence-link">
+            <i class="bi bi-file-earmark"></i> Evidence ${i + 1}
+          </a>
+        `
+          )
+          .join("")}
+      </div>
+    </div>
+    `
+        : ""
+    }
+    
+    ${
+      report.adminNotes
+        ? `
+    <div class="detail-section">
+      <h4>Admin Response</h4>
+      <p class="admin-notes">${escapeHtml(report.adminNotes)}</p>
+    </div>
+    `
+        : ""
+    }
+  `;
+
+  content.innerHTML = html;
+  modal.style.display = "flex";
+}
+
+window.closeReportDetailModal = function () {
+  const modal = document.getElementById("reportDetailModal");
+  if (modal) modal.style.display = "none";
+};
+
+// ===== Load and render reports =====
+async function loadReports() {
+  const reportsList = document.getElementById("reportsList");
+
+  if (reportsList) {
+    reportsList.innerHTML = `
+      <div class="reports-loading">
+        <i class="bi bi-arrow-repeat spin"></i>
+        Loading your reports...
+      </div>
+    `;
+  }
+
+  allReports = await fetchMyReports();
+  updateSummaryStats();
+  applyFilters();
 }
 
 // ===== Auth state handler =====
@@ -188,7 +512,7 @@ onAuthStateChanged(auth, async (user) => {
       user: userName,
       userAvatar: userName ? userName[0] : user.email ? user.email[0] : "U",
       userProgram: profile.program || "",
-      email: normalizeEmail(profile.email || user.email),
+      email: (profile.email || user.email || "").toLowerCase().trim(),
       timezone:
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
       datetime: new Date().toISOString(),
@@ -197,10 +521,7 @@ onAuthStateChanged(auth, async (user) => {
     updateSidebarUserInfo();
     syncThemeUI();
 
-    // ===== Fetch users for suggestions =====
-    await fetchAllUsers();
-
-    initializeReportPage();
+    initializeReportsPage();
   } catch (err) {
     console.error("Auth/profile init error:", err);
     showNotification(
@@ -212,474 +533,37 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ===== Main page init =====
-function initializeReportPage() {
-  function initReportUI() {
-    const reportForm = document.getElementById("reportForm");
-    const fileInput = document.getElementById("fileInput");
-    const uploadArea = document.getElementById("uploadArea");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const uploadedFilesContainer = document.getElementById("uploadedFiles");
-    const description = document.getElementById("description");
-    const charCount = document.getElementById("charCount");
-    const reportedUser = document.getElementById("reportedUser");
-    const userSuggestions = document.getElementById("userSuggestions");
+// ===== Initialize page =====
+function initializeReportsPage() {
+  function initUI() {
+    // Bind filter change events
+    const statusFilter = document.getElementById("statusFilter");
+    const sortOrder = document.getElementById("sortOrder");
 
-    if (!reportForm) {
-      console.warn("reportForm not found");
-      return;
+    if (statusFilter) {
+      statusFilter.addEventListener("change", applyFilters);
+    }
+    if (sortOrder) {
+      sortOrder.addEventListener("change", applyFilters);
     }
 
-    let uploadedFilesList = [];
-
-    // ===== Character counter =====
-    if (description && charCount) {
-      description.addEventListener("input", function () {
-        const count = this.value.length;
-        charCount.textContent = count;
-        if (count > 900) charCount.style.color = "var(--danger-color)";
-        else if (count > 800) charCount.style.color = "var(--warning-color)";
-        else charCount.style.color = "var(--medium-text)";
-      });
-    }
-
-    // ===== File upload handlers =====
-    if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        fileInput.click();
-      });
-    }
-    if (uploadArea && fileInput) {
-      uploadArea.addEventListener("click", (e) => {
-        if (!e.target.closest(".upload-btn")) fileInput.click();
-      });
-      uploadArea.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        uploadArea.classList.add("dragover");
-      });
-      uploadArea.addEventListener("dragleave", () =>
-        uploadArea.classList.remove("dragover")
-      );
-      uploadArea.addEventListener("drop", (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove("dragover");
-        handleFiles(e.dataTransfer.files);
-      });
-    }
-    if (fileInput) {
-      fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
-    }
-
-    function handleFiles(files) {
-      if (!files || !files.length) return;
-      for (const file of files) {
-        if (file.size > 5 * 1024 * 1024) {
-          showNotification(
-            `File "${file.name}" is too large. Maximum size is 5MB.`,
-            "error"
-          );
-          continue;
-        }
-        if (!ALLOWED_MIME.has(file.type)) {
-          showNotification(
-            `File "${file.name}" has unsupported type.`,
-            "error"
-          );
-          continue;
-        }
-        if (uploadedFilesList.length >= 5) {
-          showNotification("Maximum 5 files allowed.", "error");
-          break;
-        }
-        uploadedFilesList.push(file);
-        displayUploadedFile(file);
-      }
-    }
-
-    function displayUploadedFile(file) {
-      if (!uploadedFilesContainer) return;
-      const fileDiv = document.createElement("div");
-      fileDiv.className = "uploaded-file";
-      fileDiv.innerHTML = `
-        <i class="bi bi-file-earmark" style="color: var(--primary-color);"></i>
-        <div class="file-info">
-          <div class="file-name">${escapeHtml(file.name)}</div>
-          <div class="file-size">${formatFileSize(file.size)}</div>
-        </div>
-        <button type="button" class="remove-file"><i class="bi bi-x"></i></button>
-      `;
-      const removeBtn = fileDiv.querySelector(".remove-file");
-      removeBtn.addEventListener("click", () => {
-        uploadedFilesList = uploadedFilesList.filter((f) => f !== file);
-        fileDiv.remove();
-      });
-      uploadedFilesContainer.appendChild(fileDiv);
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes === 0) return "0 Bytes";
-      const k = 1024;
-      const sizes = ["Bytes", "KB", "MB", "GB"];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-    }
-
-    // ===== User suggestions (fetch real users) =====
-    if (reportedUser && userSuggestions) {
-      reportedUser.addEventListener("input", function () {
-        const q = normalizeEmail(this.value).trim();
-        if (q.length > 2) {
-          const filtered = ALL_USERS.filter((u) => {
-            const matches =
-              u.email.includes(q) ||
-              (u.name && u.name.toLowerCase().includes(q));
-            const notSelf = u.email !== CURRENT_SESSION?.email;
-            return matches && notSelf;
-          });
-
-          if (filtered.length) {
-            userSuggestions.innerHTML = filtered
-              .slice(0, 10) // Limit to 10 suggestions
-              .map(
-                (u) =>
-                  `<div class="user-suggestion" data-email="${escapeHtml(
-                    u.email
-                  )}">${escapeHtml(u.email)} ${
-                    u.name ? `<small>(${escapeHtml(u.name)})</small>` : ""
-                  }</div>`
-              )
-              .join("");
-            userSuggestions.style.display = "block";
-            userSuggestions
-              .querySelectorAll(".user-suggestion")
-              .forEach((node) =>
-                node.addEventListener("click", () => {
-                  reportedUser.value = node.getAttribute("data-email");
-                  userSuggestions.style.display = "none";
-                })
-              );
-          } else {
-            userSuggestions.style.display = "none";
-          }
-        } else {
-          userSuggestions.style.display = "none";
+    // Close modal on overlay click
+    const modal = document.getElementById("reportDetailModal");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.style.display = "none";
         }
       });
-
-      document.addEventListener("click", (e) => {
-        if (!e.target.closest(".form-group"))
-          userSuggestions.style.display = "none";
-      });
     }
 
-    // ===== Submit handler with confirmation =====
-    // ✅ FIXED: Removed anonymous checkbox handling
-    reportForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const reportTypeEl = document.getElementById("reportType");
-      const severityEl = document.getElementById("severity");
-      const reportedUserEl = document.getElementById("reportedUser");
-      const locationEl = document.getElementById("location");
-      const descriptionEl = document.getElementById("description");
-      const incidentTimeEl = document.getElementById("incidentTime");
-
-      if (
-        !reportTypeEl ||
-        !severityEl ||
-        !reportedUserEl ||
-        !locationEl ||
-        !descriptionEl
-      ) {
-        showNotification("Form elements missing, cannot submit.", "error");
-        return;
-      }
-
-      const reportType = reportTypeEl.value.trim();
-      const severity = severityEl.value.trim();
-      const reportedUserValue = normalizeEmail(reportedUserEl.value);
-      const locationValue = sanitizeString(locationEl.value, 300);
-      const descriptionValue = sanitizeString(descriptionEl.value, 1000);
-      const incidentTimeValue = incidentTimeEl
-        ? incidentTimeEl.value || null
-        : null;
-
-      if (
-        !reportType ||
-        !severity ||
-        !reportedUserValue ||
-        !locationValue ||
-        !descriptionValue
-      ) {
-        showNotification("Please fill in all required fields.", "error");
-        return;
-      }
-
-      // ===== SECURITY: Stronger self-report prevention =====
-      if (
-        CURRENT_SESSION &&
-        normalizeEmail(CURRENT_SESSION.email) === reportedUserValue
-      ) {
-        logSecurityEvent("SELF_REPORT_ATTEMPT", {
-          reporter: CURRENT_SESSION.email,
-          reported: reportedUserValue,
-        });
-        showNotification(
-          "You cannot report yourself. If you have a concern, please contact support.",
-          "error"
-        );
-        return;
-      }
-
-      // ===== SECURITY: Confirmation dialog =====
-      const confirmed = confirm(
-        `Are you sure you want to report "${escapeHtml(
-          reportedUserValue
-        )}" for "${escapeHtml(
-          reportType
-        )}"?\n\nPlease ensure all information is accurate and complete.`
-      );
-
-      if (!confirmed) {
-        logSecurityEvent("REPORT_CANCELLED_BY_USER", {});
-        return;
-      }
-
-      const submitBtn = document.querySelector(".submit-btn");
-      const originalText = submitBtn ? submitBtn.innerHTML : "";
-      if (submitBtn) {
-        submitBtn.innerHTML =
-          '<i class="bi bi-arrow-clockwise spinning"></i> Submitting...';
-        submitBtn.disabled = true;
-      }
-
-      try {
-        const formData = new FormData();
-        formData.append("type", reportType);
-        formData.append("severity", severity);
-        formData.append("reportedUser", reportedUserValue);
-        formData.append("location", locationValue);
-        if (incidentTimeValue)
-          formData.append("incidentTime", incidentTimeValue);
-        formData.append("description", descriptionValue);
-
-        for (const f of uploadedFilesList) formData.append("files", f);
-
-        const resp = await postFormWithAuth("/api/reports", formData, {
-          timeoutMs: 60000,
-        });
-
-        const reportIdNode = document.getElementById("reportId");
-        if (reportIdNode)
-          reportIdNode.textContent = resp.id || resp.reportId || "—";
-        const successModal = document.getElementById("successModal");
-        if (successModal) successModal.style.display = "flex";
-
-        resetFormInternal();
-        showNotification(
-          `Report ${resp.id || "submitted"} successfully!`,
-          "success"
-        );
-
-        logSecurityEvent("REPORT_SUBMITTED_SUCCESS", {
-          reportId: resp.id,
-          reportedUser: reportedUserValue,
-        });
-
-        await fetchAndRenderMyReports();
-      } catch (err) {
-        console.error("Submit report error:", err);
-        logSecurityEvent("REPORT_SUBMISSION_FAILED", {
-          error: err && err.message ? err.message : "Unknown",
-        });
-
-        let message = "Failed to submit report.";
-        if (err && err.body && (err.body.error || err.body.message)) {
-          message = err.body.error || err.body.message;
-        } else if (err && err.message) {
-          message = err.message;
-        }
-
-        showNotification(message, "error");
-      } finally {
-        if (submitBtn) {
-          submitBtn.innerHTML = originalText;
-          submitBtn.disabled = false;
-        }
-      }
-    });
-
-    // ===== Fetch my reports =====
-    async function fetchMyReports() {
-      try {
-        const data = await fetchJsonWithAuth("/api/reports?mine=true", {
-          method: "GET",
-        });
-        return Array.isArray(data) ? data : [];
-      } catch (err) {
-        console.warn("fetchMyReports: failed", err);
-        return [];
-      }
-    }
-
-    function renderRecentReportsSidebar(reports) {
-      const statusContainer = document.querySelector(".report-status");
-      if (!statusContainer) return;
-      let html = `<h3 class="section-title"><i class="bi bi-list-check"></i>Your Recent Reports</h3>`;
-      if (!reports || reports.length === 0) {
-        html += `<div style="text-align:center; color:var(--medium-text); padding:16px;">No reports found.</div>`;
-      } else {
-        reports.slice(0, 5).forEach((rep) => {
-          html += `
-            <div class="status-item">
-              <div class="status-icon status-${escapeHtml(
-                rep.status || "pending"
-              )}">
-                <i class="bi ${
-                  rep.status === "pending" ? "bi-clock" : "bi-check"
-                }"></i>
-              </div>
-              <div class="status-content">
-                <div class="status-title">Report #${escapeHtml(
-                  rep.id || rep.reportId || ""
-                )}</div>
-                <div class="status-time">${formatRelativeTime(
-                  rep.timestamp
-                )} • ${
-            rep.status === "pending" ? "Under review" : "Action taken"
-          }</div>
-              </div>
-            </div>
-          `;
-        });
-        html += `<div style="text-align:center; margin-top:15px"><a href="#" id="viewAllReportsLink" style="color: var(--primary-color); font-size: 13px; text-decoration: none;">View all reports →</a></div>`;
-      }
-      statusContainer.innerHTML = html;
-      const viewAllLink = document.getElementById("viewAllReportsLink");
-      if (viewAllLink) {
-        viewAllLink.addEventListener("click", (e) => {
-          e.preventDefault();
-          showAllReportsModal();
-        });
-      }
-    }
-
-    function formatRelativeTime(dateStr) {
-      if (!dateStr) return "";
-      const date = new Date(dateStr);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) return "Today";
-      if (diffDays === 1) return "Yesterday";
-      if (diffDays < 7) return `${diffDays} days ago`;
-      return date.toLocaleDateString();
-    }
-
-    async function fetchAndRenderMyReports() {
-      const reports = await fetchMyReports();
-      renderRecentReportsSidebar(reports);
-    }
-
-    // ===== Modal for all reports =====
-    window.showAllReportsModal = async function () {
-      const reports = await fetchMyReports();
-      let html = "";
-      if (!reports || reports.length === 0) {
-        html =
-          '<div style="text-align:center; color:var(--medium-text); padding:16px;">No reports found.</div>';
-      } else {
-        html = reports
-          .map(
-            (rep) => `
-          <div class="status-item" style="margin-bottom:8px;">
-            <div class="status-icon status-${escapeHtml(
-              rep.status || "pending"
-            )}">
-              <i class="bi ${
-                rep.status === "pending" ? "bi-clock" : "bi-check"
-              }"></i>
-            </div>
-            <div class="status-content">
-              <div class="status-title">Report #${escapeHtml(
-                rep.id || rep.reportId || ""
-              )}</div>
-              <div class="status-time">${formatRelativeTime(rep.timestamp)} • ${
-              rep.status === "pending" ? "Under review" : "Action taken"
-            }</div>
-              <div style="font-size:12px;color:var(--medium-text);margin-top:4px;"><b>Type:</b> ${escapeHtml(
-                rep.type || ""
-              )} &nbsp; | &nbsp; <b>Severity:</b> ${escapeHtml(
-              rep.severity || ""
-            )}</div>
-              <div style="font-size:12px;color:var(--medium-text);margin-top:2px;"><b>Reported User:</b> ${escapeHtml(
-                rep.reportedUser || ""
-              )}</div>
-              <div style="font-size:12px;color:var(--medium-text);margin-top:2px;"><b>Location:</b> ${escapeHtml(
-                rep.location || ""
-              )}</div>
-              <div style="font-size:12px;color:var(--medium-text);margin-top:2px;"><b>Submitted:</b> ${
-                rep.timestamp ? new Date(rep.timestamp).toLocaleString() : ""
-              }</div>
-            </div>
-          </div>
-        `
-          )
-          .join("");
-      }
-      const allReportsList = document.getElementById("allReportsList");
-      if (allReportsList) allReportsList.innerHTML = html;
-      const allReportsModal = document.getElementById("allReportsModal");
-      if (allReportsModal) allReportsModal.style.display = "flex";
-    };
-
-    window.closeAllReportsModal = function () {
-      const allReportsModal = document.getElementById("allReportsModal");
-      if (allReportsModal) allReportsModal.style.display = "none";
-    };
-
-    // ===== Reset form =====
-    function resetFormInternal() {
-      reportForm.reset();
-      uploadedFilesList = [];
-      if (uploadedFilesContainer) uploadedFilesContainer.innerHTML = "";
-      if (charCount) {
-        charCount.textContent = "0";
-        charCount.style.color = "var(--medium-text)";
-      }
-      if (userSuggestions) userSuggestions.style.display = "none";
-    }
-    window.resetForm = resetFormInternal;
-
-    window.closeSuccessModal = function () {
-      const successModal = document.getElementById("successModal");
-      if (successModal) successModal.style.display = "none";
-    };
-
-    // ===== Pre-populate incident time =====
-    function setDefaultIncidentTime() {
-      const incidentTimeField = document.getElementById("incidentTime");
-      if (!incidentTimeField) return;
-      const now = new Date();
-      const defaultTime = new Date(now.getTime() - 60 * 60 * 1000);
-      incidentTimeField.value = defaultTime.toISOString().slice(0, 16);
-    }
-
-    setDefaultIncidentTime();
-    fetchAndRenderMyReports();
-
-    window.ReportPage = {
-      session: () => CURRENT_SESSION,
-      submitReport: () => reportForm.dispatchEvent(new Event("submit")),
-      resetForm: resetFormInternal,
-      fetchMyReports,
-    };
+    // Load reports
+    loadReports();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initReportUI);
+    document.addEventListener("DOMContentLoaded", initUI);
   } else {
-    initReportUI();
+    initUI();
   }
 }

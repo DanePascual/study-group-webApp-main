@@ -13,7 +13,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../styles/report.css" />
-    <title>Report - Study Group</title>
+    <title>My Reports - Study Group</title>
   </head>
   <body>
     <!-- Sidebar -->
@@ -47,7 +47,7 @@
         </a>
         <a href="report.html" class="sidebar-item active" aria-current="page">
           <i class="bi bi-flag"></i>
-          <span>Report</span>
+          <span>My Reports</span>
         </a>
         <!-- Admin Panel Link (only visible to admins) -->
         <a
@@ -92,7 +92,7 @@
           >
             <i class="bi bi-list"></i>
           </button>
-          <h1 class="page-title">Report a Violation</h1>
+          <h1 class="page-title">My Reports</h1>
         </div>
         <div class="nav-right">
           <button
@@ -106,261 +106,147 @@
       </div>
       <div class="report-content">
         <div class="content-row">
-          <!-- Main Section -->
-          <div class="main-section">
-            <div class="report-form">
-              <h2 class="section-title">
-                <i class="bi bi-exclamation-triangle"></i>
-                Submit a Report
-              </h2>
-              <form id="reportForm">
-                <!-- Report Type -->
-                <div class="form-group">
-                  <label class="form-label" for="reportType">
-                    Report Type
-                    <span style="color: var(--danger-color)">*</span>
-                  </label>
-                  <select class="form-select" id="reportType" required>
-                    <option value="">Select Report Type</option>
-                    <option value="harassment">Harassment/Bullying</option>
-                    <option value="inappropriate">Inappropriate Content</option>
-                    <option value="cheating">
-                      Academic Dishonesty/Cheating
-                    </option>
-                    <option value="spam">Spam/Off-topic Content</option>
-                    <option value="privacy">Privacy Violation</option>
-                    <option value="threat">Threats/Violence</option>
-                    <option value="impersonation">Impersonation</option>
-                    <option value="other">Other Violation</option>
+          <!-- Main Section - My Reports History -->
+          <div class="main-section" style="flex: 1">
+            <div class="reports-container">
+              <div class="reports-header">
+                <h2 class="section-title">
+                  <i class="bi bi-flag"></i>
+                  My Reports History
+                </h2>
+                <p class="reports-subtitle">
+                  View the status and details of all reports you've submitted.
+                  To submit a new report, use the report option available in
+                  Study Rooms or Discussion Forum.
+                </p>
+              </div>
+
+              <!-- Filter/Sort Controls -->
+              <div class="reports-controls">
+                <div class="filter-group">
+                  <label for="statusFilter">Status:</label>
+                  <select id="statusFilter" class="form-select-sm">
+                    <option value="all">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="dismissed">Dismissed</option>
                   </select>
                 </div>
-                <!-- Severity Level -->
-                <div class="form-group">
-                  <label class="form-label" for="severity">
-                    Severity Level
-                    <span style="color: var(--danger-color)">*</span>
-                  </label>
-                  <select class="form-select" id="severity" required>
-                    <option value="">Select Severity</option>
-                    <option value="low">Low - Minor rule violation</option>
-                    <option value="medium">Medium - Disruptive behavior</option>
-                    <option value="high">
-                      High - Harmful content/behavior
-                    </option>
-                    <option value="critical">
-                      Critical - Threats/serious violations
-                    </option>
+                <div class="filter-group">
+                  <label for="sortOrder">Sort by:</label>
+                  <select id="sortOrder" class="form-select-sm">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
                   </select>
                 </div>
-                <!-- Who are you reporting -->
-                <div class="form-group">
-                  <label class="form-label" for="reportedUser">
-                    Who are you reporting?
-                    <span style="color: var(--danger-color)">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="reportedUser"
-                    placeholder="Type username or email..."
-                    required
-                  />
-                  <div
-                    id="userSuggestions"
-                    class="user-suggestions"
-                    style="display: none"
-                  ></div>
+              </div>
+
+              <!-- Reports List -->
+              <div class="reports-list" id="reportsList">
+                <!-- Reports will be dynamically rendered here -->
+                <div class="reports-loading">
+                  <i class="bi bi-arrow-repeat spin"></i>
+                  Loading your reports...
                 </div>
-                <!-- Where did it happen -->
-                <div class="form-group">
-                  <label class="form-label" for="location">
-                    Where did it happen?
-                    <span style="color: var(--danger-color)">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="location"
-                    placeholder='e.g., "CS Study Room chat" or "Discussion Forum"'
-                    required
-                  />
+              </div>
+
+              <!-- Empty State -->
+              <div
+                class="reports-empty"
+                id="reportsEmpty"
+                style="display: none"
+              >
+                <div class="empty-icon">
+                  <i class="bi bi-flag"></i>
                 </div>
-                <!-- When did it happen -->
-                <div class="form-group">
-                  <label class="form-label" for="incidentTime">
-                    When did it happen?
-                  </label>
-                  <input
-                    type="datetime-local"
-                    class="form-input"
-                    id="incidentTime"
-                  />
-                </div>
-                <!-- Description -->
-                <div class="form-group">
-                  <label class="form-label" for="description">
-                    Describe the issue
-                    <span style="color: var(--danger-color)">*</span>
-                  </label>
-                  <textarea
-                    class="form-textarea"
-                    id="description"
-                    placeholder="Please provide a detailed description of what happened. Include specific examples if possible..."
-                    required
-                    maxlength="1000"
-                  ></textarea>
-                  <div
-                    style="
-                      text-align: right;
-                      font-size: 12px;
-                      color: var(--medium-text);
-                      margin-top: 5px;
-                    "
-                  >
-                    <span id="charCount">0</span>/1000 characters
-                  </div>
-                </div>
-                <!-- Evidence Upload -->
-                <div class="form-group">
-                  <label class="form-label"> Attach Evidence (Optional) </label>
-                  <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">
-                      <i class="bi bi-cloud-upload"></i>
-                    </div>
-                    <div class="upload-text">
-                      Drag and drop files here or click to upload
-                    </div>
-                    <div class="upload-subtext">
-                      Screenshots, chat logs, or other evidence (Max 5MB per
-                      file)
-                    </div>
-                    <button type="button" class="upload-btn" id="uploadBtn">
-                      <i class="bi bi-plus"></i> Choose Files
-                    </button>
-                    <input
-                      type="file"
-                      id="fileInput"
-                      multiple
-                      accept="image/*,.pdf,.txt"
-                      style="display: none"
-                    />
-                  </div>
-                  <div class="uploaded-files" id="uploadedFiles"></div>
-                </div>
-                <!-- Submit Section -->
-                <div class="submit-section">
-                  <button
-                    type="button"
-                    class="cancel-btn"
-                    onclick="resetForm()"
-                  >
-                    <i class="bi bi-x"></i> Cancel
-                  </button>
-                  <button type="submit" class="submit-btn">
-                    <i class="bi bi-send"></i> Submit Report
-                  </button>
-                </div>
-              </form>
+                <h3>No Reports Yet</h3>
+                <p>
+                  You haven't submitted any reports. If you encounter any
+                  violations, you can report them directly from:
+                </p>
+                <ul class="report-locations">
+                  <li>
+                    <i class="bi bi-door-open"></i> Study Rooms - Report
+                    participants via the 3-dot menu
+                  </li>
+                  <li>
+                    <i class="bi bi-chat-dots"></i> Discussion Forum - Report
+                    topics, posts, or comments
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-          <!-- Side Section -->
+
+          <!-- Side Section - Guidelines -->
           <div class="side-section">
             <div class="report-guidelines">
               <h3 class="section-title">
                 <i class="bi bi-info-circle"></i>
-                Reporting Guidelines
+                How to Report
               </h3>
               <div class="guideline-item">
-                <i class="bi bi-check-circle guideline-icon"></i>
+                <i class="bi bi-door-open guideline-icon"></i>
                 <div class="guideline-text">
-                  <div class="guideline-title">Be Specific</div>
-                  Provide clear details about what happened and when.
+                  <div class="guideline-title">In Study Rooms</div>
+                  Click the 3-dot menu next to a participant's name to report
+                  them.
                 </div>
               </div>
               <div class="guideline-item">
-                <i class="bi bi-camera guideline-icon"></i>
+                <i class="bi bi-chat-text guideline-icon"></i>
                 <div class="guideline-text">
-                  <div class="guideline-title">Include Evidence</div>
-                  Screenshots or chat logs help us understand the situation.
+                  <div class="guideline-title">In Discussion Forum</div>
+                  Use the report button on topics, posts, or comments.
                 </div>
               </div>
               <div class="guideline-item">
                 <i class="bi bi-shield-check guideline-icon"></i>
                 <div class="guideline-text">
-                  <div class="guideline-title">Stay Safe</div>
-                  Report threats or harassment immediately.
-                </div>
-              </div>
-              <div class="guideline-item">
-                <i class="bi bi-exclamation-triangle guideline-icon"></i>
-                <div class="guideline-text">
-                  <div class="guideline-title">No False Reports</div>
-                  False reporting may result in account restrictions.
+                  <div class="guideline-title">What Gets Reported</div>
+                  The system automatically captures who, where, and when.
                 </div>
               </div>
               <div class="guideline-item">
                 <i class="bi bi-clock guideline-icon"></i>
                 <div class="guideline-text">
                   <div class="guideline-title">Response Time</div>
-                  We review reports within 24-48 hours.
+                  Reports are reviewed within 24-48 hours.
                 </div>
               </div>
             </div>
-            <div class="report-status">
+
+            <!-- Stats Summary -->
+            <div class="reports-summary">
               <h3 class="section-title">
-                <i class="bi bi-list-check"></i>
-                Your Recent Reports
+                <i class="bi bi-bar-chart"></i>
+                Summary
               </h3>
-              <!-- This section will be dynamically replaced by JS -->
+              <div class="summary-stats" id="summaryStats">
+                <div class="stat-item">
+                  <span class="stat-value" id="totalReports">0</span>
+                  <span class="stat-label">Total Reports</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value pending" id="pendingReports">0</span>
+                  <span class="stat-label">Pending</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value resolved" id="resolvedReports"
+                    >0</span
+                  >
+                  <span class="stat-label">Resolved</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <!-- Success Modal -->
-    <div id="successModal" class="modal-overlay" style="display: none">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Report Submitted Successfully</h3>
-        </div>
-        <div class="modal-body">
-          <div style="text-align: center; margin: 20px 0">
-            <i
-              class="bi bi-check-circle"
-              style="font-size: 48px; color: var(--primary-color)"
-            ></i>
-          </div>
-          <p>
-            Your report has been submitted and assigned ID:
-            <strong id="reportId"></strong>
-          </p>
-          <p>
-            We'll review your report within 24-48 hours and take appropriate
-            action.
-          </p>
-          <p>You'll receive updates on the status of your report.</p>
-        </div>
-        <div class="modal-footer">
-          <button
-            type="button"
-            class="submit-btn"
-            onclick="closeSuccessModal()"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- MODAL FOR ALL REPORTS -->
-    <div
-      id="allReportsModal"
-      class="modal-overlay"
-      style="display: none; z-index: 3000"
-    >
-      <div
-        class="modal-content"
-        style="max-width: 600px; width: 95%; max-height: 80vh; overflow-y: auto"
-      >
+
+    <!-- Report Detail Modal -->
+    <div id="reportDetailModal" class="modal-overlay" style="display: none">
+      <div class="modal-content" style="max-width: 600px; width: 95%">
         <div
           class="modal-header"
           style="
@@ -369,10 +255,10 @@
             align-items: center;
           "
         >
-          <h3 style="margin: 0">All My Reports</h3>
+          <h3 style="margin: 0">Report Details</h3>
           <button
             type="button"
-            onclick="closeAllReportsModal()"
+            onclick="closeReportDetailModal()"
             style="
               background: none;
               border: none;
@@ -383,11 +269,16 @@
             &times;
           </button>
         </div>
-        <div class="modal-body" id="allReportsList" style="padding-top: 12px">
-          <!-- All reports will appear here -->
+        <div
+          class="modal-body"
+          id="reportDetailContent"
+          style="padding-top: 12px"
+        >
+          <!-- Report details will be rendered here -->
         </div>
       </div>
     </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <!-- Use modular firebase config used throughout the project -->

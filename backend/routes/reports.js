@@ -47,6 +47,7 @@ const MAX_TYPE_LENGTH = 100;
 const MAX_SEVERITY_LENGTH = 50;
 const MAX_REPORTED_USER_LENGTH = 200;
 const MAX_INCIDENT_TIME_LENGTH = 50;
+const MAX_CONTEXT_LENGTH = 255;
 
 // ===== SECURITY: Logging helper =====
 function logSecurityEvent(eventType, uid, details) {
@@ -145,11 +146,55 @@ router.post(
         ? safeTrim(req.body.incidentTime, MAX_INCIDENT_TIME_LENGTH)
         : null;
 
+      // ===== NEW: Contextual report fields =====
+      const targetId = safeTrim(req.body.targetId || "", MAX_CONTEXT_LENGTH);
+      const targetEmail = safeTrim(
+        req.body.targetEmail || "",
+        MAX_REPORTED_USER_LENGTH
+      );
+      const targetName = safeTrim(
+        req.body.targetName || "",
+        MAX_CONTEXT_LENGTH
+      );
+      const contextType = safeTrim(
+        req.body.contextType || "",
+        MAX_CONTEXT_LENGTH
+      );
+      const contextId = safeTrim(req.body.contextId || "", MAX_CONTEXT_LENGTH);
+      const contextName = safeTrim(
+        req.body.contextName || "",
+        MAX_CONTEXT_LENGTH
+      );
+      const contentId = safeTrim(req.body.contentId || "", MAX_CONTEXT_LENGTH);
+      const contentType = safeTrim(
+        req.body.contentType || "",
+        MAX_CONTEXT_LENGTH
+      );
+
       // ===== SECURITY: Validate required fields =====
-      if (!type || !severity || !reportedUser || !location || !description) {
+      // For contextual reports, we need type, description, and either reportedUser or targetId
+      const hasReportedUser = reportedUser.length > 0;
+      const hasTargetId = targetId.length > 0;
+
+      if (!type || !description) {
         logSecurityEvent("REPORT_MISSING_FIELDS", reporterId, { type });
-        return res.status(400).json({ error: "Missing required fields." });
+        return res
+          .status(400)
+          .json({ error: "Missing required fields (type, description)." });
       }
+
+      if (!hasReportedUser && !hasTargetId) {
+        logSecurityEvent("REPORT_MISSING_TARGET", reporterId, { type });
+        return res
+          .status(400)
+          .json({ error: "Missing reported user information." });
+      }
+
+      // Use targetEmail as reportedUser if reportedUser is not provided
+      const effectiveReportedUser = hasReportedUser
+        ? reportedUser
+        : targetEmail || targetId;
+      const effectiveLocation = location || contextName || "Not specified";
 
       // ===== SECURITY: Validate description is not empty after trim =====
       if (description.length === 0) {
@@ -158,9 +203,12 @@ router.post(
       }
 
       // ===== SECURITY: Prevent self-reporting =====
-      if (isSelfReport(reporterEmail, reportedUser)) {
+      if (
+        isSelfReport(reporterEmail, effectiveReportedUser) ||
+        (targetId && targetId === reporterId)
+      ) {
         logSecurityEvent("REPORT_SELF_REPORT_ATTEMPT", reporterId, {
-          reportedUser,
+          reportedUser: effectiveReportedUser,
         });
         return res.status(403).json({
           error:
@@ -170,11 +218,11 @@ router.post(
 
       // ===== SECURITY: Validate reported user exists (optional but recommended) =====
       // Only check if it looks like an email
-      if (reportedUser.includes("@")) {
-        const exists = await userExists(reportedUser);
+      if (effectiveReportedUser.includes("@")) {
+        const exists = await userExists(effectiveReportedUser);
         if (!exists) {
           logSecurityEvent("REPORT_NONEXISTENT_USER", reporterId, {
-            reportedUser,
+            reportedUser: effectiveReportedUser,
           });
           return res.status(400).json({
             error: "The reported user does not exist in our system.",
@@ -276,18 +324,29 @@ router.post(
         uuidv4().split("-")[0];
 
       // ✅ FIXED: Removed 'anonymous' field from reportDoc
+      // ✅ UPDATED: Added contextual report fields
       const reportDoc = {
         id: reportId,
         reporterId,
         reporterName: safeTrim(reporterName, 255),
         reporterEmail,
         type,
-        severity,
-        reportedUser: normalizeEmail(reportedUser),
-        location,
+        severity: severity || "medium",
+        reportedUser: normalizeEmail(effectiveReportedUser),
+        location: effectiveLocation,
         incidentTime: incidentTime || null,
         description,
         files: filesMeta,
+        // New contextual fields
+        targetId: targetId || null,
+        targetEmail: targetEmail ? normalizeEmail(targetEmail) : null,
+        targetName: targetName || null,
+        contextType: contextType || null,
+        contextId: contextId || null,
+        contextName: contextName || null,
+        contentId: contentId || null,
+        contentType: contentType || null,
+        // Timestamps
         timestampISO: now.toISOString(),
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         status: "pending",
@@ -303,14 +362,15 @@ router.post(
       });
 
       // ✅ FIXED: Removed 'anonymous' field from response
+      // ✅ UPDATED: Added contextual report fields to response
       const responseDoc = {
         id: reportId,
         reporterId,
         reporterName: reportDoc.reporterName,
         type,
-        severity,
-        reportedUser: reportedUser,
-        location,
+        severity: reportDoc.severity,
+        reportedUser: effectiveReportedUser,
+        location: effectiveLocation,
         incidentTime: reportDoc.incidentTime,
         description,
         files: filesMeta.map((f) => ({
@@ -319,6 +379,16 @@ router.post(
           size: f.size,
           mimetype: f.mimetype,
         })),
+        // New contextual fields
+        targetId: reportDoc.targetId,
+        targetEmail: reportDoc.targetEmail,
+        targetName: reportDoc.targetName,
+        contextType: reportDoc.contextType,
+        contextId: reportDoc.contextId,
+        contextName: reportDoc.contextName,
+        contentId: reportDoc.contentId,
+        contentType: reportDoc.contentType,
+        // Timestamps and status
         timestamp: reportDoc.timestampISO,
         status: reportDoc.status,
       };
@@ -361,6 +431,7 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
         .get();
 
       // ✅ FIXED: Removed 'anonymous' field from response mapping
+      // ✅ UPDATED: Added contextual report fields to response
       const reports = snapshot.docs.map((doc) => {
         const data = doc.data() || {};
         return {
@@ -374,10 +445,23 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
           incidentTime: data.incidentTime,
           description: data.description,
           files: data.files || [],
+          // New contextual fields
+          targetId: data.targetId || null,
+          targetEmail: data.targetEmail || null,
+          targetName: data.targetName || null,
+          contextType: data.contextType || null,
+          contextId: data.contextId || null,
+          contextName: data.contextName || null,
+          contentId: data.contentId || null,
+          contentType: data.contentType || null,
+          evidenceUrls: (data.files || []).map((f) => f.url).filter(Boolean),
+          // Timestamps and status
           timestamp:
             data.timestampISO ||
             (data.timestamp ? data.timestamp.toDate().toISOString() : ""),
+          createdAt: data.timestampISO || null,
           status: data.status || "pending",
+          adminNotes: data.adminNotes || null,
         };
       });
 

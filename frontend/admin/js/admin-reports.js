@@ -165,6 +165,11 @@ function selectModalCustomOption(type, value, label) {
     document.getElementById("modalStatusValue").textContent = label;
     document.getElementById("modalStatusDropdown").classList.remove("active");
     document.getElementById("modalStatusTrigger").classList.remove("active");
+  } else if (type === "modalSeverity") {
+    document.getElementById("newSeverity").value = value;
+    document.getElementById("modalSeverityValue").textContent = label;
+    document.getElementById("modalSeverityDropdown").classList.remove("active");
+    document.getElementById("modalSeverityTrigger").classList.remove("active");
   }
 
   activeModalCustomSelect = null;
@@ -255,6 +260,10 @@ function displayReports() {
         ? report.severity.charAt(0).toUpperCase() + report.severity.slice(1)
         : "Low";
 
+      // Check if report is finalized (resolved or dismissed) - no more editing allowed
+      const isFinalized =
+        report.status === "resolved" || report.status === "dismissed";
+
       return `
         <tr data-report-id="${escapeHtml(report.id)}">
           <td>
@@ -268,7 +277,7 @@ function displayReports() {
             )}</span>
           </td>
           <td>
-            <span class="severity-badge">
+            <span class="severity-badge severity-${report.severity || "low"}">
               ${severityText}
             </span>
           </td>
@@ -291,6 +300,18 @@ function displayReports() {
               >
                 View
               </button>
+              ${
+                isFinalized
+                  ? `
+              <button
+                class="action-link disabled"
+                disabled
+                title="This report has been finalized"
+              >
+                Closed
+              </button>
+              `
+                  : `
               <button
                 class="action-link"
                 onclick="window.viewReportAndUpdate('${escapeHtml(report.id)}')"
@@ -298,6 +319,8 @@ function displayReports() {
               >
                 Update
               </button>
+              `
+              }
             </div>
           </td>
         </tr>
@@ -375,6 +398,15 @@ function sortColumn(column) {
     currentSortDir = "desc";
   }
 
+  // Severity priority map (higher = more priority)
+  const severityPriority = {
+    critical: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+    "": 0,
+  };
+
   // Sort all reports
   allReports.sort((a, b) => {
     let aVal = a[column];
@@ -383,6 +415,13 @@ function sortColumn(column) {
     // Handle different data types
     if (aVal === undefined || aVal === null) aVal = "";
     if (bVal === undefined || bVal === null) bVal = "";
+
+    // Special handling for severity - use priority values
+    if (column === "severity") {
+      aVal = severityPriority[String(aVal).toLowerCase()] || 0;
+      bVal = severityPriority[String(bVal).toLowerCase()] || 0;
+      return currentSortDir === "asc" ? aVal - bVal : bVal - aVal;
+    }
 
     if (typeof aVal === "string") {
       aVal = aVal.toLowerCase();
@@ -505,6 +544,14 @@ async function viewReportAndUpdate(reportId) {
       return;
     }
 
+    // Check if report is already finalized
+    if (report.status === "resolved" || report.status === "dismissed") {
+      if (window.showError) {
+        window.showError("This report has been finalized and cannot be edited");
+      }
+      return;
+    }
+
     currentViewingReportId = reportId;
 
     // Setup update modal directly without showing view modal
@@ -518,13 +565,20 @@ async function viewReportAndUpdate(reportId) {
     document.getElementById("newStatus").value = "";
     document.getElementById("modalStatusValue").textContent =
       "-- Select Status --";
+    document.getElementById("newSeverity").value = "";
+    document.getElementById("modalSeverityValue").textContent =
+      "-- Select Severity --";
     document.getElementById("updateReason").value = "";
 
     // Close any open dropdowns
-    const dropdown = document.getElementById("modalStatusDropdown");
-    const trigger = document.getElementById("modalStatusTrigger");
-    if (dropdown) dropdown.classList.remove("active");
-    if (trigger) trigger.classList.remove("active");
+    const statusDropdown = document.getElementById("modalStatusDropdown");
+    const statusTrigger = document.getElementById("modalStatusTrigger");
+    const severityDropdown = document.getElementById("modalSeverityDropdown");
+    const severityTrigger = document.getElementById("modalSeverityTrigger");
+    if (statusDropdown) statusDropdown.classList.remove("active");
+    if (statusTrigger) statusTrigger.classList.remove("active");
+    if (severityDropdown) severityDropdown.classList.remove("active");
+    if (severityTrigger) severityTrigger.classList.remove("active");
     activeModalCustomSelect = null;
 
     // Open update modal directly
@@ -554,6 +608,14 @@ function openUpdateReportModal() {
     return;
   }
 
+  // Check if report is already finalized
+  if (report.status === "resolved" || report.status === "dismissed") {
+    if (window.showError) {
+      window.showError("This report has been finalized and cannot be edited");
+    }
+    return;
+  }
+
   // Close view modal
   closeModal("viewReportModal");
 
@@ -568,13 +630,20 @@ function openUpdateReportModal() {
   document.getElementById("newStatus").value = "";
   document.getElementById("modalStatusValue").textContent =
     "-- Select Status --";
+  document.getElementById("newSeverity").value = "";
+  document.getElementById("modalSeverityValue").textContent =
+    "-- Select Severity --";
   document.getElementById("updateReason").value = "";
 
   // Close any open dropdowns
-  const dropdown = document.getElementById("modalStatusDropdown");
-  const trigger = document.getElementById("modalStatusTrigger");
-  if (dropdown) dropdown.classList.remove("active");
-  if (trigger) trigger.classList.remove("active");
+  const statusDropdown = document.getElementById("modalStatusDropdown");
+  const statusTrigger = document.getElementById("modalStatusTrigger");
+  const severityDropdown = document.getElementById("modalSeverityDropdown");
+  const severityTrigger = document.getElementById("modalSeverityTrigger");
+  if (statusDropdown) statusDropdown.classList.remove("active");
+  if (statusTrigger) statusTrigger.classList.remove("active");
+  if (severityDropdown) severityDropdown.classList.remove("active");
+  if (severityTrigger) severityTrigger.classList.remove("active");
   activeModalCustomSelect = null;
 
   // Open update modal
@@ -592,6 +661,7 @@ async function confirmUpdateReportStatus() {
     }
 
     const newStatus = document.getElementById("newStatus").value;
+    const newSeverity = document.getElementById("newSeverity").value;
     const reason = document.getElementById("updateReason").value.trim();
 
     if (!newStatus) {
@@ -601,8 +671,15 @@ async function confirmUpdateReportStatus() {
       return;
     }
 
+    if (!newSeverity) {
+      if (window.showError) {
+        window.showError("Please select a severity level");
+      }
+      return;
+    }
+
     console.log(
-      `[admin-reports] Updating report ${currentViewingReportId} to ${newStatus}...`
+      `[admin-reports] Updating report ${currentViewingReportId} to ${newStatus} with severity ${newSeverity}...`
     );
 
     const response = await window.adminFetch(
@@ -611,6 +688,7 @@ async function confirmUpdateReportStatus() {
         method: "PUT",
         body: JSON.stringify({
           status: newStatus,
+          severity: newSeverity,
           reason: reason || "No reason provided",
         }),
       }
@@ -622,11 +700,14 @@ async function confirmUpdateReportStatus() {
     const report = allReports.find((r) => r.id === currentViewingReportId);
     if (report) {
       report.status = newStatus;
+      report.severity = newSeverity;
     }
 
     if (window.showSuccess) {
       window.showSuccess(
-        `Report status updated to ${capitalizeFirst(newStatus)}`
+        `Report updated: ${capitalizeFirst(newStatus)} (${capitalizeFirst(
+          newSeverity
+        )} severity)`
       );
     }
     closeModal("updateReportModal");

@@ -38,6 +38,30 @@
 
       <!-- Main Content -->
       <main class="admin-main">
+        <!-- Top Navigation Bar -->
+        <div class="admin-top-nav">
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Toggle sidebar"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
+          <h1 class="nav-title">Reports</h1>
+        </div>
+
         <header class="admin-header">
           <h1>Reports Management</h1>
           <p>Review and respond to user reports</p>
@@ -90,12 +114,6 @@
                     onclick="selectCustomOption('status', 'pending', 'Pending')"
                   >
                     Pending
-                  </div>
-                  <div
-                    class="custom-select-option"
-                    onclick="selectCustomOption('status', 'reviewing', 'Reviewing')"
-                  >
-                    Reviewing
                   </div>
                   <div
                     class="custom-select-option"
@@ -383,12 +401,13 @@
             <p id="currentStatusDisplay" class="current-value">-</p>
           </div>
 
-          <!-- HIDDEN INPUT FOR FORM VALUE -->
+          <!-- HIDDEN INPUTS FOR FORM VALUES -->
           <input type="hidden" id="newStatus" value="" />
+          <input type="hidden" id="newSeverity" value="" />
 
           <div class="form-group">
             <label>New Status</label>
-            <!-- CUSTOM DROPDOWN FOR MODAL -->
+            <!-- CUSTOM DROPDOWN FOR STATUS -->
             <div class="custom-select-wrapper-modal">
               <button
                 class="custom-select-trigger-modal"
@@ -424,12 +443,6 @@
                 </div>
                 <div
                   class="custom-select-option-modal"
-                  onclick="selectModalCustomOption('modalStatus', 'reviewing', 'Reviewing')"
-                >
-                  Reviewing
-                </div>
-                <div
-                  class="custom-select-option-modal"
                   onclick="selectModalCustomOption('modalStatus', 'resolved', 'Resolved')"
                 >
                   Resolved
@@ -439,6 +452,70 @@
                   onclick="selectModalCustomOption('modalStatus', 'dismissed', 'Dismissed')"
                 >
                   Dismissed
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Set Severity</label>
+            <!-- CUSTOM DROPDOWN FOR SEVERITY -->
+            <div class="custom-select-wrapper-modal">
+              <button
+                class="custom-select-trigger-modal"
+                id="modalSeverityTrigger"
+                onclick="toggleModalCustomSelect('modalSeverity')"
+              >
+                <span class="custom-select-value-modal" id="modalSeverityValue"
+                  >-- Select Severity --</span
+                >
+                <svg
+                  class="custom-select-arrow-modal"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M7 8l6 6 6-6"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div
+                class="custom-select-dropdown-modal"
+                id="modalSeverityDropdown"
+              >
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalSeverity', '', '-- Select Severity --')"
+                >
+                  -- Select Severity --
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalSeverity', 'low', 'Low')"
+                >
+                  Low
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalSeverity', 'medium', 'Medium')"
+                >
+                  Medium
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalSeverity', 'high', 'High')"
+                >
+                  High
+                </div>
+                <div
+                  class="custom-select-option-modal"
+                  onclick="selectModalCustomOption('modalSeverity', 'critical', 'Critical')"
+                >
+                  Critical
                 </div>
               </div>
             </div>

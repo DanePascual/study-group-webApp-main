@@ -9,6 +9,7 @@
 // ✅ FIXED: Comments fetched from API (not localStorage) with avatars from DB
 // ✅ FIXED: Footer avatar always shows current user's profile picture
 // ✅ FIXED: Comment scroll now respects comments order (newest-first vs oldest-first)
+// ✅ NEW: Contextual report buttons for topics, posts, and comments
 
 import { auth, db } from "../../config/firebase.js";
 import {
@@ -27,6 +28,7 @@ import {
 } from "./topicsClient.js";
 import { postJsonWithAuth } from "./apiClient.js";
 import { apiUrl } from "../../config/appConfig.js";
+import { openReportModal } from "./reportModal.js";
 
 // Utilities
 function delay(ms) {
@@ -388,6 +390,23 @@ function initializeTopicPage() {
       ? `<div class="author-avatar" style="background-image: url('${post.author_avatar}'); background-size: cover; background-position: center;"></div>`
       : `<div class="author-avatar">${escapeHtml(initials)}</div>`;
 
+    // Check if user can report (not their own post)
+    const isOwnPost =
+      String(post.authorId) === String(CURRENT_USER_ID) ||
+      String(post.userId) === String(CURRENT_USER_ID);
+    const reportBtnHtml = !isOwnPost
+      ? `
+      <button class="post-report-btn" data-post-id="${
+        post.id
+      }" data-author-id="${
+          post.authorId || post.userId || ""
+        }" data-author-name="${escapeHtml(
+          post.author || ""
+        )}" title="Report this post">
+        <i class="bi bi-three-dots-vertical"></i>
+      </button>`
+      : "";
+
     return `
       <div class="post-card" data-post-id="${post.id}">
         <div class="post-card-content">
@@ -397,6 +416,7 @@ function initializeTopicPage() {
                 ${avatarHtml}
                 <span>${escapeHtml(post.author || "Anonymous")}</span>
               </div>
+              ${reportBtnHtml}
             </div>
           </div>
           <div class="post-preview">${escapeHtml(
@@ -922,6 +942,78 @@ function initializeTopicPage() {
         menu.classList.remove("show");
       }
     });
+
+    // Close topic dropdown
+    const topicDropdown = document.getElementById("topicDropdown");
+    if (topicDropdown && !event.target.closest("#topicActionsMenu")) {
+      topicDropdown.classList.remove("active");
+    }
+  });
+
+  // ✅ Topic report button handler
+  const topicMenuBtn = document.getElementById("topicMenuBtn");
+  const topicDropdown = document.getElementById("topicDropdown");
+  const reportTopicBtn = document.getElementById("reportTopicBtn");
+
+  if (topicMenuBtn && topicDropdown) {
+    topicMenuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      topicDropdown.classList.toggle("active");
+    });
+  }
+
+  if (reportTopicBtn) {
+    reportTopicBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      topicDropdown.classList.remove("active");
+
+      // Get topic data
+      const topic = await getTopicById(window.currentTopicId);
+      if (!topic) {
+        showNotification("Topic data not found", true);
+        return;
+      }
+
+      openReportModal({
+        targetId: topic.authorId || topic.userId || "",
+        targetEmail: topic.authorEmail || "",
+        targetName: topic.author || "Topic Author",
+        contextType: "topic",
+        contextId: window.currentTopicId,
+        contextName: topic.title || "Discussion Topic",
+        contentId: window.currentTopicId,
+        contentType: "topic",
+      });
+    });
+  }
+
+  // ✅ Post report button handler (delegated)
+  document.addEventListener("click", function (event) {
+    const reportBtn = event.target.closest(".post-report-btn");
+    if (reportBtn) {
+      event.stopPropagation();
+      const postId = reportBtn.dataset.postId;
+      const authorId = reportBtn.dataset.authorId;
+      const authorName = reportBtn.dataset.authorName;
+
+      // Find post to get more context
+      const post =
+        window.allTopicPosts.find((p) => String(p.id) === String(postId)) ||
+        window.myTopicPosts.find((p) => String(p.id) === String(postId));
+
+      openReportModal({
+        targetId: authorId,
+        targetEmail: post?.authorEmail || "",
+        targetName: authorName || "Post Author",
+        contextType: "post",
+        contextId: window.currentTopicId,
+        contextName:
+          document.getElementById("topicTitle")?.textContent ||
+          "Discussion Topic",
+        contentId: postId,
+        contentType: "post",
+      });
+    }
   });
 
   // Initial load

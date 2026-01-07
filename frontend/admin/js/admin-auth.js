@@ -94,6 +94,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Setup leave admin button
       setupLeaveAdminButton();
 
+      // Setup sidebar toggle
+      setupSidebarToggle();
+
       // Check page-specific access after a small delay to ensure DOM is ready
       setTimeout(() => {
         checkPageAccess();
@@ -122,6 +125,9 @@ function checkPageAccess() {
     "admins.html",
     "/admin/admins.html",
     "/frontend/admin/admins.html",
+    "audit-logs.html",
+    "/admin/audit-logs.html",
+    "/frontend/admin/audit-logs.html",
   ];
 
   // Check if current page is superadmin-only
@@ -164,6 +170,26 @@ function showAdminContent() {
     adminContent.style.display = "block";
     console.log("[admin-auth] ✅ Showing admin content");
   }
+
+  // Hide superadmin-only nav items for non-superadmins
+  hideSuperadminNavItems();
+}
+
+// ===== Hide superadmin-only nav items =====
+function hideSuperadminNavItems() {
+  if (!window.adminUser || window.adminUser.role === "superadmin") {
+    return; // Don't hide for superadmins
+  }
+
+  // Hide admins and audit-logs links from sidebar
+  const navItems = document.querySelectorAll(".nav-item");
+  navItems.forEach((item) => {
+    const href = item.getAttribute("href") || "";
+    if (href.includes("admins.html") || href.includes("audit-logs.html")) {
+      item.style.display = "none";
+      console.log("[admin-auth] Hidden nav item:", href);
+    }
+  });
 }
 
 // ===== Show access denied modal =====
@@ -244,6 +270,66 @@ function setupLeaveAdminButton() {
       }
     });
   });
+}
+
+// ===== Setup sidebar toggle =====
+function setupSidebarToggle() {
+  const sidebar = document.querySelector(".admin-sidebar");
+  const mainContent = document.querySelector(".admin-main");
+  const menuToggle = document.getElementById("menuToggle");
+
+  if (!sidebar || !mainContent || !menuToggle) {
+    console.warn("[admin-auth] Sidebar toggle elements not found");
+    return;
+  }
+
+  // Restore sidebar state from localStorage
+  const sidebarOpen = localStorage.getItem("adminSidebarOpen");
+  if (sidebarOpen === "true" || sidebarOpen === null) {
+    // Default to open on desktop
+    if (window.innerWidth > 768) {
+      sidebar.classList.add("open");
+      mainContent.classList.add("shifted");
+    }
+  }
+
+  // Toggle sidebar on button click
+  menuToggle.addEventListener("click", () => {
+    const isOpen = sidebar.classList.toggle("open");
+    mainContent.classList.toggle("shifted", isOpen);
+
+    // Save state to localStorage
+    localStorage.setItem("adminSidebarOpen", isOpen ? "true" : "false");
+    console.log("[admin-auth] Sidebar toggled:", isOpen ? "open" : "closed");
+  });
+
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener("click", (e) => {
+    if (window.innerWidth <= 768) {
+      if (
+        !sidebar.contains(e.target) &&
+        !menuToggle.contains(e.target) &&
+        sidebar.classList.contains("open")
+      ) {
+        sidebar.classList.remove("open");
+        mainContent.classList.remove("shifted");
+        localStorage.setItem("adminSidebarOpen", "false");
+      }
+    }
+  });
+
+  // Handle window resize
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 768) {
+      const savedState = localStorage.getItem("adminSidebarOpen");
+      if (savedState !== "false") {
+        sidebar.classList.add("open");
+        mainContent.classList.add("shifted");
+      }
+    }
+  });
+
+  console.log("[admin-auth] Sidebar toggle setup complete");
 }
 
 // ===== Get admin token =====

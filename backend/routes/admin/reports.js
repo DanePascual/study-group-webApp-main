@@ -178,23 +178,29 @@ router.get("/:reportId", adminAuthMiddleware, async (req, res) => {
 router.put("/:id/status", adminAuthMiddleware, async (req, res) => {
   try {
     const reportId = req.params.id;
-    const { status, reason } = req.body;
+    const { status, severity, reason } = req.body;
     const adminUid = req.user.uid;
     const adminName = req.user.name || "Unknown";
 
     console.log(
-      `[admin-reports] Updating report ${reportId} status to ${status}`
+      `[admin-reports] Updating report ${reportId} status to ${status}, severity: ${severity}`
     );
 
-    if (!["pending", "reviewing", "resolved", "dismissed"].includes(status)) {
+    // Validate status (removed "reviewing")
+    if (!["pending", "resolved", "dismissed"].includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
+
+    // Validate severity
+    const validSeverities = ["low", "medium", "high", "critical"];
+    const finalSeverity = validSeverities.includes(severity) ? severity : "low";
 
     await db
       .collection("reports")
       .doc(reportId)
       .update({
         status,
+        severity: finalSeverity,
         updatedAt: new Date(),
         updatedBy: adminUid,
         updateReason: reason || "No reason provided",
@@ -210,13 +216,14 @@ router.put("/:id/status", adminAuthMiddleware, async (req, res) => {
       changes: {
         field: "status",
         to: status,
+        severity: finalSeverity,
       },
       reason: reason || "No reason provided",
       status: "completed",
     });
 
     console.log(
-      `[admin-reports] ✅ Report ${reportId} status updated to ${status}`
+      `[admin-reports] ✅ Report ${reportId} status updated to ${status}, severity: ${finalSeverity}`
     );
 
     res.json({ success: true, message: "Report status updated" });

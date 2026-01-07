@@ -554,10 +554,109 @@ body.dark-mode .participant-status {
 .participant-actions {
   opacity: 0;
   transition: opacity 0.2s;
+  position: relative;
 }
 
 .participant-item:hover .participant-actions {
   opacity: 1;
+}
+
+.participant-menu-btn {
+  background: none;
+  border: none;
+  color: var(--medium-text, #666);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.participant-menu-btn:hover {
+  background: var(--hover-bg, #f0f0f0);
+  color: var(--dark-text, #1b1b1b);
+}
+
+body.dark-mode .participant-menu-btn {
+  color: #aaa;
+}
+
+body.dark-mode .participant-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.participant-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  z-index: 100;
+  display: none;
+}
+
+.participant-dropdown.active {
+  display: block;
+}
+
+body.dark-mode .participant-dropdown {
+  background: #2a2a2a;
+  border-color: #444;
+}
+
+.participant-dropdown .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--dark-text, #1b1b1b);
+  transition: background 0.2s;
+}
+
+.participant-dropdown .dropdown-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.participant-dropdown .dropdown-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.participant-dropdown .dropdown-item:only-child {
+  border-radius: 8px;
+}
+
+.participant-dropdown .dropdown-item:hover {
+  background: var(--hover-bg, #f0f0f0);
+}
+
+body.dark-mode .participant-dropdown .dropdown-item {
+  color: #fff;
+}
+
+body.dark-mode .participant-dropdown .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.participant-dropdown .dropdown-item.kick-item {
+  color: var(--danger-color, #f44336);
+}
+
+.participant-dropdown .dropdown-item.kick-item:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.participant-dropdown .dropdown-item.report-item {
+  color: var(--danger-color, #f44336);
+}
+
+.participant-dropdown .dropdown-item.report-item:hover {
+  background: rgba(244, 67, 54, 0.1);
 }
 
 .kick-btn {
