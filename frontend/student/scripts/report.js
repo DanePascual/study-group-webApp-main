@@ -31,7 +31,9 @@ function showNotification(message, type = "info") {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: ${type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"};
+    background: ${
+      type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"
+    };
     color: white;
     padding: 12px 18px;
     border-radius: 8px;
@@ -130,20 +132,24 @@ function updateSidebarUserInfo() {
     const course = document.getElementById("sidebarCourse");
 
     const currentName = name ? name.textContent.trim() : "";
-    const nameIsDefault = !currentName || currentName === "" || currentName === "Loading...";
+    const nameIsDefault =
+      !currentName || currentName === "" || currentName === "Loading...";
 
     if (name && nameIsDefault && CURRENT_SESSION?.user) {
       name.textContent = CURRENT_SESSION.user;
     }
 
     const currentCourse = course ? course.textContent.trim() : "";
-    const courseIsDefault = !currentCourse || currentCourse === "" || currentCourse === "Loading...";
+    const courseIsDefault =
+      !currentCourse || currentCourse === "" || currentCourse === "Loading...";
     if (course && courseIsDefault) {
       course.textContent = CURRENT_SESSION?.userProgram || "";
     }
 
     if (avatar && !avatar.querySelector("img")) {
-      const currentAvatarText = avatar.textContent ? avatar.textContent.trim() : "";
+      const currentAvatarText = avatar.textContent
+        ? avatar.textContent.trim()
+        : "";
       if (!currentAvatarText && CURRENT_SESSION?.userAvatar) {
         avatar.textContent = CURRENT_SESSION.userAvatar.toUpperCase();
       }
@@ -180,7 +186,9 @@ async function fetchBackendProfile() {
 // ===== Fetch my reports =====
 async function fetchMyReports() {
   try {
-    const data = await fetchJsonWithAuth("/api/reports?mine=true", { method: "GET" });
+    const data = await fetchJsonWithAuth("/api/reports?mine=true", {
+      method: "GET",
+    });
     return Array.isArray(data) ? data : [];
   } catch (err) {
     console.warn("fetchMyReports: failed", err);
@@ -192,7 +200,7 @@ async function fetchMyReports() {
 function renderReportsList() {
   const reportsList = document.getElementById("reportsList");
   const reportsEmpty = document.getElementById("reportsEmpty");
-  
+
   if (!reportsList) return;
 
   if (!filteredReports || filteredReports.length === 0) {
@@ -203,8 +211,12 @@ function renderReportsList() {
 
   if (reportsEmpty) reportsEmpty.style.display = "none";
 
-  const html = filteredReports.map((rep) => `
-    <div class="report-card" data-report-id="${escapeHtml(rep.id || rep.reportId || "")}">
+  const html = filteredReports
+    .map(
+      (rep) => `
+    <div class="report-card" data-report-id="${escapeHtml(
+      rep.id || rep.reportId || ""
+    )}">
       <div class="report-card-header">
         <div class="report-id">
           <i class="bi bi-flag"></i>
@@ -218,34 +230,52 @@ function renderReportsList() {
       <div class="report-card-body">
         <div class="report-info-row">
           <span class="report-label">Type:</span>
-          <span class="report-value">${escapeHtml(getReportTypeLabel(rep.type))}</span>
+          <span class="report-value">${escapeHtml(
+            getReportTypeLabel(rep.type)
+          )}</span>
         </div>
         <div class="report-info-row">
           <span class="report-label">Reported User:</span>
-          <span class="report-value">${escapeHtml(rep.reportedUser || rep.targetName || "—")}</span>
+          <span class="report-value">${escapeHtml(
+            rep.reportedUser || rep.targetName || "—"
+          )}</span>
         </div>
         <div class="report-info-row">
           <span class="report-label">Location:</span>
-          <span class="report-value">${escapeHtml(rep.location || rep.contextName || "—")}</span>
+          <span class="report-value">${escapeHtml(
+            rep.location || rep.contextName || "—"
+          )}</span>
         </div>
         <div class="report-info-row">
           <span class="report-label">Submitted:</span>
-          <span class="report-value">${escapeHtml(formatRelativeTime(rep.timestamp || rep.createdAt))}</span>
+          <span class="report-value">${escapeHtml(
+            formatRelativeTime(rep.timestamp || rep.createdAt)
+          )}</span>
         </div>
-        ${rep.description ? `
+        ${
+          rep.description
+            ? `
         <div class="report-description">
           <span class="report-label">Description:</span>
-          <p>${escapeHtml(rep.description).substring(0, 150)}${rep.description.length > 150 ? "..." : ""}</p>
+          <p>${escapeHtml(rep.description).substring(0, 150)}${
+                rep.description.length > 150 ? "..." : ""
+              }</p>
         </div>
-        ` : ""}
+        `
+            : ""
+        }
       </div>
       <div class="report-card-footer">
-        <button class="view-details-btn" data-report-id="${escapeHtml(rep.id || rep.reportId || "")}">
+        <button class="view-details-btn" data-report-id="${escapeHtml(
+          rep.id || rep.reportId || ""
+        )}">
           <i class="bi bi-eye"></i> View Details
         </button>
       </div>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 
   reportsList.innerHTML = html;
 
@@ -265,16 +295,18 @@ function updateSummaryStats() {
   const resolvedEl = document.getElementById("resolvedReports");
 
   if (totalEl) totalEl.textContent = allReports.length;
-  
+
   if (pendingEl) {
-    const pendingCount = allReports.filter((r) => 
-      r.status === "pending" || r.status === "in_review" || !r.status
+    const pendingCount = allReports.filter(
+      (r) => r.status === "pending" || r.status === "in_review" || !r.status
     ).length;
     pendingEl.textContent = pendingCount;
   }
-  
+
   if (resolvedEl) {
-    const resolvedCount = allReports.filter((r) => r.status === "resolved").length;
+    const resolvedCount = allReports.filter(
+      (r) => r.status === "resolved"
+    ).length;
     resolvedEl.textContent = resolvedCount;
   }
 }
@@ -329,19 +361,27 @@ function showReportDetail(reportId) {
       <h4>Report Information</h4>
       <div class="detail-row">
         <span class="detail-label">Report ID:</span>
-        <span class="detail-value">#${escapeHtml(report.id || report.reportId || "—")}</span>
+        <span class="detail-value">#${escapeHtml(
+          report.id || report.reportId || "—"
+        )}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Type:</span>
-        <span class="detail-value">${escapeHtml(getReportTypeLabel(report.type))}</span>
+        <span class="detail-value">${escapeHtml(
+          getReportTypeLabel(report.type)
+        )}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Severity:</span>
-        <span class="detail-value severity-${escapeHtml(report.severity || "low")}">${escapeHtml((report.severity || "low").toUpperCase())}</span>
+        <span class="detail-value severity-${escapeHtml(
+          report.severity || "low"
+        )}">${escapeHtml((report.severity || "low").toUpperCase())}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Submitted:</span>
-        <span class="detail-value">${escapeHtml(formatFullDate(report.timestamp || report.createdAt))}</span>
+        <span class="detail-value">${escapeHtml(
+          formatFullDate(report.timestamp || report.createdAt)
+        )}</span>
       </div>
     </div>
     
@@ -349,11 +389,15 @@ function showReportDetail(reportId) {
       <h4>Reported User</h4>
       <div class="detail-row">
         <span class="detail-label">Name:</span>
-        <span class="detail-value">${escapeHtml(report.targetName || report.reportedUser || "—")}</span>
+        <span class="detail-value">${escapeHtml(
+          report.targetName || report.reportedUser || "—"
+        )}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Email:</span>
-        <span class="detail-value">${escapeHtml(report.targetEmail || report.reportedUser || "—")}</span>
+        <span class="detail-value">${escapeHtml(
+          report.targetEmail || report.reportedUser || "—"
+        )}</span>
       </div>
     </div>
     
@@ -361,51 +405,73 @@ function showReportDetail(reportId) {
       <h4>Context</h4>
       <div class="detail-row">
         <span class="detail-label">Location Type:</span>
-        <span class="detail-value">${escapeHtml(getContextTypeLabel(report.contextType))}</span>
+        <span class="detail-value">${escapeHtml(
+          getContextTypeLabel(report.contextType)
+        )}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Location:</span>
-        <span class="detail-value">${escapeHtml(report.location || report.contextName || "—")}</span>
+        <span class="detail-value">${escapeHtml(
+          report.location || report.contextName || "—"
+        )}</span>
       </div>
-      ${report.contentType ? `
+      ${
+        report.contentType
+          ? `
       <div class="detail-row">
         <span class="detail-label">Content Type:</span>
         <span class="detail-value">${escapeHtml(report.contentType)}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
     </div>
     
     <div class="detail-section">
       <h4>Description</h4>
-      <p class="detail-description">${escapeHtml(report.description || "No description provided.")}</p>
+      <p class="detail-description">${escapeHtml(
+        report.description || "No description provided."
+      )}</p>
     </div>
     
-    ${report.evidenceUrls && report.evidenceUrls.length > 0 ? `
+    ${
+      report.evidenceUrls && report.evidenceUrls.length > 0
+        ? `
     <div class="detail-section">
       <h4>Evidence</h4>
       <div class="evidence-list">
-        ${report.evidenceUrls.map((url, i) => `
+        ${report.evidenceUrls
+          .map(
+            (url, i) => `
           <a href="${escapeHtml(url)}" target="_blank" class="evidence-link">
             <i class="bi bi-file-earmark"></i> Evidence ${i + 1}
           </a>
-        `).join("")}
+        `
+          )
+          .join("")}
       </div>
     </div>
-    ` : ""}
+    `
+        : ""
+    }
     
-    ${report.adminNotes ? `
+    ${
+      report.adminNotes
+        ? `
     <div class="detail-section">
       <h4>Admin Response</h4>
       <p class="admin-notes">${escapeHtml(report.adminNotes)}</p>
     </div>
-    ` : ""}
+    `
+        : ""
+    }
   `;
 
   content.innerHTML = html;
   modal.style.display = "flex";
 }
 
-window.closeReportDetailModal = function() {
+window.closeReportDetailModal = function () {
   const modal = document.getElementById("reportDetailModal");
   if (modal) modal.style.display = "none";
 };
@@ -413,7 +479,7 @@ window.closeReportDetailModal = function() {
 // ===== Load and render reports =====
 async function loadReports() {
   const reportsList = document.getElementById("reportsList");
-  
+
   if (reportsList) {
     reportsList.innerHTML = `
       <div class="reports-loading">
@@ -447,7 +513,8 @@ onAuthStateChanged(auth, async (user) => {
       userAvatar: userName ? userName[0] : user.email ? user.email[0] : "U",
       userProgram: profile.program || "",
       email: (profile.email || user.email || "").toLowerCase().trim(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
       datetime: new Date().toISOString(),
     };
 
@@ -457,7 +524,10 @@ onAuthStateChanged(auth, async (user) => {
     initializeReportsPage();
   } catch (err) {
     console.error("Auth/profile init error:", err);
-    showNotification("Could not initialize profile. Please sign in again.", "error");
+    showNotification(
+      "Could not initialize profile. Please sign in again.",
+      "error"
+    );
   } finally {
     if (overlay) overlay.classList.remove("visible");
   }

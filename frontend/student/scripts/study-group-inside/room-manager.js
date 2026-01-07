@@ -299,12 +299,28 @@ export class RoomManager {
         let actionsHtml = "";
         if (canReport || canKick) {
           actionsHtml = `<div class="participant-actions" style="position: relative;">
-            <button class="participant-menu-btn" data-user-id="${p.id}" title="More options">
+            <button class="participant-menu-btn" data-user-id="${
+              p.id
+            }" title="More options">
               <i class="bi bi-three-dots-vertical"></i>
             </button>
             <div class="participant-dropdown" id="dropdown-${p.id}">
-              ${canKick ? `<div class="dropdown-item kick-item" data-user-id="${p.id}"><i class="bi bi-x-lg"></i> Kick</div>` : ""}
-              ${canReport ? `<div class="dropdown-item report-item" data-user-id="${p.id}" data-user-name="${this._escapeHtml(p.name)}" data-user-email="${p.email || ""}"><i class="bi bi-flag"></i> Report</div>` : ""}
+              ${
+                canKick
+                  ? `<div class="dropdown-item kick-item" data-user-id="${p.id}"><i class="bi bi-x-lg"></i> Kick</div>`
+                  : ""
+              }
+              ${
+                canReport
+                  ? `<div class="dropdown-item report-item" data-user-id="${
+                      p.id
+                    }" data-user-name="${this._escapeHtml(
+                      p.name
+                    )}" data-user-email="${
+                      p.email || ""
+                    }"><i class="bi bi-flag"></i> Report</div>`
+                  : ""
+              }
             </div>
           </div>`;
         }
@@ -349,9 +365,11 @@ export class RoomManager {
         const userId = btn.dataset.userId;
         const dropdown = document.getElementById(`dropdown-${userId}`);
         // Close all other dropdowns
-        container.querySelectorAll(".participant-dropdown.active").forEach((d) => {
-          if (d !== dropdown) d.classList.remove("active");
-        });
+        container
+          .querySelectorAll(".participant-dropdown.active")
+          .forEach((d) => {
+            if (d !== dropdown) d.classList.remove("active");
+          });
         dropdown?.classList.toggle("active");
       });
     });
@@ -361,7 +379,9 @@ export class RoomManager {
       item.addEventListener("click", (e) => {
         e.stopPropagation();
         const userId = item.dataset.userId;
-        document.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+        document
+          .querySelectorAll(".participant-dropdown.active")
+          .forEach((d) => d.classList.remove("active"));
         if (window.kickParticipant) window.kickParticipant(userId);
       });
     });
@@ -373,7 +393,9 @@ export class RoomManager {
         const userId = item.dataset.userId;
         const userName = item.dataset.userName || "Unknown";
         const userEmail = item.dataset.userEmail || "";
-        document.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+        document
+          .querySelectorAll(".participant-dropdown.active")
+          .forEach((d) => d.classList.remove("active"));
         // Open report modal with context
         if (window.openReportModal) {
           window.openReportModal({
@@ -381,7 +403,8 @@ export class RoomManager {
             targetEmail: userEmail,
             targetName: userName,
             contextType: "study_room",
-            contextId: this.currentRoomData?._id || this.currentRoomData?.id || "",
+            contextId:
+              this.currentRoomData?._id || this.currentRoomData?.id || "",
             contextName: this.currentRoomData?.name || "Study Room",
           });
         }
@@ -390,7 +413,9 @@ export class RoomManager {
 
     // Close dropdown on outside click
     document.addEventListener("click", () => {
-      container.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+      container
+        .querySelectorAll(".participant-dropdown.active")
+        .forEach((d) => d.classList.remove("active"));
     });
   }
 

@@ -417,7 +417,9 @@ function createCommentNode(comment, topicId, postId) {
     reportBtn.innerHTML = `Report`;
     reportBtn.dataset.commentId = String(comment.id);
     reportBtn.dataset.authorId = String(comment.author_id);
-    reportBtn.dataset.authorName = escapeHtml(comment.author_name || "Anonymous");
+    reportBtn.dataset.authorName = escapeHtml(
+      comment.author_name || "Anonymous"
+    );
     reportBtn.dataset.authorEmail = escapeHtml(comment.author_email || "");
     actions.appendChild(reportBtn);
   }
@@ -709,8 +711,12 @@ function setupCommentDelegation(topicId, postId) {
       const authorEmail = reportBtn.dataset.authorEmail || "";
 
       // Get topic and post names for context
-      const topicName = document.querySelector(".post-topic-name")?.textContent || "Unknown Topic";
-      const postTitle = document.querySelector(".post-header-title")?.textContent || "Unknown Post";
+      const topicName =
+        document.querySelector(".post-topic-name")?.textContent ||
+        "Unknown Topic";
+      const postTitle =
+        document.querySelector(".post-header-title")?.textContent ||
+        "Unknown Post";
 
       openReportModal({
         targetId: authorId,
@@ -720,7 +726,7 @@ function setupCommentDelegation(topicId, postId) {
         contextId: postId,
         contextName: `${topicName} > ${postTitle}`,
         contentId: commentId,
-        contentType: "comment"
+        contentType: "comment",
       });
       return;
     }

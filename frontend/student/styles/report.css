@@ -1073,8 +1073,12 @@ body.dark-mode .form-select-sm {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Report Card */
@@ -1466,33 +1470,32 @@ body.dark-mode .admin-notes {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .filter-group {
     width: 100%;
   }
-  
+
   .form-select-sm {
     flex: 1;
   }
-  
+
   .report-info-row {
     flex-direction: column;
     gap: 2px;
   }
-  
+
   .report-label {
     min-width: unset;
     font-size: 12px;
   }
-  
+
   .detail-row {
     flex-direction: column;
     gap: 2px;
   }
-  
+
   .detail-label {
     min-width: unset;
     font-size: 12px;
   }
 }
-

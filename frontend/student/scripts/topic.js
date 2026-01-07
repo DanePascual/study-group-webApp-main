@@ -391,11 +391,21 @@ function initializeTopicPage() {
       : `<div class="author-avatar">${escapeHtml(initials)}</div>`;
 
     // Check if user can report (not their own post)
-    const isOwnPost = String(post.authorId) === String(CURRENT_USER_ID) || String(post.userId) === String(CURRENT_USER_ID);
-    const reportBtnHtml = !isOwnPost ? `
-      <button class="post-report-btn" data-post-id="${post.id}" data-author-id="${post.authorId || post.userId || ""}" data-author-name="${escapeHtml(post.author || "")}" title="Report this post">
+    const isOwnPost =
+      String(post.authorId) === String(CURRENT_USER_ID) ||
+      String(post.userId) === String(CURRENT_USER_ID);
+    const reportBtnHtml = !isOwnPost
+      ? `
+      <button class="post-report-btn" data-post-id="${
+        post.id
+      }" data-author-id="${
+          post.authorId || post.userId || ""
+        }" data-author-name="${escapeHtml(
+          post.author || ""
+        )}" title="Report this post">
         <i class="bi bi-three-dots-vertical"></i>
-      </button>` : "";
+      </button>`
+      : "";
 
     return `
       <div class="post-card" data-post-id="${post.id}">
@@ -987,8 +997,9 @@ function initializeTopicPage() {
       const authorName = reportBtn.dataset.authorName;
 
       // Find post to get more context
-      const post = window.allTopicPosts.find((p) => String(p.id) === String(postId)) ||
-                   window.myTopicPosts.find((p) => String(p.id) === String(postId));
+      const post =
+        window.allTopicPosts.find((p) => String(p.id) === String(postId)) ||
+        window.myTopicPosts.find((p) => String(p.id) === String(postId));
 
       openReportModal({
         targetId: authorId,
@@ -996,7 +1007,9 @@ function initializeTopicPage() {
         targetName: authorName || "Post Author",
         contextType: "post",
         contextId: window.currentTopicId,
-        contextName: document.getElementById("topicTitle")?.textContent || "Discussion Topic",
+        contextName:
+          document.getElementById("topicTitle")?.textContent ||
+          "Discussion Topic",
         contentId: postId,
         contentType: "post",
       });

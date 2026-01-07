@@ -40,7 +40,9 @@ function showNotification(message, type = "info") {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: ${type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"};
+    background: ${
+      type === "success" ? "#4caf50" : type === "error" ? "#f44336" : "#2196f3"
+    };
     color: white;
     padding: 12px 18px;
     border-radius: 8px;
@@ -99,7 +101,9 @@ function createReportModal() {
             </label>
             <select id="reportTypeSelect" required>
               <option value="">Select Report Type</option>
-              ${REPORT_TYPES.map((t) => `<option value="${t.value}">${t.label}</option>`).join("")}
+              ${REPORT_TYPES.map(
+                (t) => `<option value="${t.value}">${t.label}</option>`
+              ).join("")}
             </select>
           </div>
 
@@ -543,7 +547,10 @@ function bindModalEvents(modal) {
         break;
       }
       if (file.size > 5 * 1024 * 1024) {
-        showNotification(`File "${file.name}" is too large (max 5MB).`, "error");
+        showNotification(
+          `File "${file.name}" is too large (max 5MB).`,
+          "error"
+        );
         continue;
       }
       if (!allowed.has(file.type)) {
@@ -616,7 +623,10 @@ async function submitReport(files) {
     return;
   }
   if (!desc || desc.length < 10) {
-    showNotification("Please provide a detailed description (at least 10 characters).", "error");
+    showNotification(
+      "Please provide a detailed description (at least 10 characters).",
+      "error"
+    );
     return;
   }
 
@@ -630,14 +640,20 @@ async function submitReport(files) {
     formData.append("severity", "medium"); // Default severity
 
     // Auto-detected fields
-    formData.append("reportedUser", currentReportContext.targetEmail || currentReportContext.targetId || "");
+    formData.append(
+      "reportedUser",
+      currentReportContext.targetEmail || currentReportContext.targetId || ""
+    );
     formData.append("reportedUserId", currentReportContext.targetId || "");
     formData.append("reportedUserName", currentReportContext.targetName || "");
     formData.append("contextType", currentReportContext.contextType || "other");
     formData.append("contextId", currentReportContext.contextId || "");
     formData.append("contextName", currentReportContext.contextName || "");
     formData.append("location", formatLocation(currentReportContext));
-    formData.append("incidentTime", currentReportContext.timestamp || new Date().toISOString());
+    formData.append(
+      "incidentTime",
+      currentReportContext.timestamp || new Date().toISOString()
+    );
 
     // Optional content reference (for posts/comments)
     if (currentReportContext.contentId) {
@@ -660,7 +676,10 @@ async function submitReport(files) {
     }
   } catch (err) {
     console.error("Report submission error:", err);
-    showNotification(err.message || "Failed to submit report. Please try again.", "error");
+    showNotification(
+      err.message || "Failed to submit report. Please try again.",
+      "error"
+    );
   } finally {
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<i class="bi bi-send"></i> Submit Report';
@@ -765,7 +784,9 @@ export function createReportMenuButton(context, additionalOptions = []) {
   additionalOptions.forEach((opt) => {
     const item = document.createElement("div");
     item.className = `report-dropdown-item ${opt.className || ""}`;
-    item.innerHTML = `<i class="bi ${opt.icon || "bi-circle"}"></i> ${escapeHtml(opt.label)}`;
+    item.innerHTML = `<i class="bi ${
+      opt.icon || "bi-circle"
+    }"></i> ${escapeHtml(opt.label)}`;
     item.addEventListener("click", (e) => {
       e.stopPropagation();
       dropdown.classList.remove("active");

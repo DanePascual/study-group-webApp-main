@@ -148,31 +148,52 @@ router.post(
 
       // ===== NEW: Contextual report fields =====
       const targetId = safeTrim(req.body.targetId || "", MAX_CONTEXT_LENGTH);
-      const targetEmail = safeTrim(req.body.targetEmail || "", MAX_REPORTED_USER_LENGTH);
-      const targetName = safeTrim(req.body.targetName || "", MAX_CONTEXT_LENGTH);
-      const contextType = safeTrim(req.body.contextType || "", MAX_CONTEXT_LENGTH);
+      const targetEmail = safeTrim(
+        req.body.targetEmail || "",
+        MAX_REPORTED_USER_LENGTH
+      );
+      const targetName = safeTrim(
+        req.body.targetName || "",
+        MAX_CONTEXT_LENGTH
+      );
+      const contextType = safeTrim(
+        req.body.contextType || "",
+        MAX_CONTEXT_LENGTH
+      );
       const contextId = safeTrim(req.body.contextId || "", MAX_CONTEXT_LENGTH);
-      const contextName = safeTrim(req.body.contextName || "", MAX_CONTEXT_LENGTH);
+      const contextName = safeTrim(
+        req.body.contextName || "",
+        MAX_CONTEXT_LENGTH
+      );
       const contentId = safeTrim(req.body.contentId || "", MAX_CONTEXT_LENGTH);
-      const contentType = safeTrim(req.body.contentType || "", MAX_CONTEXT_LENGTH);
+      const contentType = safeTrim(
+        req.body.contentType || "",
+        MAX_CONTEXT_LENGTH
+      );
 
       // ===== SECURITY: Validate required fields =====
       // For contextual reports, we need type, description, and either reportedUser or targetId
       const hasReportedUser = reportedUser.length > 0;
       const hasTargetId = targetId.length > 0;
-      
+
       if (!type || !description) {
         logSecurityEvent("REPORT_MISSING_FIELDS", reporterId, { type });
-        return res.status(400).json({ error: "Missing required fields (type, description)." });
+        return res
+          .status(400)
+          .json({ error: "Missing required fields (type, description)." });
       }
 
       if (!hasReportedUser && !hasTargetId) {
         logSecurityEvent("REPORT_MISSING_TARGET", reporterId, { type });
-        return res.status(400).json({ error: "Missing reported user information." });
+        return res
+          .status(400)
+          .json({ error: "Missing reported user information." });
       }
 
       // Use targetEmail as reportedUser if reportedUser is not provided
-      const effectiveReportedUser = hasReportedUser ? reportedUser : (targetEmail || targetId);
+      const effectiveReportedUser = hasReportedUser
+        ? reportedUser
+        : targetEmail || targetId;
       const effectiveLocation = location || contextName || "Not specified";
 
       // ===== SECURITY: Validate description is not empty after trim =====
@@ -182,7 +203,10 @@ router.post(
       }
 
       // ===== SECURITY: Prevent self-reporting =====
-      if (isSelfReport(reporterEmail, effectiveReportedUser) || (targetId && targetId === reporterId)) {
+      if (
+        isSelfReport(reporterEmail, effectiveReportedUser) ||
+        (targetId && targetId === reporterId)
+      ) {
         logSecurityEvent("REPORT_SELF_REPORT_ATTEMPT", reporterId, {
           reportedUser: effectiveReportedUser,
         });
@@ -430,7 +454,7 @@ router.get("/", firebaseAuthMiddleware, async (req, res) => {
           contextName: data.contextName || null,
           contentId: data.contentId || null,
           contentType: data.contentType || null,
-          evidenceUrls: (data.files || []).map(f => f.url).filter(Boolean),
+          evidenceUrls: (data.files || []).map((f) => f.url).filter(Boolean),
           // Timestamps and status
           timestamp:
             data.timestampISO ||
