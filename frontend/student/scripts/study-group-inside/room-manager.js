@@ -289,10 +289,25 @@ export class RoomManager {
       .map((p) => {
         const isCurrent = p.id === this.userAuth.currentUser.uid;
         const canKick = this.isOwner && !isCurrent;
+        const canReport = !isCurrent; // Can report anyone except self
 
         const avatarHtml = p.photo
           ? `<div class="participant-avatar" style="background-image: url('${p.photo}'); background-size: cover; background-position: center;"></div>`
           : `<div class="participant-avatar">${p.avatar}</div>`;
+
+        // Build actions menu
+        let actionsHtml = "";
+        if (canReport || canKick) {
+          actionsHtml = `<div class="participant-actions" style="position: relative;">
+            <button class="participant-menu-btn" data-user-id="${p.id}" title="More options">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <div class="participant-dropdown" id="dropdown-${p.id}">
+              ${canKick ? `<div class="dropdown-item kick-item" data-user-id="${p.id}"><i class="bi bi-x-lg"></i> Kick</div>` : ""}
+              ${canReport ? `<div class="dropdown-item report-item" data-user-id="${p.id}" data-user-name="${this._escapeHtml(p.name)}" data-user-email="${p.email || ""}"><i class="bi bi-flag"></i> Report</div>` : ""}
+            </div>
+          </div>`;
+        }
 
         return `<div class="participant-item" data-user-id="${
           p.id
@@ -300,19 +315,83 @@ export class RoomManager {
           p.name
         }${isCurrent ? " (You)" : ""}</div><div class="participant-status">${
           p.isHost ? "Host" : p.inCall ? "In Call" : "Member"
-        }</div></div>${
-          canKick
-            ? `<div class="participant-actions"><button class="kick-btn" onclick="window.kickParticipant('${p.id}')" title="Kick user"><i class="bi bi-x-lg"></i></button></div>`
-            : ""
-        }</div>`;
+        }</div></div>${actionsHtml}</div>`;
       })
       .join("");
+
+    // Bind dropdown toggle events
+    this._bindParticipantMenuEvents(participantsList);
 
     const participantCount = document.getElementById("participantCount");
     if (participantCount)
       participantCount.textContent = String(this.participants.length);
 
     console.log("[room-manager] Participants list UI updated");
+  }
+
+  // ✅ Helper: Escape HTML for safe rendering
+  _escapeHtml(str) {
+    if (typeof str !== "string") return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // ✅ Bind participant menu events (dropdown toggle, kick, report)
+  _bindParticipantMenuEvents(container) {
+    // Toggle dropdown on menu button click
+    container.querySelectorAll(".participant-menu-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const userId = btn.dataset.userId;
+        const dropdown = document.getElementById(`dropdown-${userId}`);
+        // Close all other dropdowns
+        container.querySelectorAll(".participant-dropdown.active").forEach((d) => {
+          if (d !== dropdown) d.classList.remove("active");
+        });
+        dropdown?.classList.toggle("active");
+      });
+    });
+
+    // Kick action
+    container.querySelectorAll(".kick-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const userId = item.dataset.userId;
+        document.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+        if (window.kickParticipant) window.kickParticipant(userId);
+      });
+    });
+
+    // Report action
+    container.querySelectorAll(".report-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const userId = item.dataset.userId;
+        const userName = item.dataset.userName || "Unknown";
+        const userEmail = item.dataset.userEmail || "";
+        document.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+        // Open report modal with context
+        if (window.openReportModal) {
+          window.openReportModal({
+            targetId: userId,
+            targetEmail: userEmail,
+            targetName: userName,
+            contextType: "study_room",
+            contextId: this.currentRoomData?._id || this.currentRoomData?.id || "",
+            contextName: this.currentRoomData?.name || "Study Room",
+          });
+        }
+      });
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener("click", () => {
+      container.querySelectorAll(".participant-dropdown.active").forEach((d) => d.classList.remove("active"));
+    });
   }
 
   // ✅ UPDATE: Mark participant as in/out of call

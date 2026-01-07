@@ -7,6 +7,10 @@ import { ChatManager } from "./chat-manager.js";
 import { VideoManager } from "./video-manager.js";
 import { UiManager } from "./ui-manager.js";
 import { showToast, closeToast } from "./utils.js";
+import { openReportModal } from "../reportModal.js";
+
+// Expose report modal globally for use in room-manager
+window.openReportModal = openReportModal;
 
 // expose CONFIG to code expecting global window.__CONFIG__
 window.__CONFIG__ = {

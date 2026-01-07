@@ -12,6 +12,7 @@ import {
   deleteWithAuth,
   fetchJsonWithAuth,
 } from "./apiClient.js";
+import { openReportModal } from "./reportModal.js";
 
 // Configuration
 const COMMENTS_PAGE_LIMIT = 20;
@@ -402,6 +403,23 @@ function createCommentNode(comment, topicId, postId) {
     delBtn.type = "button";
     delBtn.innerHTML = `Delete`;
     actions.appendChild(delBtn);
+  } else if (
+    CURRENT_USER &&
+    comment.author_id &&
+    String(comment.author_id) !== String(CURRENT_USER.uid) &&
+    !comment.is_deleted
+  ) {
+    // Report button for other users' comments
+    const reportBtn = document.createElement("button");
+    reportBtn.className = "btn-report";
+    reportBtn.setAttribute("aria-label", "Report comment");
+    reportBtn.type = "button";
+    reportBtn.innerHTML = `Report`;
+    reportBtn.dataset.commentId = String(comment.id);
+    reportBtn.dataset.authorId = String(comment.author_id);
+    reportBtn.dataset.authorName = escapeHtml(comment.author_name || "Anonymous");
+    reportBtn.dataset.authorEmail = escapeHtml(comment.author_email || "");
+    actions.appendChild(reportBtn);
   }
 
   const replyForm = document.createElement("div");
@@ -669,6 +687,41 @@ function setupCommentDelegation(topicId, postId) {
           pendingDelete = null;
         }
       }
+      return;
+    }
+
+    // Report button handler
+    const reportBtn = e.target.closest(".btn-report");
+    if (reportBtn) {
+      if (!CURRENT_USER) {
+        showToast("Please sign in to report", "info");
+        window.location.href = `login.html?redirect=${encodeURIComponent(
+          window.location.href
+        )}`;
+        return;
+      }
+      const commentEl = reportBtn.closest(".comment");
+      if (!commentEl) return;
+
+      const commentId = commentEl.getAttribute("data-comment-id");
+      const authorId = reportBtn.dataset.authorId || "";
+      const authorName = reportBtn.dataset.authorName || "Anonymous";
+      const authorEmail = reportBtn.dataset.authorEmail || "";
+
+      // Get topic and post names for context
+      const topicName = document.querySelector(".post-topic-name")?.textContent || "Unknown Topic";
+      const postTitle = document.querySelector(".post-header-title")?.textContent || "Unknown Post";
+
+      openReportModal({
+        targetId: authorId,
+        targetEmail: authorEmail,
+        targetName: authorName,
+        contextType: "comment",
+        contextId: postId,
+        contextName: `${topicName} > ${postTitle}`,
+        contentId: commentId,
+        contentType: "comment"
+      });
       return;
     }
   });
