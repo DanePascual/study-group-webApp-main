@@ -100,8 +100,16 @@ function initializePresenceDatabase() {
 }
 
 function subscribeToRoomPresence(roomId) {
-  if (!database || presenceListeners.has(roomId)) return;
+  if (!database) {
+    debugLog(`[presence] No database, cannot subscribe to room ${roomId}`);
+    return;
+  }
+  if (presenceListeners.has(roomId)) {
+    debugLog(`[presence] Already subscribed to room ${roomId}`);
+    return;
+  }
 
+  debugLog(`[presence] Subscribing to room presence: ${roomId}`);
   const roomPresenceRef = database.ref(`rooms/${roomId}/presence`);
 
   const handler = roomPresenceRef.on("value", (snapshot) => {
@@ -114,8 +122,12 @@ function subscribeToRoomPresence(roomId) {
       }
     }
 
+    debugLog(`[presence] Room ${roomId} has ${onlineCount} online`);
     roomOnlineCounts.set(roomId, onlineCount);
     updateRoomCardOnlineCount(roomId, onlineCount);
+  }, (error) => {
+    console.error(`[presence] Error reading presence for room ${roomId}:`, error);
+  });
   });
 
   presenceListeners.set(roomId, () => {
@@ -151,11 +163,17 @@ function updateRoomCardOnlineCount(roomId, onlineCount) {
 }
 
 function subscribeToAllDisplayedRoomsPresence() {
+  debugLog(`[presence] subscribeToAllDisplayedRoomsPresence called, ${displayedRooms.length} rooms`);
+  
   if (!database) {
-    initializePresenceDatabase();
+    const initialized = initializePresenceDatabase();
+    debugLog(`[presence] Database initialized: ${initialized}`);
   }
 
-  if (!database) return;
+  if (!database) {
+    debugLog("[presence] Database still not available, cannot subscribe");
+    return;
+  }
 
   // Unsubscribe from previous listeners
   unsubscribeFromAllRoomPresence();
@@ -164,6 +182,8 @@ function subscribeToAllDisplayedRoomsPresence() {
   displayedRooms.forEach((room) => {
     subscribeToRoomPresence(room.id);
   });
+  
+  debugLog(`[presence] Subscribed to ${displayedRooms.length} rooms`);
 }
 
 /* ===== ROOM DEACTIVATION MODAL ===== */
