@@ -649,6 +649,15 @@ body.dark-mode .custom-reminder {
   flex-shrink: 0;
 }
 
+.participant-count .online-count {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.participant-count i {
+  color: #10b981;
+}
+
 .join-btn {
   background: var(--primary-color);
   color: white;

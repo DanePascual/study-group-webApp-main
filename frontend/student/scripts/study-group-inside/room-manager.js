@@ -6,9 +6,11 @@
 // ✅ UPDATED: Fixed privacy check to use fallback logic for isPrivate
 // ✅ UPDATED: Bulletproof URL construction for password reset
 // ✅ NEW: Room deactivation check with UI lockdown
+// ✅ NEW: Online/Offline presence tracking for participants
 
 import { db } from "./firebase-init.js";
 import { fetchJsonWithAuth, postJsonWithAuth } from "../apiClient.js";
+import { PresenceManager } from "./presence-manager.js";
 
 export class RoomManager {
   constructor(userAuth) {
@@ -19,6 +21,7 @@ export class RoomManager {
     this.isLoading = true;
     this.isRoomDeactivated = false;
     this._isUpdatingParticipants = false; // ✅ NEW: Prevent concurrent updates
+    this.presenceManager = null; // ✅ NEW: Presence manager instance
   }
 
   async loadRoomData() {
@@ -85,6 +88,9 @@ export class RoomManager {
       // ✅ AUTO-JOIN: Add user to participants if not already
       await this.autoJoinRoom();
 
+      // ✅ NEW: Initialize presence tracking
+      await this.initializePresence();
+
       // ✅ CRITICAL: Load participants with new stable approach
       await this.loadParticipantsInfo();
       this.isLoading = false;
@@ -141,6 +147,35 @@ export class RoomManager {
         err
       );
       // Don't throw - user might already be in room
+    }
+  }
+
+  // ✅ NEW: Initialize presence tracking for the room
+  async initializePresence() {
+    try {
+      const roomId = this.currentRoomData._id || this.currentRoomData.id;
+      const userId = this.userAuth.currentUser?.uid;
+
+      if (!roomId || !userId) {
+        console.warn(
+          "[room-manager] Cannot initialize presence: missing roomId or userId"
+        );
+        return;
+      }
+
+      this.presenceManager = new PresenceManager(roomId, userId);
+      const initialized = await this.presenceManager.initialize();
+
+      if (initialized) {
+        // Listen for presence changes and update the UI
+        this.presenceManager.onPresenceChange(() => {
+          this.updateParticipantsList();
+        });
+
+        console.log("[room-manager] ✅ Presence tracking initialized");
+      }
+    } catch (err) {
+      console.error("[room-manager] Error initializing presence:", err);
     }
   }
 
@@ -291,9 +326,17 @@ export class RoomManager {
         const canKick = this.isOwner && !isCurrent;
         const canReport = !isCurrent; // Can report anyone except self
 
+        // ✅ NEW: Check if user is online using presence manager
+        const isOnline = this.presenceManager?.isUserOnline(p.id) || isCurrent;
+
+        // ✅ NEW: Add online indicator to avatar
+        const onlineIndicatorHtml = `<span class="online-indicator ${
+          isOnline ? "online" : "offline"
+        }" title="${isOnline ? "Online" : "Offline"}"></span>`;
+
         const avatarHtml = p.photo
-          ? `<div class="participant-avatar" style="background-image: url('${p.photo}'); background-size: cover; background-position: center;"></div>`
-          : `<div class="participant-avatar">${p.avatar}</div>`;
+          ? `<div class="participant-avatar-wrapper"><div class="participant-avatar" style="background-image: url('${p.photo}'); background-size: cover; background-position: center;"></div>${onlineIndicatorHtml}</div>`
+          : `<div class="participant-avatar-wrapper"><div class="participant-avatar">${p.avatar}</div>${onlineIndicatorHtml}</div>`;
 
         // Build actions menu
         let actionsHtml = "";
@@ -325,13 +368,22 @@ export class RoomManager {
           </div>`;
         }
 
+        // ✅ UPDATED: Show online/offline status in participant status
+        const statusText = p.isHost
+          ? "Host"
+          : p.inCall
+          ? "In Call"
+          : isOnline
+          ? "Online"
+          : "Offline";
+
         return `<div class="participant-item" data-user-id="${
           p.id
         }">${avatarHtml}<div class="participant-info"><div class="participant-name">${
           p.name
-        }${isCurrent ? " (You)" : ""}</div><div class="participant-status">${
-          p.isHost ? "Host" : p.inCall ? "In Call" : "Member"
-        }</div></div>${actionsHtml}</div>`;
+        }${isCurrent ? " (You)" : ""}</div><div class="participant-status ${
+          isOnline ? "status-online" : "status-offline"
+        }">${statusText}</div></div>${actionsHtml}</div>`;
       })
       .join("");
 
@@ -651,6 +703,12 @@ export class RoomManager {
       console.log(
         `[room-manager] Removing user ${currentUid} from room ${roomId}`
       );
+
+      // ✅ NEW: Clean up presence before leaving
+      if (this.presenceManager) {
+        this.presenceManager.destroy();
+        this.presenceManager = null;
+      }
 
       await fetchJsonWithAuth(
         `${
