@@ -474,6 +474,27 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Firebase Compat SDK for Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script>
+      // Initialize Firebase for Realtime Database (presence tracking)
+      const firebaseConfig = {
+        apiKey: "AIzaSyAn1-kQypHeeoqZRGYKhJfE5AiICkTX_Hw",
+        authDomain: "study-group-webapp-93fc2.firebaseapp.com",
+        databaseURL:
+          "https://study-group-webapp-93fc2-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "study-group-webapp-93fc2",
+        storageBucket: "study-group-webapp-93fc2.firebasestorage.app",
+        messagingSenderId: "857690286168",
+        appId: "1:857690286168:web:93e5f7bf374b62445a022d",
+        measurementId: "G-MR51J9BKM0",
+      };
+      if (!firebase.apps || !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+    </script>
+
     <script type="module" src="../../config/firebase.js"></script>
     <script type="module" src="../scripts/sidebar.js"></script>
     <script type="module" src="../scripts/study-rooms.js"></script>

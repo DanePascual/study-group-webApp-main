@@ -41,6 +41,11 @@ let displayedRooms = [];
 let currentTab = "all-rooms";
 let pendingPrivateRoomId = null;
 
+// ===== ONLINE PRESENCE TRACKING =====
+let roomOnlineCounts = new Map(); // Map of roomId -> online count
+let presenceListeners = new Map(); // Map of roomId -> listener unsubscribe function
+let database = null; // Firebase Realtime Database reference
+
 /* ===== SECURITY: Utilities ===== */
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
@@ -76,6 +81,89 @@ function debugLog(msg, data = null) {
     "color: #4caf50; font-weight: bold;",
     data || ""
   );
+}
+
+/* ===== ONLINE PRESENCE TRACKING FUNCTIONS ===== */
+function initializePresenceDatabase() {
+  try {
+    if (typeof firebase !== "undefined" && firebase.database) {
+      database = firebase.database();
+      debugLog("Firebase Realtime Database initialized for presence tracking");
+      return true;
+    }
+    console.warn("[presence] Firebase Realtime Database not available");
+    return false;
+  } catch (err) {
+    console.error("[presence] Error initializing database:", err);
+    return false;
+  }
+}
+
+function subscribeToRoomPresence(roomId) {
+  if (!database || presenceListeners.has(roomId)) return;
+
+  const roomPresenceRef = database.ref(`rooms/${roomId}/presence`);
+
+  const handler = roomPresenceRef.on("value", (snapshot) => {
+    const presenceData = snapshot.val() || {};
+    let onlineCount = 0;
+
+    for (const userId in presenceData) {
+      if (presenceData[userId]?.online === true) {
+        onlineCount++;
+      }
+    }
+
+    roomOnlineCounts.set(roomId, onlineCount);
+    updateRoomCardOnlineCount(roomId, onlineCount);
+  });
+
+  presenceListeners.set(roomId, () => {
+    roomPresenceRef.off("value", handler);
+  });
+}
+
+function unsubscribeFromRoomPresence(roomId) {
+  const unsubscribe = presenceListeners.get(roomId);
+  if (unsubscribe) {
+    unsubscribe();
+    presenceListeners.delete(roomId);
+  }
+  roomOnlineCounts.delete(roomId);
+}
+
+function unsubscribeFromAllRoomPresence() {
+  presenceListeners.forEach((unsubscribe) => unsubscribe());
+  presenceListeners.clear();
+  roomOnlineCounts.clear();
+}
+
+function updateRoomCardOnlineCount(roomId, onlineCount) {
+  const roomCard = document.querySelector(
+    `.room-card[data-room-id="${roomId}"]`
+  );
+  if (!roomCard) return;
+
+  const participantCountEl = roomCard.querySelector(".participant-count");
+  if (participantCountEl) {
+    participantCountEl.innerHTML = `<i class="bi bi-people"></i> <span class="online-count">${onlineCount}</span> Online`;
+  }
+}
+
+function subscribeToAllDisplayedRoomsPresence() {
+  if (!database) {
+    initializePresenceDatabase();
+  }
+
+  if (!database) return;
+
+  // Unsubscribe from previous listeners
+  unsubscribeFromAllRoomPresence();
+
+  // Subscribe to all displayed rooms
+  displayedRooms.forEach((room) => {
+    subscribeToRoomPresence(room.id);
+  });
 }
 
 /* ===== ROOM DEACTIVATION MODAL ===== */
@@ -356,11 +444,7 @@ function createRoomCardElement(room) {
       </div>
     </div>
     <div class="room-footer">
-      <span class="participant-count"><i class="bi bi-people"></i> ${
-        room.participants ? room.participants.length : 1
-      } participant${
-    room.participants && room.participants.length > 1 ? "s" : ""
-  }</span>
+      <span class="participant-count"><i class="bi bi-people"></i> <span class="online-count">0</span> Online</span>
       <button class="join-btn" onclick="window.handleRoomJoin('${escapeHtml(
         room.id
       )}', '${escapeHtml(room.name)}', '${room.privacy}', ${
@@ -593,6 +677,9 @@ function renderAllRooms() {
   debugLog(
     `Grid now has ${roomGrid.children.length} room cards | Total displayed: ${displayedRooms.length}`
   );
+
+  // Subscribe to presence updates for all displayed rooms
+  subscribeToAllDisplayedRoomsPresence();
 }
 
 /* ===== LOADING INDICATORS ===== */

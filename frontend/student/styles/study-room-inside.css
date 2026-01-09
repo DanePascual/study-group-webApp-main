@@ -512,11 +512,48 @@ body.dark-mode .participant-item:hover {
   object-fit: cover;
 }
 
-.status-indicator {
-  display: none;
+/* Wrapper for avatar with online indicator */
+.participant-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
 }
 
+/* Online/Offline indicator dot */
+.online-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  z-index: 1;
+}
+
+.online-indicator.online {
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.online-indicator.offline {
+  background-color: #6b7280;
+}
+
+body.dark-mode .online-indicator {
+  border-color: #1a1a1a;
+}
+
+/* Status text colors */
 .status-online {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.status-offline {
+  color: #6b7280;
+}
+
+.status-indicator {
   display: none;
 }
 
