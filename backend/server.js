@@ -184,6 +184,11 @@ app.use("/api/posts", postLikesRoutes);
 const studyGroupsRoutes = require("./routes/study-groups");
 app.use("/api/study-groups", studyGroupsRoutes);
 
+// ===== Notifications Routes =====
+const notificationsRoutes = require("./routes/notifications");
+app.use("/api/notifications", notificationsRoutes);
+console.log("[server] Mounted /api/notifications route");
+
 // ===== ZegoCloud Routes =====
 const zegoCloudRoutes = require("./routes/zegocloud");
 app.use("/api/zegocloud", zegoCloudRoutes);

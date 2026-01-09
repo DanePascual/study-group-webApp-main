@@ -113,7 +113,6 @@ body.dark-mode .skeleton {
   padding: 8px;
   border-radius: 50%;
   transition: all 0.3s ease;
-  margin-right: 15px;
 }
 
 .theme-toggle:hover {

@@ -103,6 +103,13 @@
         </div>
 
         <div class="nav-right">
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle theme"
+          >
+            <i class="bi bi-moon"></i>
+          </button>
           <div class="search-bar">
             <input
               type="text"
@@ -112,13 +119,6 @@
             />
             <i class="bi bi-search search-icon"></i>
           </div>
-          <button
-            class="theme-toggle"
-            id="themeToggle"
-            aria-label="Toggle theme"
-          >
-            <i class="bi bi-moon"></i>
-          </button>
         </div>
       </div>
 
@@ -412,6 +412,9 @@
 
     <!-- Load sidebar -->
     <script type="module" src="../scripts/sidebar.js"></script>
+
+    <!-- Load notifications -->
+    <script type="module" src="../scripts/notifications.js"></script>
 
     <!-- Load dashboard -->
     <script type="module" src="../scripts/dashboard.js"></script>

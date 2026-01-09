@@ -7,6 +7,7 @@ const path = require("path");
 const supabase = require("../config/supabase");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 const rateLimit = require("express-rate-limit");
+const notificationService = require("../services/notificationService");
 
 // ===== SECURITY: Rate limiters =====
 const reportSubmitLimiter = rateLimit({
@@ -368,6 +369,17 @@ router.post(
         reportId,
         reportedUser: reportedUser,
       });
+
+      // ===== NOTIFICATION: Notify all admins about new report =====
+      try {
+        await notificationService.notifyAdminsNewReport(
+          reportId,
+          reportDoc.reporterName || "A user",
+          type
+        );
+      } catch (notifErr) {
+        console.warn("[reports] Failed to notify admins:", notifErr.message);
+      }
 
       // ✅ FIXED: Removed 'anonymous' field from response
       // ✅ UPDATED: Added contextual report fields to response

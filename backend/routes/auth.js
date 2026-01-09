@@ -5,6 +5,7 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 const { INSTITUTION_EMAIL_DOMAIN } = require("../config/constants");
+const notificationService = require("../services/notificationService");
 
 // ===== NODEMAILER CONFIGURATION =====
 // ✅ FIXED: Better error handling and validation
@@ -575,6 +576,24 @@ router.post("/signup", signupLimiter, async (req, res) => {
 
     // ===== SECURITY: Delete the verified OTP flag to prevent re-use =====
     await admin.firestore().collection("verifiedOtps").doc(email).delete();
+
+    // ===== NOTIFICATION: Notify all admins about new user registration =====
+    try {
+      const userName =
+        sanitizedFirstName || sanitizedLastName
+          ? `${sanitizedFirstName} ${sanitizedLastName}`.trim()
+          : "";
+      await notificationService.notifyAdminsNewUser(
+        userRecord.uid,
+        userName,
+        email
+      );
+    } catch (notifErr) {
+      console.warn(
+        "[auth] Failed to notify admins about new user:",
+        notifErr.message
+      );
+    }
 
     console.log(
       `[auth] ✅ User signup successful: ${email} (UID: ${userRecord.uid})`

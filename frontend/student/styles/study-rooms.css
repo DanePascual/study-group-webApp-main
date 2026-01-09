@@ -446,7 +446,6 @@ body.dark-mode .requirement-item.unmet i {
   padding: 8px;
   border-radius: 50%;
   transition: all 0.3s ease;
-  margin-left: 15px;
 }
 
 .theme-toggle:hover {

@@ -1085,6 +1085,7 @@ body.dark-mode .theme-toggle:hover {
 .nav-right {
   display: flex;
   align-items: center;
+  gap: 15px;
 }
 
 @media (max-width: 900px) {

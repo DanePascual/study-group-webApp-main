@@ -3,6 +3,7 @@ const router = express.Router();
 const supabase = require("../config/supabase");
 const admin = require("../config/firebase-admin"); // used to resolve author display names from Firestore
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
+const notificationService = require("../services/notificationService");
 
 /**
  * Build a public URL for a stored profile file when only filename exists.
@@ -453,12 +454,10 @@ router.delete("/:id", firebaseAuthMiddleware, async (req, res) => {
 
     if (!isAuthor && !isAdmin) {
       console.warn(`[topics.delete] Unauthorized delete attempt by ${uid}`);
-      return res
-        .status(403)
-        .json({
-          error:
-            "You can only delete your own topics. Admins can delete any topic.",
-        });
+      return res.status(403).json({
+        error:
+          "You can only delete your own topics. Admins can delete any topic.",
+      });
     }
 
     // Log who is deleting
@@ -579,6 +578,37 @@ router.post("/:id/posts", firebaseAuthMiddleware, async (req, res) => {
       post.author_avatar = null;
     }
     post.created = post.created ? new Date(post.created).toISOString() : null;
+
+    // ===== NOTIFICATION: Notify topic owner about new post =====
+    try {
+      // Get topic info to find owner
+      const { data: topicInfo } = await supabase
+        .from("topics")
+        .select("author_id, title")
+        .eq("id", topicId)
+        .single();
+
+      if (
+        topicInfo &&
+        topicInfo.author_id &&
+        topicInfo.author_id !== req.user.uid
+      ) {
+        const posterName = post.author || "Someone";
+        const topicTitle = topicInfo.title || "your topic";
+        await notificationService.notifyTopicPost(
+          topicInfo.author_id,
+          posterName,
+          topicTitle,
+          topicId,
+          data.id
+        );
+      }
+    } catch (notifErr) {
+      console.warn(
+        "[topics] Failed to send post notification:",
+        notifErr.message
+      );
+    }
 
     res.status(201).json({ post });
   } catch (err) {

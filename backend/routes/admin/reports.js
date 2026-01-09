@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("../../config/firebase-admin");
 const adminAuthMiddleware = require("../../middleware/adminAuthMiddleware");
+const notificationService = require("../../services/notificationService");
 
 const db = admin.firestore();
 
@@ -295,6 +296,33 @@ router.put("/:id/status", adminAuthMiddleware, async (req, res) => {
       reason: reason || "No reason provided",
       status: "completed",
     });
+
+    // ===== NOTIFICATION: Notify reporter when status changes to resolved or dismissed =====
+    if (status === "resolved" || status === "dismissed") {
+      try {
+        // Get report to find the reporter
+        const reportDoc = await db.collection("reports").doc(reportId).get();
+        if (reportDoc.exists) {
+          const reportData = reportDoc.data();
+          const reporterId = reportData.reporterId;
+          const oldStatus = reportData.status || "pending";
+
+          if (reporterId) {
+            await notificationService.notifyReportStatus(
+              reporterId,
+              reportId,
+              oldStatus,
+              status
+            );
+          }
+        }
+      } catch (notifErr) {
+        console.warn(
+          "[admin-reports] Failed to send report status notification:",
+          notifErr.message
+        );
+      }
+    }
 
     console.log(
       `[admin-reports] ✅ Report ${reportId} status updated to ${status}, severity: ${finalSeverity}`

@@ -22,6 +22,7 @@ const router = express.Router();
 const supabase = require("../config/supabase");
 const admin = require("../config/firebase-admin");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
+const notificationService = require("../services/notificationService");
 
 const sanitizeHtml = require("sanitize-html");
 const rateLimit = require("express-rate-limit");
@@ -209,6 +210,31 @@ router.post(
         console.warn(
           "increment_post_comment_count RPC invocation failed (non-fatal):",
           e
+        );
+      }
+
+      // ===== NOTIFICATION: Notify post owner about new comment =====
+      try {
+        // Get post info to find owner
+        const { data: postData } = await supabase
+          .from("posts")
+          .select("author_id, title")
+          .eq("id", postId)
+          .single();
+
+        if (postData && postData.author_id && postData.author_id !== uid) {
+          const postTitle = postData.title || "your post";
+          await notificationService.notifyPostComment(
+            postData.author_id,
+            author_name,
+            postTitle,
+            postId
+          );
+        }
+      } catch (notifErr) {
+        console.warn(
+          "[comments] Failed to send comment notification:",
+          notifErr.message
         );
       }
 

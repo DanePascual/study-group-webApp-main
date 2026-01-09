@@ -4,6 +4,7 @@ const admin = require("../config/firebase-admin");
 const firebaseAuthMiddleware = require("../middleware/firebaseAuthMiddleware");
 const rateLimit = require("express-rate-limit");
 const bcrypt = require("bcryptjs");
+const notificationService = require("../services/notificationService");
 
 // ===== SECURITY: Rate limiters =====
 const createRoomLimiter = rateLimit({
@@ -791,6 +792,46 @@ router.post(
             roomId: id,
             participantCount: result.body.participantCount,
           });
+
+          // ===== NOTIFICATION: Notify room owner about new join =====
+          try {
+            const roomDoc = await db.collection("study-groups").doc(id).get();
+            if (roomDoc.exists) {
+              const roomData = roomDoc.data();
+              const roomOwnerId = roomData.createdBy;
+              const roomName = roomData.name || "Study Room";
+
+              // Don't notify if owner joins their own room
+              if (roomOwnerId && roomOwnerId !== req.user.uid) {
+                // Get joiner's name
+                let joinerName = req.user.email || "Someone";
+                try {
+                  const userDoc = await db
+                    .collection("users")
+                    .doc(req.user.uid)
+                    .get();
+                  if (userDoc.exists) {
+                    joinerName =
+                      userDoc.data().name || userDoc.data().email || joinerName;
+                  }
+                } catch (e) {
+                  /* ignore */
+                }
+
+                await notificationService.notifyRoomJoin(
+                  roomOwnerId,
+                  joinerName,
+                  roomName,
+                  id
+                );
+              }
+            }
+          } catch (notifErr) {
+            console.warn(
+              "[study-groups] Failed to send join notification:",
+              notifErr.message
+            );
+          }
         }
         return res.status(result.status).json(result.body);
       }
@@ -889,6 +930,41 @@ router.delete(
         isOwner: isOwner,
         isRemovingSelf: isRemovingSelf,
       });
+
+      // ===== NOTIFICATION: Notify room owner when someone leaves =====
+      try {
+        const roomOwnerId = roomData.createdBy;
+        const roomName = roomData.name || "Study Room";
+
+        // Only notify owner if someone else left (not if owner removes someone)
+        if (isRemovingSelf && roomOwnerId && roomOwnerId !== decodedUserId) {
+          let leaverName = "Someone";
+          try {
+            const userDoc = await db
+              .collection("users")
+              .doc(decodedUserId)
+              .get();
+            if (userDoc.exists) {
+              leaverName =
+                userDoc.data().name || userDoc.data().email || leaverName;
+            }
+          } catch (e) {
+            /* ignore */
+          }
+
+          await notificationService.notifyRoomLeave(
+            roomOwnerId,
+            leaverName,
+            roomName,
+            id
+          );
+        }
+      } catch (notifErr) {
+        console.warn(
+          "[study-groups] Failed to send leave notification:",
+          notifErr.message
+        );
+      }
 
       res.json({
         success: true,
