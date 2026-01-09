@@ -50,38 +50,112 @@ router.get("/", adminAuthMiddleware, async (req, res) => {
     const offset = (page - 1) * limit;
     let reportsList = totalSnapshot.docs.slice(offset, offset + limit);
 
-    // ===== Build response =====
-    let reports = reportsList.map((doc) => {
-      const data = doc.data();
-
-      // Convert timestamp (Firestore) to ISO string
-      let createdAt = null;
-      if (data.timestampISO) {
-        createdAt = data.timestampISO;
-      } else if (data.timestamp) {
-        createdAt = data.timestamp.toDate?.()
-          ? data.timestamp.toDate().toISOString()
-          : new Date(data.timestamp).toISOString();
-      } else {
-        createdAt = new Date().toISOString();
+    // ===== Helper: Look up email from UID =====
+    async function lookupEmailFromUID(uid) {
+      if (!uid || uid.includes("@")) {
+        return uid; // Already an email or empty
       }
 
-      return {
-        id: data.id || doc.id,
-        type: data.type || "Unknown",
-        reportedUserId: data.reportedUser || data.reportedUserId || "Unknown",
-        reason: data.description || data.reason || "",
-        severity: data.severity || "low",
-        status: data.status || "pending",
-        createdAt,
-        reporterId: data.reporterId || "",
-        reporterName: data.reporterName || "Unknown",
-        reporterEmail: data.reporterEmail || "",
-        location: data.location || "",
-        incidentTime: data.incidentTime || null,
-        files: data.files || [],
-      };
-    });
+      try {
+        // Try direct Firestore lookup first
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists) {
+          const email = userDoc.data().email;
+          if (email) {
+            console.log(`[admin-reports] Found in Firestore: ${email}`);
+            return email;
+          }
+        }
+
+        // Try case-insensitive search (some UIDs were stored lowercase)
+        console.log(
+          `[admin-reports] Direct lookup failed, trying case-insensitive search...`
+        );
+        const allUsersSnapshot = await db.collection("users").get();
+        for (const doc of allUsersSnapshot.docs) {
+          if (doc.id.toLowerCase() === uid.toLowerCase()) {
+            const email = doc.data().email;
+            if (email) {
+              console.log(
+                `[admin-reports] Found with case-insensitive match: ${email}`
+              );
+              return email;
+            }
+          }
+        }
+
+        // Try Firebase Auth as fallback
+        const userRecord = await admin.auth().getUser(uid);
+        if (userRecord.email) {
+          console.log(`[admin-reports] Found in Auth: ${userRecord.email}`);
+          return userRecord.email;
+        }
+      } catch (err) {
+        console.log(
+          `[admin-reports] Could not resolve UID ${uid}: ${err.message}`
+        );
+      }
+
+      return uid; // Return original if not found
+    }
+
+    // ===== Build response =====
+    let reports = await Promise.all(
+      reportsList.map(async (doc) => {
+        const data = doc.data();
+
+        // Convert timestamp (Firestore) to ISO string
+        let createdAt = null;
+        if (data.timestampISO) {
+          createdAt = data.timestampISO;
+        } else if (data.timestamp) {
+          createdAt = data.timestamp.toDate?.()
+            ? data.timestamp.toDate().toISOString()
+            : new Date(data.timestamp).toISOString();
+        } else {
+          createdAt = new Date().toISOString();
+        }
+
+        // Resolve reported user - could be email, UID, or targetId
+        const reportedUserField =
+          data.reportedUser || data.reportedUserId || "";
+        const targetId = data.targetId || "";
+        const targetEmail = data.targetEmail || "";
+
+        let reportedUserEmail = "Unknown";
+
+        // Priority: targetEmail > reportedUser if email > lookup targetId > lookup reportedUser
+        if (targetEmail && targetEmail.includes("@")) {
+          reportedUserEmail = targetEmail;
+        } else if (reportedUserField.includes("@")) {
+          reportedUserEmail = reportedUserField;
+        } else if (targetId) {
+          reportedUserEmail = await lookupEmailFromUID(targetId);
+        } else if (reportedUserField) {
+          reportedUserEmail = await lookupEmailFromUID(reportedUserField);
+        }
+
+        console.log(
+          `[admin-reports] Resolved reportedUser: ${reportedUserField} -> ${reportedUserEmail}`
+        );
+
+        return {
+          id: data.id || doc.id,
+          type: data.type || "Unknown",
+          reportedUserId: reportedUserEmail,
+          reason: data.description || data.reason || "",
+          severity: data.severity || "low",
+          status: data.status || "pending",
+          createdAt,
+          reporterId: data.reporterId || "",
+          reporterName: data.reporterName || "Unknown",
+          reporterEmail: data.reporterEmail || "",
+          location: data.location || "",
+          incidentTime: data.incidentTime || null,
+          files: data.files || [],
+        };
+      })
+    );
 
     // ===== Search filter (in memory) =====
     if (search) {

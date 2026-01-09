@@ -332,14 +332,22 @@ router.post(
         reporterEmail,
         type,
         severity: severity || "medium",
-        reportedUser: normalizeEmail(effectiveReportedUser),
+        // Only normalize if it's an email (contains @), otherwise preserve UID case
+        reportedUser: effectiveReportedUser.includes("@")
+          ? normalizeEmail(effectiveReportedUser)
+          : effectiveReportedUser,
         location: effectiveLocation,
         incidentTime: incidentTime || null,
         description,
         files: filesMeta,
         // New contextual fields
         targetId: targetId || null,
-        targetEmail: targetEmail ? normalizeEmail(targetEmail) : null,
+        // Only normalize if it's an email
+        targetEmail: targetEmail
+          ? targetEmail.includes("@")
+            ? normalizeEmail(targetEmail)
+            : targetEmail
+          : null,
         targetName: targetName || null,
         contextType: contextType || null,
         contextId: contextId || null,
