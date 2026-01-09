@@ -3,7 +3,7 @@
     "rooms": {
       "$roomId": {
         "presence": {
-          ".read": "auth != null",
+          ".read": true,
           "$userId": {
             ".write": "auth != null && auth.uid == $userId"
           }

@@ -338,6 +338,24 @@ function subscribeToAllDisplayedRoomsPresence() {
 
   if (!database) return;
 
+  // Wait for Firebase Auth to be ready before subscribing
+  if (typeof firebase !== "undefined" && firebase.auth) {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) {
+      // Listen for auth state change
+      firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+          doSubscribeToRooms();
+        }
+      });
+      return;
+    }
+  }
+
+  doSubscribeToRooms();
+}
+
+function doSubscribeToRooms() {
   // Unsubscribe from previous listeners
   unsubscribeFromAllRoomPresence();
 

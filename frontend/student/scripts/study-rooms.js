@@ -183,6 +183,29 @@ function subscribeToAllDisplayedRoomsPresence() {
     return;
   }
 
+  // Wait for Firebase Auth to be ready before subscribing
+  if (typeof firebase !== "undefined" && firebase.auth) {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) {
+      debugLog("[presence] Waiting for Firebase Auth...");
+      // Listen for auth state change
+      firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+          debugLog(`[presence] Auth ready, user: ${user.uid.substring(0, 8)}`);
+          doSubscribeToRooms();
+        }
+      });
+      return;
+    }
+    debugLog(
+      `[presence] Auth already ready, user: ${currentUser.uid.substring(0, 8)}`
+    );
+  }
+
+  doSubscribeToRooms();
+}
+
+function doSubscribeToRooms() {
   // Unsubscribe from previous listeners
   unsubscribeFromAllRoomPresence();
 
