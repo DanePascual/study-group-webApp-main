@@ -112,23 +112,29 @@ function subscribeToRoomPresence(roomId) {
   debugLog(`[presence] Subscribing to room presence: ${roomId}`);
   const roomPresenceRef = database.ref(`rooms/${roomId}/presence`);
 
-  const handler = roomPresenceRef.on("value", (snapshot) => {
-    const presenceData = snapshot.val() || {};
-    let onlineCount = 0;
+  const handler = roomPresenceRef.on(
+    "value",
+    (snapshot) => {
+      const presenceData = snapshot.val() || {};
+      let onlineCount = 0;
 
-    for (const userId in presenceData) {
-      if (presenceData[userId]?.online === true) {
-        onlineCount++;
+      for (const userId in presenceData) {
+        if (presenceData[userId]?.online === true) {
+          onlineCount++;
+        }
       }
-    }
 
-    debugLog(`[presence] Room ${roomId} has ${onlineCount} online`);
-    roomOnlineCounts.set(roomId, onlineCount);
-    updateRoomCardOnlineCount(roomId, onlineCount);
-  }, (error) => {
-    console.error(`[presence] Error reading presence for room ${roomId}:`, error);
-  });
-  });
+      debugLog(`[presence] Room ${roomId} has ${onlineCount} online`);
+      roomOnlineCounts.set(roomId, onlineCount);
+      updateRoomCardOnlineCount(roomId, onlineCount);
+    },
+    (error) => {
+      console.error(
+        `[presence] Error reading presence for room ${roomId}:`,
+        error
+      );
+    }
+  );
 
   presenceListeners.set(roomId, () => {
     roomPresenceRef.off("value", handler);
@@ -163,8 +169,10 @@ function updateRoomCardOnlineCount(roomId, onlineCount) {
 }
 
 function subscribeToAllDisplayedRoomsPresence() {
-  debugLog(`[presence] subscribeToAllDisplayedRoomsPresence called, ${displayedRooms.length} rooms`);
-  
+  debugLog(
+    `[presence] subscribeToAllDisplayedRoomsPresence called, ${displayedRooms.length} rooms`
+  );
+
   if (!database) {
     const initialized = initializePresenceDatabase();
     debugLog(`[presence] Database initialized: ${initialized}`);
@@ -182,7 +190,7 @@ function subscribeToAllDisplayedRoomsPresence() {
   displayedRooms.forEach((room) => {
     subscribeToRoomPresence(room.id);
   });
-  
+
   debugLog(`[presence] Subscribed to ${displayedRooms.length} rooms`);
 }
 
@@ -214,6 +222,8 @@ function closeDeactivationModal() {
   // Redirect back to study rooms
   window.location.href = "study-rooms.html";
 }
+
+export { closeDeactivationModal };
 
 /* ===== PASSWORD VISIBILITY TOGGLE ===== */
 function initializePasswordToggles() {
